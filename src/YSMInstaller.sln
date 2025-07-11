@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YSMInstaller", "YSMInstaller.csproj", "{DE6748A5-5E7B-4679-8F88-D47907FD8152}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DE6748A5-5E7B-4679-8F88-D47907FD8152}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DE6748A5-5E7B-4679-8F88-D47907FD8152}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DE6748A5-5E7B-4679-8F88-D47907FD8152}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DE6748A5-5E7B-4679-8F88-D47907FD8152}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {73DB86BD-73A8-4A4F-948C-C4C8D24AAD1C}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,62 @@
+[
+    {
+        "mod_type": "ysm",
+        "game_version": 138477,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v138477/ysm_138477.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 139038,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v139038/ysm_139038.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 139445,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v139445/ysm_139445.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 141373,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v141373/ysm_141373.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 141935,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v141935/ysm_141935.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 146198,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v146198/ysm_146198.zip",
+        "known_issues_url": "https://steamcommunity.com/workshop/filedetails/discussion/3296415395/4509876644765422685/#c595142234675886160"
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 150731,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v150731/ysm_150731.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 157953,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v157953/ysm_157953.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 158113,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v158113/ysm_158113.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm_wif",
+        "game_version": 158113,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v158113wif/ysm_wif_158113.zip",
+        "known_issues_url": null
+    }
+]
