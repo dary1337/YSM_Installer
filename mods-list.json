@@ -62,13 +62,19 @@
     {
         "mod_type": "ysm",
         "game_version": 160324,
+        "download_url": "https://github.com/Yokaiste/YSM/releases/download/v160324/ysm_build_160324.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 160943,
         "download_url": "https://github.com/Yokaiste/YSM/releases/download/v160943/ysm_build_160943.zip",
         "known_issues_url": null
     },
     {
         "mod_type": "ysm_wif",
-        "game_version": 160324,
-        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v160324wif/ysm_wif_160324.zip",
+        "game_version": 160943,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v160943wif/ysm_wif_160943.zip",
         "known_issues_url": null
     }
 ]
