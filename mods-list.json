@@ -76,5 +76,11 @@
         "game_version": 160943,
         "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v160943wif/ysm_wif_160943.zip",
         "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 165214,
+        "download_url": "https://github.com/Yokaiste/YSM/releases/download/v165214/ysm_build_165214.zip",
+        "known_issues_url": null
     }
 ]
