@@ -112,5 +112,24 @@
         "game_version": 173446,
         "download_url": "https://github.com/Yokaiste/YSM/releases/download/v173446/ysm_build_173446.zip",
         "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 174602,
+        "download_url": "https://github.com/Yokaiste/YSM/releases/download/v174602/ysm_build_174602.zip",
+        "known_issues_url": null
+    },
+    ,
+    {
+        "mod_type": "ysm",
+        "game_version": 178307,
+        "download_url": "https://github.com/Yokaiste/YSM/releases/download/v178307/ysm_build_178307.zip",
+        "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 178863,
+        "download_url": "https://github.com/Yokaiste/YSM/releases/download/v178863/ysm_build_178863.zip",
+        "known_issues_url": null
     }
 ]
