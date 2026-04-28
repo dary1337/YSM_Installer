@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace YSMInstaller {
-    public static class WarnoScanner {
-        public static List<WarnoEntry> Scan(List<WarnoExecutable> executables, List<ModMetadata> supportedVersions) {
+namespace YSMInstaller
+{
+    public static class WarnoScanner
+    {
+        public static List<WarnoEntry> Scan(List<WarnoExecutable> executables, List<ModMetadata> supportedVersions)
+        {
             var entries = new List<WarnoEntry>();
 
             int latestSupportedVersion = supportedVersions
@@ -13,14 +16,18 @@ namespace YSMInstaller {
                 .DefaultIfEmpty(0)
                 .Max();
 
-            foreach (WarnoExecutable executable in executables) {
-                try {
-                    var entry = new WarnoEntry {
+            foreach (WarnoExecutable executable in executables)
+            {
+                try
+                {
+                    var entry = new WarnoEntry
+                    {
                         ExePath = executable.Path,
                         SourceLabel = executable.SourceLabel
                     };
 
-                    if (!Directory.Exists(entry.ModsPath) || !Directory.Exists(entry.VersionPath)) {
+                    if (!Directory.Exists(entry.ModsPath) || !Directory.Exists(entry.VersionPath))
+                    {
                         continue;
                     }
 
@@ -32,7 +39,8 @@ namespace YSMInstaller {
                         .DefaultIfEmpty(0)
                         .Max();
 
-                    if (highestVersion == 0) {
+                    if (highestVersion == 0)
+                    {
                         continue;
                     }
 
@@ -43,7 +51,8 @@ namespace YSMInstaller {
                         : 0;
                     entries.Add(entry);
                 }
-                catch (Exception exception) {
+                catch (Exception exception)
+                {
                     AppLogger.Error($"Failed to inspect WARNO executable: {executable.Path}", exception);
                 }
             }

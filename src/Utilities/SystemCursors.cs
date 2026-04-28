@@ -2,8 +2,10 @@ using System;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    public static class SystemCursors {
+namespace YSMInstaller
+{
+    public static class SystemCursors
+    {
         [DllImport("user32.dll")]
         private static extern IntPtr LoadCursor(IntPtr hInstance, int cursorName);
 

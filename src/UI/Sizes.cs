@@ -1,5 +1,7 @@
-﻿namespace YSMInstaller {
-    static class Sizes {
+﻿namespace YSMInstaller
+{
+    static class Sizes
+    {
         public const int FormPadding = 10;
         public const int PanelHeight = 80;
         public const int PanelPadding = 10;

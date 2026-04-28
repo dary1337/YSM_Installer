@@ -1,7 +1,9 @@
 ﻿using System.Drawing;
 
-namespace YSMInstaller {
-    public static class Theme {
+namespace YSMInstaller
+{
+    public static class Theme
+    {
         public static readonly Color Background = Color.FromArgb(19, 22, 30);
 
         public static readonly Color PanelBackground = Color.FromArgb(14, 14, 22);

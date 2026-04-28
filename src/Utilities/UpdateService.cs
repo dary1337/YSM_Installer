@@ -9,25 +9,31 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    public static class UpdateService {
+namespace YSMInstaller
+{
+    public static class UpdateService
+    {
         private const string LatestReleaseUrl = "https://api.github.com/repos/dary1337/YSM_Installer/releases/latest";
         private const string InstallerAssetName = "YSMInstaller.exe";
 
-        public static async Task<bool> CheckForUpdatesAsync(IWin32Window owner) {
+        public static async Task<bool> CheckForUpdatesAsync(IWin32Window owner)
+        {
             UpdateInfo updateInfo;
 
-            try {
+            try
+            {
                 AppLogger.Info("Checking for application updates.");
                 updateInfo = await FetchLatestReleaseAsync();
             }
-            catch (Exception exception) {
+            catch (Exception exception)
+            {
                 AppLogger.Error("Failed to check for application updates.", exception);
                 return false;
             }
 
             var currentVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
-            if (updateInfo.Version <= currentVersion) {
+            if (updateInfo.Version <= currentVersion)
+            {
                 AppLogger.Info($"Application is up to date. Current: {currentVersion}, remote: {updateInfo.Version}.");
                 return false;
             }
@@ -40,17 +46,20 @@ namespace YSMInstaller {
                 MessageBoxIcon.Information
             );
 
-            if (answer != DialogResult.Yes) {
+            if (answer != DialogResult.Yes)
+            {
                 AppLogger.Info($"Application update skipped by user. Current: {currentVersion}, remote: {updateInfo.Version}.");
                 return false;
             }
 
-            try {
+            try
+            {
                 AppLogger.Info($"Downloading application update {updateInfo.Version}.");
                 await DownloadAndRestartAsync(updateInfo.DownloadUrl);
                 return true;
             }
-            catch (Exception exception) {
+            catch (Exception exception)
+            {
                 AppLogger.Critical("Auto-update failed.", exception);
                 MessageBox.Show(
                     owner,
@@ -63,7 +72,8 @@ namespace YSMInstaller {
             }
         }
 
-        private static async Task<UpdateInfo> FetchLatestReleaseAsync() {
+        private static async Task<UpdateInfo> FetchLatestReleaseAsync()
+        {
             var json = await HttpService.GetStringAsync(LatestReleaseUrl);
             var release = JsonConvert.DeserializeObject<GitHubRelease>(json)
                 ?? throw new InvalidDataException("GitHub release response is empty.");
@@ -72,32 +82,38 @@ namespace YSMInstaller {
             var installerAsset = release.Assets.FirstOrDefault(asset =>
                 string.Equals(asset.Name, InstallerAssetName, StringComparison.OrdinalIgnoreCase));
 
-            if (installerAsset == null || !IsSafeDownloadUrl(installerAsset.BrowserDownloadUrl)) {
+            if (installerAsset == null || !IsSafeDownloadUrl(installerAsset.BrowserDownloadUrl))
+            {
                 throw new InvalidDataException($"Latest GitHub release must contain HTTPS asset '{InstallerAssetName}'.");
             }
 
             return new UpdateInfo(version, installerAsset.BrowserDownloadUrl);
         }
 
-        private static Version ParseTagVersion(string tagName) {
+        private static Version ParseTagVersion(string tagName)
+        {
             string normalizedTag = tagName.Trim();
-            if (normalizedTag.StartsWith("v", StringComparison.OrdinalIgnoreCase)) {
+            if (normalizedTag.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+            {
                 normalizedTag = normalizedTag.Substring(1);
             }
 
-            if (!Version.TryParse(normalizedTag, out var version)) {
+            if (!Version.TryParse(normalizedTag, out var version))
+            {
                 throw new FormatException($"GitHub release tag '{tagName}' must use v1.0.0.2 format.");
             }
 
             return version;
         }
 
-        private static bool IsSafeDownloadUrl(string value) {
+        private static bool IsSafeDownloadUrl(string value)
+        {
             return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
                    uri.Scheme == Uri.UriSchemeHttps;
         }
 
-        private static async Task DownloadAndRestartAsync(string downloadUrl) {
+        private static async Task DownloadAndRestartAsync(string downloadUrl)
+        {
             var currentExePath = Application.ExecutablePath;
             var tempExePath = Path.Combine(Path.GetTempPath(), $"YSMInstaller_{Guid.NewGuid():N}.exe");
             var updaterPath = Path.Combine(Path.GetTempPath(), $"YSMInstaller_Update_{Guid.NewGuid():N}.cmd");
@@ -107,7 +123,8 @@ namespace YSMInstaller {
             var script = BuildUpdaterScript(currentExePath, tempExePath, updaterPath);
             File.WriteAllText(updaterPath, script, Encoding.ASCII);
 
-            Process.Start(new ProcessStartInfo {
+            Process.Start(new ProcessStartInfo
+            {
                 FileName = updaterPath,
                 UseShellExecute = true,
                 WindowStyle = ProcessWindowStyle.Hidden
@@ -116,7 +133,8 @@ namespace YSMInstaller {
             Application.Exit();
         }
 
-        private static string BuildUpdaterScript(string currentExePath, string tempExePath, string updaterPath) {
+        private static string BuildUpdaterScript(string currentExePath, string tempExePath, string updaterPath)
+        {
             var currentProcessId = Process.GetCurrentProcess().Id;
 
             return
@@ -131,8 +149,10 @@ namespace YSMInstaller {
                 $"del \"{updaterPath}\" >nul 2>nul\r\n";
         }
 
-        private sealed class UpdateInfo {
-            public UpdateInfo(Version version, string downloadUrl) {
+        private sealed class UpdateInfo
+        {
+            public UpdateInfo(Version version, string downloadUrl)
+            {
                 Version = version;
                 DownloadUrl = downloadUrl;
             }
@@ -141,7 +161,8 @@ namespace YSMInstaller {
             public string DownloadUrl { get; }
         }
 
-        private sealed class GitHubRelease {
+        private sealed class GitHubRelease
+        {
             [JsonProperty("tag_name")]
             public string TagName { get; set; } = string.Empty;
 
@@ -149,7 +170,8 @@ namespace YSMInstaller {
             public List<GitHubReleaseAsset> Assets { get; set; } = new List<GitHubReleaseAsset>();
         }
 
-        private sealed class GitHubReleaseAsset {
+        private sealed class GitHubReleaseAsset
+        {
             [JsonProperty("name")]
             public string Name { get; set; } = string.Empty;
 

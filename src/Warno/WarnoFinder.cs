@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -5,51 +6,85 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32;
 
-namespace YSMInstaller {
-    public static class WarnoFinder {
+namespace YSMInstaller
+{
+    public static class WarnoFinder
+    {
+        private const int MaxParallelDriveBranches = 2;
         private const string WarnoSteamAppId = "1611600";
 
-        public static async Task<List<WarnoExecutable>> FindExecutablesAsync(bool includeSystemFolders) {
+        public static async Task<List<WarnoExecutable>> FindExecutablesAsync(bool includeSystemFolders)
+        {
             return await Task.Run(() => FindExecutables(includeSystemFolders));
         }
 
-        private static List<WarnoExecutable> FindExecutables(bool includeSystemFolders) {
+        private static List<WarnoExecutable> FindExecutables(bool includeSystemFolders)
+        {
             var foundExecutables = new ConcurrentDictionary<string, WarnoExecutable>(StringComparer.OrdinalIgnoreCase);
 
-            Parallel.ForEach(GetLikelyExecutableCandidates(), candidate => AddExecutableIfValid(candidate, foundExecutables));
-
-            if (foundExecutables.Count > 0 || !includeSystemFolders) {
-                return foundExecutables.Values
-                    .OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+            foreach (WarnoExecutable cachedCandidate in GetCachedExecutableCandidates())
+            {
+                AddExecutableIfValid(cachedCandidate, foundExecutables);
             }
 
-            Parallel.ForEach(GetSearchableDrives(), drive => {
-                foreach (WarnoExecutable executable in SearchDrive(drive, includeSystemFolders)) {
+            foreach (WarnoExecutable candidate in GetLikelyExecutableCandidates())
+            {
+                AddExecutableIfValid(candidate, foundExecutables);
+            }
+
+            if (foundExecutables.Count > 0 || !includeSystemFolders)
+            {
+                var results = foundExecutables.Values
+                    .OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                SaveLastWarnoExecutablePath(results);
+                return results;
+            }
+
+            foreach (DriveInfo drive in GetSearchableDrives())
+            {
+                foreach (WarnoExecutable executable in SearchDrive(drive, includeSystemFolders))
+                {
                     AddExecutableIfValid(executable, foundExecutables);
                 }
-            });
+            }
 
-            return foundExecutables.Values
+            var deepScanResults = foundExecutables.Values
                 .OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            SaveLastWarnoExecutablePath(deepScanResults);
+            return deepScanResults;
         }
 
-        private static IEnumerable<WarnoExecutable> GetLikelyExecutableCandidates() {
+        private static IEnumerable<WarnoExecutable> GetCachedExecutableCandidates()
+        {
+            string cachedPath = Properties.Settings.Default.LastWarnoExecutablePath;
+            if (string.IsNullOrWhiteSpace(cachedPath))
+            {
+                yield break;
+            }
+
+            yield return new WarnoExecutable(cachedPath, GetSourceLabel(cachedPath));
+        }
+
+        private static IEnumerable<WarnoExecutable> GetLikelyExecutableCandidates()
+        {
             var libraries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (string steamPath in GetSteamInstallPaths()) {
+            foreach (string steamPath in GetSteamInstallPaths())
+            {
                 AddSteamLibrary(steamPath, libraries);
 
                 string libraryFoldersPath = Path.Combine(steamPath, "steamapps", "libraryfolders.vdf");
-                foreach (string libraryPath in ReadSteamLibraryFolders(libraryFoldersPath)) {
+                foreach (string libraryPath in ReadSteamLibraryFolders(libraryFoldersPath))
+                {
                     AddSteamLibrary(libraryPath, libraries);
                 }
             }
 
-            foreach (DriveInfo drive in GetSearchableDrives()) {
+            foreach (DriveInfo drive in GetSearchableDrives())
+            {
                 string root = drive.RootDirectory.FullName;
                 AddSteamLibrary(Path.Combine(root, "Steam"), libraries);
                 AddSteamLibrary(Path.Combine(root, "SteamLibrary"), libraries);
@@ -57,11 +92,13 @@ namespace YSMInstaller {
                 AddSteamLibrary(Path.Combine(root, "Games", "SteamLibrary"), libraries);
             }
 
-            foreach (string libraryPath in libraries) {
+            foreach (string libraryPath in libraries)
+            {
                 string manifestPath = Path.Combine(libraryPath, "steamapps", $"appmanifest_{WarnoSteamAppId}.acf");
                 string? installDir = ReadSteamManifestValue(manifestPath, "installdir");
 
-                if (!string.IsNullOrWhiteSpace(installDir)) {
+                if (!string.IsNullOrWhiteSpace(installDir))
+                {
                     yield return new WarnoExecutable(
                         Path.Combine(libraryPath, "steamapps", "common", installDir!, "Warno.exe"),
                         WarnoExecutableSources.Steam
@@ -75,69 +112,86 @@ namespace YSMInstaller {
             }
         }
 
-        private static IEnumerable<string> GetSteamInstallPaths() {
+        private static IEnumerable<string> GetSteamInstallPaths()
+        {
             string[] registryPaths = {
                 @"SOFTWARE\Valve\Steam",
                 @"SOFTWARE\WOW6432Node\Valve\Steam"
             };
 
-            foreach (RegistryKey rootKey in new[] { Registry.CurrentUser, Registry.LocalMachine }) {
-                foreach (string registryPath in registryPaths) {
+            foreach (RegistryKey rootKey in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            {
+                foreach (string registryPath in registryPaths)
+                {
                     string? installPath = ReadRegistryString(rootKey, registryPath, "SteamPath") ??
                                           ReadRegistryString(rootKey, registryPath, "InstallPath");
 
-                    if (!string.IsNullOrWhiteSpace(installPath)) {
+                    if (!string.IsNullOrWhiteSpace(installPath))
+                    {
                         yield return installPath!.Replace('/', Path.DirectorySeparatorChar);
                     }
                 }
             }
 
             string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            if (!string.IsNullOrWhiteSpace(programFilesX86)) {
+            if (!string.IsNullOrWhiteSpace(programFilesX86))
+            {
                 yield return Path.Combine(programFilesX86, "Steam");
             }
 
             string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            if (!string.IsNullOrWhiteSpace(programFiles)) {
+            if (!string.IsNullOrWhiteSpace(programFiles))
+            {
                 yield return Path.Combine(programFiles, "Steam");
             }
         }
 
-        private static string? ReadRegistryString(RegistryKey rootKey, string subKeyName, string valueName) {
-            try {
-                using (RegistryKey? key = rootKey.OpenSubKey(subKeyName)) {
+        private static string? ReadRegistryString(RegistryKey rootKey, string subKeyName, string valueName)
+        {
+            try
+            {
+                using (RegistryKey? key = rootKey.OpenSubKey(subKeyName))
+                {
                     return Convert.ToString(key?.GetValue(valueName));
                 }
             }
-            catch {
+            catch
+            {
                 return null;
             }
         }
 
-        private static IEnumerable<string> ReadSteamLibraryFolders(string libraryFoldersPath) {
-            if (!File.Exists(libraryFoldersPath)) {
+        private static IEnumerable<string> ReadSteamLibraryFolders(string libraryFoldersPath)
+        {
+            if (!File.Exists(libraryFoldersPath))
+            {
                 yield break;
             }
 
-            foreach (string line in File.ReadLines(libraryFoldersPath)) {
+            foreach (string line in File.ReadLines(libraryFoldersPath))
+            {
                 string trimmed = line.Trim();
                 if (!trimmed.StartsWith("\"path\"", StringComparison.OrdinalIgnoreCase) &&
-                    !LooksLikeLegacyLibraryEntry(trimmed)) {
+                    !LooksLikeLegacyLibraryEntry(trimmed))
+                {
                     continue;
                 }
 
                 string? path = ExtractLastQuotedValue(trimmed);
-                if (!string.IsNullOrWhiteSpace(path)) {
+                if (!string.IsNullOrWhiteSpace(path))
+                {
                     yield return path!.Replace(@"\\", @"\").Replace('/', Path.DirectorySeparatorChar);
                 }
             }
         }
 
-        private static bool LooksLikeLegacyLibraryEntry(string value) {
+        private static bool LooksLikeLegacyLibraryEntry(string value)
+        {
             int firstQuote = value.IndexOf('"');
             int secondQuote = firstQuote >= 0 ? value.IndexOf('"', firstQuote + 1) : -1;
 
-            if (firstQuote != 0 || secondQuote <= firstQuote + 1) {
+            if (firstQuote != 0 || secondQuote <= firstQuote + 1)
+            {
                 return false;
             }
 
@@ -145,61 +199,78 @@ namespace YSMInstaller {
             return int.TryParse(key, out _);
         }
 
-        private static string? ExtractLastQuotedValue(string value) {
+        private static string? ExtractLastQuotedValue(string value)
+        {
             int end = value.LastIndexOf('"');
-            if (end <= 0) {
+            if (end <= 0)
+            {
                 return null;
             }
 
             int start = value.LastIndexOf('"', end - 1);
-            if (start < 0 || start == end - 1) {
+            if (start < 0 || start == end - 1)
+            {
                 return null;
             }
 
             return value.Substring(start + 1, end - start - 1);
         }
 
-        private static string? ReadSteamManifestValue(string manifestPath, string key) {
-            if (!File.Exists(manifestPath)) {
+        private static string? ReadSteamManifestValue(string manifestPath, string key)
+        {
+            if (!File.Exists(manifestPath))
+            {
                 return null;
             }
 
-            try {
-                foreach (string line in File.ReadLines(manifestPath)) {
+            try
+            {
+                foreach (string line in File.ReadLines(manifestPath))
+                {
                     string trimmed = line.Trim();
-                    if (!trimmed.StartsWith($"\"{key}\"", StringComparison.OrdinalIgnoreCase)) {
+                    if (!trimmed.StartsWith($"\"{key}\"", StringComparison.OrdinalIgnoreCase))
+                    {
                         continue;
                     }
 
                     return ExtractLastQuotedValue(trimmed);
                 }
             }
-            catch (Exception exception) {
+            catch (Exception exception)
+            {
                 AppLogger.Error($"Failed to read Steam manifest: {manifestPath}", exception);
             }
 
             return null;
         }
 
-        private static void AddSteamLibrary(string libraryPath, HashSet<string> libraries) {
-            if (string.IsNullOrWhiteSpace(libraryPath)) {
+        private static void AddSteamLibrary(string libraryPath, HashSet<string> libraries)
+        {
+            if (string.IsNullOrWhiteSpace(libraryPath))
+            {
                 return;
             }
 
-            try {
+            try
+            {
                 string fullPath = Path.GetFullPath(libraryPath);
-                if (Directory.Exists(Path.Combine(fullPath, "steamapps"))) {
+                if (Directory.Exists(Path.Combine(fullPath, "steamapps")))
+                {
                     libraries.Add(fullPath);
                 }
             }
-            catch {
+            catch
+            {
             }
         }
 
-        private static IEnumerable<DriveInfo> GetSearchableDrives() {
-            foreach (DriveInfo drive in DriveInfo.GetDrives()) {
+        private static IEnumerable<DriveInfo> GetSearchableDrives()
+        {
+            foreach (DriveInfo drive in DriveInfo.GetDrives())
+            {
                 if (!drive.IsReady ||
-                    (drive.DriveType != DriveType.Fixed && drive.DriveType != DriveType.Removable)) {
+                    (drive.DriveType != DriveType.Fixed && drive.DriveType != DriveType.Removable))
+                {
                     continue;
                 }
 
@@ -207,72 +278,166 @@ namespace YSMInstaller {
             }
         }
 
-        private static List<WarnoExecutable> SearchDrive(DriveInfo drive, bool includeSystemFolders) {
+        private static List<WarnoExecutable> SearchDrive(DriveInfo drive, bool includeSystemFolders)
+        {
             var foundExecutables = new List<WarnoExecutable>();
 
-            try {
-                if (!drive.IsReady) {
+            try
+            {
+                if (!drive.IsReady)
+                {
                     return foundExecutables;
                 }
 
-                var directories = new Stack<string>();
-                directories.Push(drive.RootDirectory.FullName);
-                int inspectedDirectories = 0;
-
-                while (directories.Count > 0) {
-                    string currentDirectory = directories.Pop();
-                    try {
-                        if (ShouldSkipDirectory(drive, currentDirectory, includeSystemFolders)) {
-                            continue;
-                        }
-
-                        if (IsReparsePoint(currentDirectory)) {
-                            continue;
-                        }
-
-                        string candidatePath = Path.Combine(currentDirectory, "Warno.exe");
-                        if (File.Exists(candidatePath)) {
-                            foundExecutables.Add(new WarnoExecutable(candidatePath, GetSourceLabel(candidatePath)));
-                        }
-
-                        foreach (string subDirectory in Directory.EnumerateDirectories(currentDirectory)) {
-                            directories.Push(subDirectory);
-                        }
-
-                        inspectedDirectories++;
-                        if (inspectedDirectories % 500 == 0) {
-                            Thread.Yield();
-                        }
-                    }
-                    catch (UnauthorizedAccessException) {
-                    }
-                    catch (IOException) {
-                    }
+                string rootCandidatePath = Path.Combine(drive.RootDirectory.FullName, "Warno.exe");
+                if (File.Exists(rootCandidatePath))
+                {
+                    foundExecutables.Add(new WarnoExecutable(rootCandidatePath, GetSourceLabel(rootCandidatePath)));
                 }
+
+                var searchRoots = GetDriveSearchRoots(drive, includeSystemFolders);
+                var searchOptions = new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = MaxParallelDriveBranches
+                };
+
+                Parallel.ForEach(searchRoots, searchOptions, searchRoot =>
+                {
+                    foreach (WarnoExecutable executable in SearchDirectoryTree(drive, searchRoot, includeSystemFolders))
+                    {
+                        lock (foundExecutables)
+                        {
+                            foundExecutables.Add(executable);
+                        }
+                    }
+                });
             }
-            catch (Exception exception) {
+            catch (Exception exception)
+            {
                 AppLogger.Error($"Failed to scan drive {drive.Name}.", exception);
             }
 
             return foundExecutables;
         }
 
-        private static void AddExecutableIfValid(WarnoExecutable executable, ConcurrentDictionary<string, WarnoExecutable> foundExecutables) {
-            try {
-                if (!File.Exists(executable.Path)) {
-                    return;
+        private static List<string> GetDriveSearchRoots(DriveInfo drive, bool includeSystemFolders)
+        {
+            var searchRoots = new List<string>();
+            string rootPath = drive.RootDirectory.FullName;
+
+            try
+            {
+                foreach (string directory in Directory.EnumerateDirectories(rootPath))
+                {
+                    if (!ShouldSkipDirectory(drive, directory, includeSystemFolders) && !IsReparsePoint(directory))
+                    {
+                        searchRoots.Add(directory);
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+            catch (IOException)
+            {
+            }
+
+            return searchRoots;
+        }
+
+        private static List<WarnoExecutable> SearchDirectoryTree(DriveInfo drive, string rootPath, bool includeSystemFolders)
+        {
+            var foundExecutables = new List<WarnoExecutable>();
+            var directories = new Stack<string>();
+            directories.Push(rootPath);
+            int inspectedDirectories = 0;
+
+            while (directories.Count > 0)
+            {
+                string currentDirectory = directories.Pop();
+                try
+                {
+                    if (ShouldSkipDirectory(drive, currentDirectory, includeSystemFolders))
+                    {
+                        continue;
+                    }
+
+                    if (IsReparsePoint(currentDirectory))
+                    {
+                        continue;
+                    }
+
+                    string candidatePath = Path.Combine(currentDirectory, "Warno.exe");
+                    if (File.Exists(candidatePath))
+                    {
+                        foundExecutables.Add(new WarnoExecutable(candidatePath, GetSourceLabel(candidatePath)));
+                    }
+
+                    foreach (string subDirectory in Directory.EnumerateDirectories(currentDirectory))
+                    {
+                        directories.Push(subDirectory);
+                    }
+
+                    inspectedDirectories++;
+                    if (inspectedDirectories % 500 == 0)
+                    {
+                        Thread.Yield();
+                    }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+                catch (IOException)
+                {
+                }
+            }
+
+            return foundExecutables;
+        }
+
+        private static bool AddExecutableIfValid(WarnoExecutable executable, ConcurrentDictionary<string, WarnoExecutable> foundExecutables)
+        {
+            try
+            {
+                if (!File.Exists(executable.Path))
+                {
+                    return false;
                 }
 
                 string directory = Path.GetDirectoryName(executable.Path) ?? string.Empty;
-                if (!File.Exists(Path.Combine(directory, "Glad.dat"))) {
-                    foundExecutables.TryAdd(executable.Path, executable);
+                if (!File.Exists(Path.Combine(directory, "Glad.dat")))
+                {
+                    return foundExecutables.TryAdd(executable.Path, executable);
                 }
             }
-            catch {
+            catch
+            {
+            }
+
+            return false;
+        }
+
+        private static void SaveLastWarnoExecutablePath(List<WarnoExecutable> executables)
+        {
+            string path = executables.FirstOrDefault()?.Path ?? string.Empty;
+            if (string.Equals(Properties.Settings.Default.LastWarnoExecutablePath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            try
+            {
+                Properties.Settings.Default.LastWarnoExecutablePath = path;
+                Properties.Settings.Default.Save();
+            }
+            catch (Exception exception)
+            {
+                AppLogger.Error("Failed to save last WARNO executable path.", exception);
             }
         }
 
-        private static string GetSourceLabel(string executablePath) {
+        private static string GetSourceLabel(string executablePath)
+        {
             return executablePath.IndexOf(
                 Path.Combine("steamapps", "common"),
                 StringComparison.OrdinalIgnoreCase
@@ -281,13 +446,16 @@ namespace YSMInstaller {
                 : string.Empty;
         }
 
-        private static bool ShouldSkipDirectory(DriveInfo drive, string path, bool includeSystemFolders) {
+        private static bool ShouldSkipDirectory(DriveInfo drive, string path, bool includeSystemFolders)
+        {
             return (drive.Name == "C:\\" && IsSystemFolder(path, includeSystemFolders)) ||
                    IsRestrictedFolder(path);
         }
 
-        private static bool IsSystemFolder(string path, bool includeSystemFolders) {
-            if (includeSystemFolders) {
+        private static bool IsSystemFolder(string path, bool includeSystemFolders)
+        {
+            if (includeSystemFolders)
+            {
                 return false;
             }
 
@@ -298,7 +466,8 @@ namespace YSMInstaller {
             return IsSameOrChildPath(fullPath, windowsPath) || IsSameOrChildPath(fullPath, usersPath);
         }
 
-        private static bool IsRestrictedFolder(string path) {
+        private static bool IsRestrictedFolder(string path)
+        {
             string[] restrictedFolders = { "System Volume Information", "$recycle.bin" };
             return restrictedFolders.Any(folder => string.Equals(
                 Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
@@ -307,17 +476,22 @@ namespace YSMInstaller {
             ));
         }
 
-        private static bool IsReparsePoint(string path) {
-            try {
+        private static bool IsReparsePoint(string path)
+        {
+            try
+            {
                 return (File.GetAttributes(path) & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
             }
-            catch {
+            catch
+            {
                 return true;
             }
         }
 
-        private static bool IsSameOrChildPath(string path, string parentPath) {
-            if (string.IsNullOrWhiteSpace(parentPath)) {
+        private static bool IsSameOrChildPath(string path, string parentPath)
+        {
+            if (string.IsNullOrWhiteSpace(parentPath))
+            {
                 return false;
             }
 
@@ -327,12 +501,15 @@ namespace YSMInstaller {
         }
     }
 
-    public static class WarnoExecutableSources {
+    public static class WarnoExecutableSources
+    {
         public const string Steam = "Steam";
     }
 
-    public sealed class WarnoExecutable {
-        public WarnoExecutable(string path, string sourceLabel) {
+    public sealed class WarnoExecutable
+    {
+        public WarnoExecutable(string path, string sourceLabel)
+        {
             Path = path;
             SourceLabel = sourceLabel;
         }

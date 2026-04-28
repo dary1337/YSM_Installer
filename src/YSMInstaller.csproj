@@ -99,26 +99,26 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Components\RoundedControls.cs" />
-    <Compile Include="Components\RoundedBorderButton.cs">
+    <Compile Include="Controls\RoundedControls.cs" />
+    <Compile Include="Controls\RoundedBorderButton.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Components\RoundedButton.cs">
+    <Compile Include="Controls\RoundedButton.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Components\RoundedLabel.cs">
+    <Compile Include="Controls\RoundedLabel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Components\RoundedPanel.cs">
+    <Compile Include="Controls\RoundedPanel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Components\RoundedPicturebox.cs">
+    <Compile Include="Controls\RoundedPicturebox.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Components\RoundedTextBox.cs">
+    <Compile Include="Controls\RoundedTextBox.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Components\WarnoEntryControl.cs">
+    <Compile Include="Controls\WarnoEntryControl.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Forms\Form1.cs">
@@ -139,15 +139,14 @@
     <Compile Include="Forms\Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
-    <Compile Include="Core\InstallModResult.cs" />
-    <Compile Include="Core\ModTypes.cs" />
-    <Compile Include="Infrastructure\AppLogger.cs" />
-    <Compile Include="Infrastructure\HttpService.cs" />
-    <Compile Include="Infrastructure\IniFile.cs" />
-    <Compile Include="Infrastructure\SafeZipExtractor.cs" />
-    <Compile Include="Infrastructure\SystemCursors.cs" />
-    <Compile Include="Infrastructure\UpdateService.cs" />
+    <Compile Include="Utilities\AppLogger.cs" />
+    <Compile Include="Utilities\HttpService.cs" />
+    <Compile Include="Utilities\IniFile.cs" />
+    <Compile Include="Utilities\SafeZipExtractor.cs" />
+    <Compile Include="Utilities\SystemCursors.cs" />
+    <Compile Include="Utilities\UpdateService.cs" />
     <Compile Include="Models\ModMetadata.cs" />
+    <Compile Include="Models\ModTypes.cs" />
     <Compile Include="Models\WarnoEntry.cs" />
     <Compile Include="Properties\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -162,10 +161,11 @@
     <Compile Include="Forms\StepsForm.Designer.cs">
       <DependentUpon>StepsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Services\ModCatalogService.cs" />
     <Compile Include="UI\Sizes.cs" />
     <Compile Include="UI\Theme.cs" />
     <Compile Include="UI\UserMessages.cs" />
+    <Compile Include="Warno\InstallModResult.cs" />
+    <Compile Include="Warno\ModCatalogService.cs" />
     <Compile Include="Warno\WarnoFinder.cs" />
     <Compile Include="Warno\WarnoInstaller.cs" />
     <Compile Include="Warno\WarnoInstallWarning.cs" />

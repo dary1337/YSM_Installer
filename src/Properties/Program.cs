@@ -2,13 +2,16 @@
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    static class Program {
+namespace YSMInstaller
+{
+    static class Program
+    {
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main() {
+        static void Main()
+        {
             AppLogger.Initialize();
             RegisterCriticalErrorHandlers();
 
@@ -17,10 +20,12 @@ namespace YSMInstaller {
             Application.Run(new Form1());
         }
 
-        private static void RegisterCriticalErrorHandlers() {
+        private static void RegisterCriticalErrorHandlers()
+        {
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
-            Application.ThreadException += (sender, args) => {
+            Application.ThreadException += (sender, args) =>
+            {
                 AppLogger.Critical("Unhandled UI thread exception.", args.Exception);
                 MessageBox.Show(
                     $"A critical error occurred. Details were written to:\n{AppLogger.LogPath}",
@@ -30,11 +35,13 @@ namespace YSMInstaller {
                 );
             };
 
-            AppDomain.CurrentDomain.UnhandledException += (sender, args) => {
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
                 AppLogger.Critical("Unhandled application exception.", args.ExceptionObject as Exception);
             };
 
-            TaskScheduler.UnobservedTaskException += (sender, args) => {
+            TaskScheduler.UnobservedTaskException += (sender, args) =>
+            {
                 AppLogger.Critical("Unhandled task exception.", args.Exception);
                 args.SetObserved();
             };

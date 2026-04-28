@@ -1,9 +1,12 @@
 ﻿using System.Drawing;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    public partial class StepsForm : Form {
-        public StepsForm() {
+namespace YSMInstaller
+{
+    public partial class StepsForm : Form
+    {
+        public StepsForm()
+        {
             Text = "Changing version";
             Size = new Size(600, 800);
             StartPosition = FormStartPosition.CenterScreen;
@@ -12,7 +15,8 @@ namespace YSMInstaller {
             BackColor = Color.FromArgb(19, 22, 30);
             ForeColor = Color.White;
 
-            TableLayoutPanel layout = new TableLayoutPanel {
+            TableLayoutPanel layout = new TableLayoutPanel
+            {
                 Dock = DockStyle.Top,
                 ColumnCount = 1,
                 AutoSize = true,
@@ -26,7 +30,8 @@ namespace YSMInstaller {
             AddStep(layout, "Choose version", Properties.Resources.Screenshot_2025_03_02_182718);
             AddStep(layout, "Wait for Warno to load", Properties.Resources.Screenshot_2025_03_02_182724);
 
-            Panel panel = new Panel {
+            Panel panel = new Panel
+            {
                 Dock = DockStyle.Fill,
                 AutoScroll = true
             };
@@ -35,8 +40,10 @@ namespace YSMInstaller {
             Controls.Add(panel);
         }
 
-        private void AddStep(TableLayoutPanel layout, string text, Image image) {
-            Label label = new Label {
+        private void AddStep(TableLayoutPanel layout, string text, Image image)
+        {
+            Label label = new Label
+            {
                 Text = text,
                 Dock = DockStyle.Top,
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
@@ -44,7 +51,8 @@ namespace YSMInstaller {
                 AutoSize = true
             };
 
-            PictureBox pictureBox = new PictureBox {
+            PictureBox pictureBox = new PictureBox
+            {
                 Image = image,
                 SizeMode = PictureBoxSizeMode.AutoSize,
                 Dock = DockStyle.Top

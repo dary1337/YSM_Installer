@@ -3,16 +3,20 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    public partial class Form1 {
-        private void BuildLayout() {
+namespace YSMInstaller
+{
+    public partial class Form1
+    {
+        private void BuildLayout()
+        {
             Controls.Remove(label1);
             Controls.Remove(linkLabel1);
 
             Padding = new Padding(Sizes.FormPadding);
             MinimumSize = new Size(Sizes.MinimumFormWidth, Sizes.MinimumFormHeight);
 
-            _rootLayout = new TableLayoutPanel {
+            _rootLayout = new TableLayoutPanel
+            {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 5,
@@ -35,8 +39,10 @@ namespace YSMInstaller {
             Controls.Add(_rootLayout);
         }
 
-        private Control CreateHeaderLayout() {
-            var headerLayout = new TableLayoutPanel {
+        private Control CreateHeaderLayout()
+        {
+            var headerLayout = new TableLayoutPanel
+            {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 ColumnCount = 2,
@@ -56,8 +62,10 @@ namespace YSMInstaller {
             return headerLayout;
         }
 
-        private Control CreateEntriesLayout() {
-            _entriesLayout = new TableLayoutPanel {
+        private Control CreateEntriesLayout()
+        {
+            _entriesLayout = new TableLayoutPanel
+            {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 ColumnCount = 1,
@@ -69,8 +77,10 @@ namespace YSMInstaller {
             return _entriesLayout;
         }
 
-        private Control CreateInstallButtonsPanel() {
-            _installControlPanel = new FlowLayoutPanel {
+        private Control CreateInstallButtonsPanel()
+        {
+            _installControlPanel = new FlowLayoutPanel
+            {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 BackColor = Color.Transparent,
@@ -85,31 +95,37 @@ namespace YSMInstaller {
             return _installControlPanel;
         }
 
-        private void ClearDynamicControls() {
+        private void ClearDynamicControls()
+        {
             ClearInstallControls();
 
-            if (_showMoreButton != null) {
+            if (_showMoreButton != null)
+            {
                 _entriesLayout.Controls.Remove(_showMoreButton);
                 _showMoreButton.Dispose();
                 _showMoreButton = null;
             }
 
-            foreach (var panel in _panels) {
+            foreach (var panel in _panels)
+            {
                 panel.VersionSelected -= VersionSelected;
                 _entriesLayout.Controls.Remove(panel);
                 panel.Dispose();
             }
             _panels.Clear();
 
-            if (_rescanButton != null) {
+            if (_rescanButton != null)
+            {
                 _rootLayout.Controls.Remove(_rescanButton);
                 _rescanButton.Dispose();
                 _rescanButton = null;
             }
         }
 
-        private void ClearInstallControls() {
-            foreach (Control control in _installButtons) {
+        private void ClearInstallControls()
+        {
+            foreach (Control control in _installButtons)
+            {
                 control.Dispose();
             }
             _installButtons.Clear();
@@ -118,11 +134,13 @@ namespace YSMInstaller {
             _installControlPanel.Visible = false;
         }
 
-        private void RelayoutPanels() {
+        private void RelayoutPanels()
+        {
             _entriesLayout.PerformLayout();
         }
 
-        private void RelayoutInstallButtons() {
+        private void RelayoutInstallButtons()
+        {
             int visiblePanelCount = _panels.Count(panel => panel.Visible);
             int topMargin = visiblePanelCount > 1
                 ? Sizes.MultipleEntriesInstallGap
@@ -132,7 +150,8 @@ namespace YSMInstaller {
             _installControlPanel.Visible = _installControlPanel.Controls.Count > 0;
         }
 
-        private void ResizeFormToFitContent() {
+        private void ResizeFormToFitContent()
+        {
             Width = Math.Max(Sizes.MinimumFormWidth, Width);
             Height = Math.Max(Sizes.MinimumFormHeight, _rootLayout.PreferredSize.Height + Padding.Vertical + Sizes.ContentBottomPadding);
             MinimumSize = new Size(Width, Height);

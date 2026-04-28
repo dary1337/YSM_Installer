@@ -3,8 +3,10 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    public class WarnoEntryControl : RoundedPanel {
+namespace YSMInstaller
+{
+    public class WarnoEntryControl : RoundedPanel
+    {
         public event Action<int>? VersionSelected;
 
         private readonly RoundedBorderButton? _button;
@@ -13,7 +15,8 @@ namespace YSMInstaller {
 
         public WarnoEntry Entry => _entry;
 
-        public WarnoEntryControl(WarnoEntry entry) {
+        public WarnoEntryControl(WarnoEntry entry)
+        {
             _entry = entry;
 
             Height = Sizes.PanelHeight;
@@ -21,7 +24,8 @@ namespace YSMInstaller {
             BackColor = Theme.PanelBackground;
             SetCornerRadius(14);
 
-            _label = new Label {
+            _label = new Label
+            {
                 Text = GetLabelText(),
                 AutoSize = true,
                 ForeColor = GetLabelColor(),
@@ -29,8 +33,10 @@ namespace YSMInstaller {
                 Cursor = HasKnownIssuesUrl ? Cursors.Hand : Cursors.Default,
             };
 
-            if (HasKnownIssuesUrl) {
-                _button = new RoundedBorderButton(Color.OrangeRed, 16) {
+            if (HasKnownIssuesUrl)
+            {
+                _button = new RoundedBorderButton(Color.OrangeRed, 16)
+                {
                     Text = "Click to find out why",
                     Cursor = SystemCursors.Pointer,
                     Dock = DockStyle.Bottom,
@@ -52,7 +58,8 @@ namespace YSMInstaller {
             _entry.VersionMetadata != null &&
             !string.IsNullOrWhiteSpace(_entry.VersionMetadata.KnownIssuesUrl);
 
-        private string GetLabelText() {
+        private string GetLabelText()
+        {
             string sourceText = string.IsNullOrWhiteSpace(_entry.SourceLabel)
                 ? string.Empty
                 : $", {_entry.SourceLabel}";
@@ -66,7 +73,8 @@ namespace YSMInstaller {
             return $"{_entry.ExePath} (v{_entry.Version}{sourceText})";
         }
 
-        private Color GetLabelColor() {
+        private Color GetLabelColor()
+        {
             if (_entry.VersionMetadata == null)
                 return _entry.LatestCompatibleModVersion > 0
                     ? Color.Orange
@@ -76,7 +84,8 @@ namespace YSMInstaller {
             return Theme.RecommendedBackground;
         }
 
-        private void AttachEvents(Control control) {
+        private void AttachEvents(Control control)
+        {
             control.Cursor = SystemCursors.Pointer;
 
             control.Click += OnControlClick;
@@ -84,21 +93,25 @@ namespace YSMInstaller {
             control.MouseLeave += OnHoverLeave;
         }
 
-        private void DetachEvents(Control control) {
+        private void DetachEvents(Control control)
+        {
             control.Click -= OnControlClick;
             control.MouseEnter -= OnHoverEnter;
             control.MouseLeave -= OnHoverLeave;
         }
 
-        private void OnControlClick(object sender, EventArgs e) {
+        private void OnControlClick(object sender, EventArgs e)
+        {
             VersionSelected?.Invoke(_entry.Version);
         }
 
-        private void OnHoverEnter(object sender, EventArgs e) {
+        private void OnHoverEnter(object sender, EventArgs e)
+        {
             BackColor = Theme.PanelBackgroundHover;
         }
 
-        private void OnHoverLeave(object sender, EventArgs e) {
+        private void OnHoverLeave(object sender, EventArgs e)
+        {
             if (ClientRectangle.Contains(PointToClient(Cursor.Position)))
                 return;
 
@@ -110,31 +123,56 @@ namespace YSMInstaller {
 
         private bool IsSelected { get; set; }
 
-        public void SetSelected(bool isSelected) {
+        public void SetSelected(bool isSelected)
+        {
             IsSelected = isSelected;
             BackColor = isSelected
                 ? Theme.PanelBackgroundHover
                 : Theme.PanelBackground;
         }
 
-        private void OpenKnownIssues(object sender, EventArgs e) {
+        private void OpenKnownIssues(object sender, EventArgs e)
+        {
             var url = _entry.VersionMetadata?.KnownIssuesUrl;
-            if (string.IsNullOrWhiteSpace(url))
+            if (!TryCreateBrowserUrl(url, out Uri browserUrl))
                 return;
 
-            try {
-                Process.Start(new ProcessStartInfo {
-                    FileName = url,
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = browserUrl.AbsoluteUri,
                     UseShellExecute = true
                 });
             }
-            catch (Exception exception) {
+            catch (Exception exception)
+            {
                 AppLogger.Error("Failed to open known issues URL.", exception);
             }
         }
 
-        protected override void Dispose(bool disposing) {
-            if (disposing) {
+        private static bool TryCreateBrowserUrl(string? value, out Uri uri)
+        {
+            uri = null!;
+
+            if (!Uri.TryCreate(value, UriKind.Absolute, out Uri parsedUri))
+            {
+                return false;
+            }
+
+            if (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps)
+            {
+                return false;
+            }
+
+            uri = parsedUri;
+            return true;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
                 DetachEvents(this);
                 DetachEvents(_label);
                 if (_button != null)

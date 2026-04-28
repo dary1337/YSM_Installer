@@ -1,12 +1,14 @@
+using Microsoft.Win32;
 using System;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using Microsoft.Win32;
 
-namespace YSMInstaller {
-    public static class AppLogger {
+namespace YSMInstaller
+{
+    public static class AppLogger
+    {
         private static readonly object Sync = new object();
         private const string LogFileName = "ysm_installer_log.txt";
         private static string _logPath = Path.Combine(Path.GetTempPath(), LogFileName);
@@ -14,28 +16,37 @@ namespace YSMInstaller {
 
         public static string LogPath => _logPath;
 
-        public static void Initialize() {
-            lock (Sync) {
+        public static void Initialize()
+        {
+            lock (Sync)
+            {
                 _isAvailable = TryInitializeAt(Path.Combine(Path.GetTempPath(), LogFileName));
             }
         }
 
-        public static void Critical(string message, Exception? exception = null) {
+        public static void Critical(string message, Exception? exception = null)
+        {
             Write("CRITICAL", message, exception);
         }
 
-        public static void Error(string message, Exception? exception = null) {
+        public static void Error(string message, Exception? exception = null)
+        {
             Write("ERROR", message, exception);
         }
 
-        public static void Info(string message) {
+        public static void Info(string message)
+        {
             Write("INFO", message, null);
         }
 
-        private static void Write(string level, string message, Exception? exception) {
-            try {
-                lock (Sync) {
-                    if (!_isAvailable) {
+        private static void Write(string level, string message, Exception? exception)
+        {
+            try
+            {
+                lock (Sync)
+                {
+                    if (!_isAvailable)
+                    {
                         return;
                     }
 
@@ -43,22 +54,27 @@ namespace YSMInstaller {
                     builder.AppendLine();
                     builder.AppendLine($"[{DateTimeOffset.Now:O}] {level}: {Sanitize(message)}");
 
-                    if (exception != null) {
+                    if (exception != null)
+                    {
                         builder.AppendLine(Sanitize(exception.ToString()));
                     }
 
                     File.AppendAllText(LogPath, builder.ToString(), Encoding.UTF8);
                 }
             }
-            catch {
+            catch
+            {
                 // Logging must never become a new crash source.
             }
         }
 
-        private static bool TryInitializeAt(string path) {
-            try {
+        private static bool TryInitializeAt(string path)
+        {
+            try
+            {
                 string? directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrWhiteSpace(directory)) {
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
                     Directory.CreateDirectory(directory);
                 }
 
@@ -66,12 +82,14 @@ namespace YSMInstaller {
                 File.WriteAllText(_logPath, BuildHeader(), Encoding.UTF8);
                 return true;
             }
-            catch {
+            catch
+            {
                 return false;
             }
         }
 
-        private static string BuildHeader() {
+        private static string BuildHeader()
+        {
             var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
             var builder = new StringBuilder();
 
@@ -90,10 +108,14 @@ namespace YSMInstaller {
             return builder.ToString();
         }
 
-        private static string GetFriendlyOsVersion() {
-            try {
-                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion")) {
-                    if (key != null) {
+        private static string GetFriendlyOsVersion()
+        {
+            try
+            {
+                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion"))
+                {
+                    if (key != null)
+                    {
                         string productName = Convert.ToString(key.GetValue("ProductName")) ?? "Windows";
                         string? displayVersion = Convert.ToString(key.GetValue("DisplayVersion")) ??
                                                  Convert.ToString(key.GetValue("ReleaseId"));
@@ -103,22 +125,26 @@ namespace YSMInstaller {
 
                         if (int.TryParse(currentBuild, out int buildNumber) &&
                             buildNumber >= 22000 &&
-                            productName.IndexOf("Windows 10", StringComparison.OrdinalIgnoreCase) >= 0) {
+                            productName.IndexOf("Windows 10", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
                             productName = productName.Replace("Windows 10", "Windows 11");
                         }
 
                         var builder = new StringBuilder(productName);
 
-                        if (!string.IsNullOrWhiteSpace(displayVersion)) {
+                        if (!string.IsNullOrWhiteSpace(displayVersion))
+                        {
                             builder.Append(' ');
                             builder.Append(displayVersion);
                         }
 
-                        if (!string.IsNullOrWhiteSpace(currentBuild)) {
+                        if (!string.IsNullOrWhiteSpace(currentBuild))
+                        {
                             builder.Append(" (build ");
                             builder.Append(currentBuild);
 
-                            if (!string.IsNullOrWhiteSpace(ubr)) {
+                            if (!string.IsNullOrWhiteSpace(ubr))
+                            {
                                 builder.Append('.');
                                 builder.Append(ubr);
                             }
@@ -130,7 +156,8 @@ namespace YSMInstaller {
                     }
                 }
             }
-            catch {
+            catch
+            {
                 // Registry access can be restricted; keep logging useful without crashing startup.
             }
 
@@ -138,8 +165,10 @@ namespace YSMInstaller {
             return $"Windows {version.Major}.{version.Minor}.{version.Build}";
         }
 
-        private static string Sanitize(string value) {
-            if (string.IsNullOrEmpty(value)) {
+        private static string Sanitize(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
                 return value;
             }
 
@@ -150,8 +179,10 @@ namespace YSMInstaller {
             return result;
         }
 
-        private static string ReplaceIfNotEmpty(string value, string oldValue, string newValue) {
-            if (string.IsNullOrWhiteSpace(oldValue)) {
+        private static string ReplaceIfNotEmpty(string value, string oldValue, string newValue)
+        {
+            if (string.IsNullOrWhiteSpace(oldValue))
+            {
                 return value;
             }
 

@@ -4,15 +4,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace YSMInstaller {
-    public partial class Form1 {
-        private async Task ScanAsync() {
+namespace YSMInstaller
+{
+    public partial class Form1
+    {
+        private async Task ScanAsync()
+        {
             ClearDynamicControls();
 
             label1.Text = "Loading supported versions...";
             AppLogger.Info("Starting WARNO scan.");
             _supportedVersions = await ModCatalogService.DownloadSupportedModsAsync();
-            if (_supportedVersions.Count == 0) {
+            if (_supportedVersions.Count == 0)
+            {
                 UserMessages.ShowSupportedVersionsLoadFailed(this);
             }
 
@@ -27,9 +31,12 @@ namespace YSMInstaller {
             await AddRescanButtonAsync();
         }
 
-        private void AddEntryControls(List<WarnoEntry> entries) {
-            foreach (var entry in entries) {
-                var control = new WarnoEntryControl(entry) {
+        private void AddEntryControls(List<WarnoEntry> entries)
+        {
+            foreach (var entry in entries)
+            {
+                var control = new WarnoEntryControl(entry)
+                {
                     Dock = DockStyle.Fill,
                     Margin = new Padding(0, 0, 0, Sizes.PanelGap),
                     Visible = false
@@ -41,28 +48,34 @@ namespace YSMInstaller {
             }
         }
 
-        private void SelectLatestEntry(List<WarnoEntry> entries) {
+        private void SelectLatestEntry(List<WarnoEntry> entries)
+        {
             var latest = entries.OrderByDescending(entry => entry.Version).FirstOrDefault();
-            if (latest == null) {
+            if (latest == null)
+            {
                 return;
             }
 
             VersionSelected(latest.Version);
 
             var selectedPanel = _panels.FirstOrDefault(panel => panel.Entry.Version == latest.Version);
-            if (selectedPanel != null) {
+            if (selectedPanel != null)
+            {
                 selectedPanel.Visible = true;
             }
 
             RelayoutInstallButtons();
         }
 
-        private void AddShowMoreButtonIfNeeded(int entryCount) {
-            if (entryCount <= 1) {
+        private void AddShowMoreButtonIfNeeded(int entryCount)
+        {
+            if (entryCount <= 1)
+            {
                 return;
             }
 
-            _showMoreButton = new RoundedButton(14) {
+            _showMoreButton = new RoundedButton(14)
+            {
                 Text = $"Show {entryCount - 1} more versions...",
                 BackColor = Color.FromArgb(38, 44, 60),
                 ForeColor = Color.White,
@@ -73,12 +86,15 @@ namespace YSMInstaller {
             _entriesLayout.Controls.Add(_showMoreButton);
         }
 
-        private void ShowAllEntries() {
-            foreach (var panel in _panels) {
+        private void ShowAllEntries()
+        {
+            foreach (var panel in _panels)
+            {
                 panel.Visible = true;
             }
 
-            if (_showMoreButton != null) {
+            if (_showMoreButton != null)
+            {
                 _entriesLayout.Controls.Remove(_showMoreButton);
                 _showMoreButton.Dispose();
             }
@@ -89,8 +105,10 @@ namespace YSMInstaller {
             ResizeFormToFitContent();
         }
 
-        private async Task AddRescanButtonAsync() {
-            _rescanButton = new RoundedButton(14) {
+        private async Task AddRescanButtonAsync()
+        {
+            _rescanButton = new RoundedButton(14)
+            {
                 Dock = DockStyle.Bottom,
                 Text = "Rescan",
                 AutoSize = true,
@@ -102,7 +120,8 @@ namespace YSMInstaller {
 
             label1.Text = $"Found {_panels.Count} Warno.exe";
 
-            if (_panels.Count == 0) {
+            if (_panels.Count == 0)
+            {
                 await HandleNoWarnoFoundAsync();
                 return;
             }
@@ -110,13 +129,16 @@ namespace YSMInstaller {
             ResizeFormToFitContent();
         }
 
-        private async Task HandleNoWarnoFoundAsync() {
-            if (_includeSystemFolders) {
+        private async Task HandleNoWarnoFoundAsync()
+        {
+            if (_includeSystemFolders)
+            {
                 UserMessages.ShowWarnoNotFound(this);
                 return;
             }
 
-            if (UserMessages.ConfirmFullSystemScan(this) == DialogResult.Yes) {
+            if (UserMessages.ConfirmFullSystemScan(this) == DialogResult.Yes)
+            {
                 _includeSystemFolders = true;
                 await ScanAsync();
             }
