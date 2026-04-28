@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
     public class WarnoEntryControl : RoundedPanel {
-        public static event Action<int> VersionSelected;
+        public event Action<int>? VersionSelected;
 
-        private readonly RoundedBorderButton _button;
+        private readonly RoundedBorderButton? _button;
         private readonly Label _label;
-        public readonly WarnoEntry _entry;
+        private readonly WarnoEntry _entry;
+
+        public WarnoEntry Entry => _entry;
 
         public WarnoEntryControl(WarnoEntry entry) {
             _entry = entry;
@@ -18,7 +19,7 @@ namespace YSMInstaller {
             Height = Sizes.PanelHeight;
             Padding = new Padding(8);
             BackColor = Theme.PanelBackground;
-            setCornerRadius(14);
+            SetCornerRadius(14);
 
             _label = new Label {
                 Text = GetLabelText(),
@@ -45,9 +46,6 @@ namespace YSMInstaller {
             AttachEvents(_label);
             if (_button != null)
                 AttachEvents(_button);
-
-            VersionSelected += UpdateBackgroundState;
-            UpdateBackgroundState(_entry.Version);
         }
 
         private bool HasKnownIssuesUrl =>
@@ -55,16 +53,24 @@ namespace YSMInstaller {
             !string.IsNullOrWhiteSpace(_entry.VersionMetadata.KnownIssuesUrl);
 
         private string GetLabelText() {
+            string sourceText = string.IsNullOrWhiteSpace(_entry.SourceLabel)
+                ? string.Empty
+                : $", {_entry.SourceLabel}";
+
             if (_entry.VersionMetadata == null)
-                return $"{_entry.ExePath} (v{_entry.Version} Not supported)";
+                return _entry.LatestCompatibleModVersion > 0
+                    ? $"{_entry.ExePath} (v{_entry.Version}{sourceText}, latest mod v{_entry.LatestCompatibleModVersion} available)"
+                    : $"{_entry.ExePath} (v{_entry.Version}{sourceText} Not supported)";
             if (HasKnownIssuesUrl)
-                return $"{_entry.ExePath} (v{_entry.Version} has issues)";
-            return $"{_entry.ExePath} (v{_entry.Version})";
+                return $"{_entry.ExePath} (v{_entry.Version}{sourceText} has issues)";
+            return $"{_entry.ExePath} (v{_entry.Version}{sourceText})";
         }
 
         private Color GetLabelColor() {
             if (_entry.VersionMetadata == null)
-                return Color.Red;
+                return _entry.LatestCompatibleModVersion > 0
+                    ? Color.Orange
+                    : Color.Red;
             if (HasKnownIssuesUrl)
                 return Color.OrangeRed;
             return Theme.RecommendedBackground;
@@ -85,10 +91,6 @@ namespace YSMInstaller {
         }
 
         private void OnControlClick(object sender, EventArgs e) {
-            if (Warno.selectedVersion == _entry.Version)
-                return;
-
-            Warno.selectedVersion = _entry.Version;
             VersionSelected?.Invoke(_entry.Version);
         }
 
@@ -100,14 +102,17 @@ namespace YSMInstaller {
             if (ClientRectangle.Contains(PointToClient(Cursor.Position)))
                 return;
 
-            if (Warno.selectedVersion == _entry.Version)
+            if (IsSelected)
                 return;
 
             BackColor = Theme.PanelBackground;
         }
 
-        private void UpdateBackgroundState(int version) {
-            BackColor = Warno.selectedVersion == _entry.Version
+        private bool IsSelected { get; set; }
+
+        public void SetSelected(bool isSelected) {
+            IsSelected = isSelected;
+            BackColor = isSelected
                 ? Theme.PanelBackgroundHover
                 : Theme.PanelBackground;
         }
@@ -117,25 +122,19 @@ namespace YSMInstaller {
             if (string.IsNullOrWhiteSpace(url))
                 return;
 
-            Task.Run(() => {
-                try {
-                    Process.Start(new ProcessStartInfo {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
-                }
-                catch { }
-            });
-        }
-
-        public static void RaiseVersionSelected(int version) {
-            VersionSelected?.Invoke(version);
+            try {
+                Process.Start(new ProcessStartInfo {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception exception) {
+                AppLogger.Error("Failed to open known issues URL.", exception);
+            }
         }
 
         protected override void Dispose(bool disposing) {
             if (disposing) {
-                VersionSelected -= UpdateBackgroundState;
-
                 DetachEvents(this);
                 DetachEvents(_label);
                 if (_button != null)
