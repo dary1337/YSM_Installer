@@ -9,8 +9,8 @@ namespace YSMInstaller {
             StartPosition = FormStartPosition.CenterScreen;
             AutoScroll = true;
             Icon = Properties.Resources.logo;
-            BackColor = Color.FromArgb(19, 22, 30);
-            ForeColor = Color.White;
+            BackColor = Theme.Background;
+            ForeColor = Theme.TextPrimary;
 
             TableLayoutPanel layout = new TableLayoutPanel {
                 Dock = DockStyle.Top,

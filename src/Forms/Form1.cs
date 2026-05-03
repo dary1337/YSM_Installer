@@ -24,7 +24,7 @@ namespace YSMInstaller {
 
             label1.Text = "Starting...";
             Icon = Properties.Resources.logo;
-            BackColor = Color.FromArgb(19, 22, 30);
+            BackColor = Theme.Background;
             Opacity = 0.95;
             using (Graphics graphics = CreateGraphics()) {
                 AutoScaleDimensions = new SizeF(graphics.DpiX, graphics.DpiY);

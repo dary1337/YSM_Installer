@@ -44,7 +44,7 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>Properties\logo.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\logo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -226,8 +226,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="FodyWeavers.xml" />
-    <Content Include="Properties\logo.ico" />
-    <None Include="Resources\logo.ico" />
+    <Content Include="Resources\logo.ico" />
     <None Include="Resources\Screenshot 2025-03-02 182724.png" />
   </ItemGroup>
   <ItemGroup>

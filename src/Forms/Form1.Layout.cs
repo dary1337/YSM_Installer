@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
@@ -72,7 +73,7 @@ namespace YSMInstaller {
             return button;
         }
 
-        private async System.Threading.Tasks.Task OpenSettingsAsync() {
+        private async Task OpenSettingsAsync() {
             try {
                 using (var form = new SettingsForm()) {
                     if (form.ShowDialog(this) == DialogResult.OK && form.SourceChanged) {

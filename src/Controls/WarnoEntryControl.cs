@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
@@ -35,7 +35,7 @@ namespace YSMInstaller {
                     Text = "Click to find out why",
                     Cursor = SystemCursors.Pointer,
                     Dock = DockStyle.Bottom,
-                    ForeColor = Color.White,
+                    ForeColor = Theme.ButtonForeground,
                     Margin = new Padding(0, 6, 0, 0),
                 };
                 _button.Click += OpenKnownIssues;
