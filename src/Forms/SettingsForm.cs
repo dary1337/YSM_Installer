@@ -1,7 +1,6 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using YSMInstaller.Controls.Ui;
 
 namespace YSMInstaller {
     public sealed class SettingsForm : Form {

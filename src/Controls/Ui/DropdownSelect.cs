@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-using YSMInstaller;
 
-namespace YSMInstaller.Controls.Ui {
+namespace YSMInstaller {
     public sealed class DropdownSelect : UserControl, IMessageFilter {
         private readonly RoundedPanel _header;
         private readonly Label _selectedLabel;

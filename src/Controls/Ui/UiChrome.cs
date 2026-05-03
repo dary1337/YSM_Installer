@@ -1,8 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
-using YSMInstaller;
 
-namespace YSMInstaller.Controls.Ui {
+namespace YSMInstaller {
     internal static class UiChrome {
         public static void ApplyDialogChrome(Form form) {
             form.BackColor = Theme.Background;
