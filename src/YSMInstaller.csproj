@@ -140,6 +140,7 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Utilities\AppLogger.cs" />
+    <Compile Include="Utilities\DevService.cs" />
     <Compile Include="Utilities\HttpService.cs" />
     <Compile Include="Utilities\IniFile.cs" />
     <Compile Include="Utilities\SafeZipExtractor.cs" />
@@ -164,6 +165,7 @@
     <Compile Include="UI\Sizes.cs" />
     <Compile Include="UI\Theme.cs" />
     <Compile Include="UI\UserMessages.cs" />
+    <Compile Include="Warno\DevWarnoMocks.cs" />
     <Compile Include="Warno\InstallWorkflow.cs" />
     <Compile Include="Warno\InstallModResult.cs" />
     <Compile Include="Warno\ModCatalogService.cs" />

@@ -7,6 +7,11 @@ namespace YSMInstaller
     {
         public async Task<ScanResult> ScanAsync(bool includeSystemFolders)
         {
+            if (DevWarnoMocks.TryCreateScanResult(out ScanResult mockScanResult))
+            {
+                return mockScanResult;
+            }
+
             AppLogger.Info("Starting WARNO scan.");
             List<ModMetadata> supportedVersions = await ModCatalogService.DownloadSupportedModsAsync();
             List<WarnoExecutable> warnoPaths = await WarnoFinder.FindExecutablesAsync(includeSystemFolders);

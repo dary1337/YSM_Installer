@@ -48,7 +48,7 @@ namespace YSMInstaller
 
         async void Form1_Load(object sender, EventArgs e)
         {
-            bool updateStarted = await UpdateService.CheckForUpdatesAsync(this);
+            bool updateStarted = !DevWarnoMocks.IsEnabled && await UpdateService.CheckForUpdatesAsync(this);
 
             if (!updateStarted && !IsDisposed)
             {
