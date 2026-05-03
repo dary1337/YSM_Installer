@@ -4,6 +4,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,23 +26,44 @@ namespace YSMInstaller
         {
             var foundExecutables = new ConcurrentDictionary<string, WarnoExecutable>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (WarnoExecutable cachedCandidate in GetCachedExecutableCandidates())
+            AddExecutableCandidates(GetCachedExecutableCandidates(), foundExecutables);
+            List<WarnoExecutable> cachedResults = ToSortedResults(foundExecutables);
+            if (cachedResults.Count > 0)
             {
-                AddExecutableIfValid(cachedCandidate, foundExecutables);
+                SaveLastWarnoExecutablePath(cachedResults);
+                return cachedResults;
             }
 
-            foreach (WarnoExecutable candidate in GetLikelyExecutableCandidates())
+            AddExecutableCandidates(GetSteamExecutableCandidates(), foundExecutables);
+            List<WarnoExecutable> steamResults = ToSortedResults(foundExecutables);
+            if (steamResults.Count > 0)
             {
-                AddExecutableIfValid(candidate, foundExecutables);
+                SaveLastWarnoExecutablePath(steamResults);
+                return steamResults;
             }
 
-            if (foundExecutables.Count > 0 || !includeSystemFolders)
+            AddExecutableCandidates(GetCommonFolderCandidates(), foundExecutables);
+            List<WarnoExecutable> commonFolderResults = ToSortedResults(foundExecutables);
+            if (commonFolderResults.Count > 0)
             {
-                var results = foundExecutables.Values
-                    .OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                SaveLastWarnoExecutablePath(results);
-                return results;
+                SaveLastWarnoExecutablePath(commonFolderResults);
+                return commonFolderResults;
+            }
+
+            AddExecutableCandidates(GetUninstallRegistryCandidates(), foundExecutables);
+            List<WarnoExecutable> registryResults = ToSortedResults(foundExecutables);
+            if (registryResults.Count > 0)
+            {
+                SaveLastWarnoExecutablePath(registryResults);
+                return registryResults;
+            }
+
+            AddExecutableCandidates(GetShortcutCandidates(), foundExecutables);
+            List<WarnoExecutable> shortcutResults = ToSortedResults(foundExecutables);
+            if (shortcutResults.Count > 0 || !includeSystemFolders)
+            {
+                SaveLastWarnoExecutablePath(shortcutResults);
+                return shortcutResults;
             }
 
             foreach (DriveInfo drive in GetSearchableDrives())
@@ -50,11 +74,27 @@ namespace YSMInstaller
                 }
             }
 
-            var deepScanResults = foundExecutables.Values
-                .OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var deepScanResults = ToSortedResults(foundExecutables);
             SaveLastWarnoExecutablePath(deepScanResults);
             return deepScanResults;
+        }
+
+        private static void AddExecutableCandidates(
+            IEnumerable<WarnoExecutable> candidates,
+            ConcurrentDictionary<string, WarnoExecutable> foundExecutables
+        )
+        {
+            foreach (WarnoExecutable candidate in candidates)
+            {
+                AddExecutableIfValid(candidate, foundExecutables);
+            }
+        }
+
+        private static List<WarnoExecutable> ToSortedResults(ConcurrentDictionary<string, WarnoExecutable> foundExecutables)
+        {
+            return foundExecutables.Values
+                .OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private static IEnumerable<WarnoExecutable> GetCachedExecutableCandidates()
@@ -68,7 +108,7 @@ namespace YSMInstaller
             yield return new WarnoExecutable(cachedPath, GetSourceLabel(cachedPath));
         }
 
-        private static IEnumerable<WarnoExecutable> GetLikelyExecutableCandidates()
+        private static IEnumerable<WarnoExecutable> GetSteamExecutableCandidates()
         {
             var libraries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -112,6 +152,232 @@ namespace YSMInstaller
             }
         }
 
+        private static IEnumerable<WarnoExecutable> GetUninstallRegistryCandidates()
+        {
+            string[] uninstallPaths = {
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+            };
+
+            foreach (RegistryKey rootKey in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            {
+                foreach (string uninstallPath in uninstallPaths)
+                {
+                    using (RegistryKey? uninstallKey = OpenRegistryKey(rootKey, uninstallPath))
+                    {
+                        if (uninstallKey == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (string subKeyName in uninstallKey.GetSubKeyNames())
+                        {
+                            using (RegistryKey? appKey = OpenRegistryKey(uninstallKey, subKeyName))
+                            {
+                                if (!IsWarnoUninstallEntry(appKey))
+                                {
+                                    continue;
+                                }
+
+                                foreach (string path in GetExecutablePathsFromUninstallEntry(appKey!))
+                                {
+                                    yield return new WarnoExecutable(path, WarnoExecutableSources.Registry);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<string> GetExecutablePathsFromUninstallEntry(RegistryKey appKey)
+        {
+            string? installLocation = ReadRegistryString(appKey, "InstallLocation");
+            if (!string.IsNullOrWhiteSpace(installLocation))
+            {
+                yield return Path.Combine(ExpandPath(installLocation!), "Warno.exe");
+            }
+
+            foreach (string valueName in new[] { "DisplayIcon", "UninstallString" })
+            {
+                string? commandPath = ExtractExecutablePath(ReadRegistryString(appKey, valueName));
+                if (string.IsNullOrWhiteSpace(commandPath))
+                {
+                    continue;
+                }
+
+                if (string.Equals(Path.GetFileName(commandPath), "Warno.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return commandPath!;
+                }
+
+                string? directory = Path.GetDirectoryName(commandPath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    yield return Path.Combine(directory!, "Warno.exe");
+                }
+            }
+        }
+
+        private static bool IsWarnoUninstallEntry(RegistryKey? appKey)
+        {
+            string? displayName = ReadRegistryString(appKey, "DisplayName");
+            return !string.IsNullOrWhiteSpace(displayName) &&
+                   displayName!.IndexOf("WARNO", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static IEnumerable<WarnoExecutable> GetCommonFolderCandidates()
+        {
+            foreach (DriveInfo drive in GetSearchableDrives())
+            {
+                string root = drive.RootDirectory.FullName;
+
+                foreach (string path in GetCommonWarnoPaths(root))
+                {
+                    yield return new WarnoExecutable(path, WarnoExecutableSources.CommonFolder);
+                }
+
+                foreach (string path in GetLikelyChildWarnoPaths(Path.Combine(root, "Games")))
+                {
+                    yield return new WarnoExecutable(path, WarnoExecutableSources.CommonFolder);
+                }
+            }
+        }
+
+        private static IEnumerable<string> GetCommonWarnoPaths(string root)
+        {
+            string[] directories = {
+                "WARNO",
+                Path.Combine("Games", "WARNO"),
+                Path.Combine("Games", "Warno"),
+                Path.Combine("Games", "Eugen Systems", "WARNO"),
+                Path.Combine("Program Files", "WARNO"),
+                Path.Combine("Program Files (x86)", "WARNO"),
+                Path.Combine("SteamLibrary", "steamapps", "common", "WARNO")
+            };
+
+            foreach (string directory in directories)
+            {
+                yield return Path.Combine(root, directory, "Warno.exe");
+            }
+        }
+
+        private static IEnumerable<string> GetLikelyChildWarnoPaths(string parentDirectory)
+        {
+            if (!Directory.Exists(parentDirectory))
+            {
+                yield break;
+            }
+
+            string[] likelyNames = { "warno", "eugen" };
+
+            IEnumerable<string> children;
+            try
+            {
+                children = Directory.EnumerateDirectories(parentDirectory).ToList();
+            }
+            catch
+            {
+                yield break;
+            }
+
+            foreach (string child in children)
+            {
+                string name = Path.GetFileName(child);
+                if (likelyNames.Any(likelyName => name.IndexOf(likelyName, StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    yield return Path.Combine(child, "Warno.exe");
+                }
+            }
+        }
+
+        private static IEnumerable<WarnoExecutable> GetShortcutCandidates()
+        {
+            foreach (string shortcutDirectory in GetShortcutSearchDirectories())
+            {
+                if (!Directory.Exists(shortcutDirectory))
+                {
+                    continue;
+                }
+
+                IEnumerable<string> shortcuts;
+                try
+                {
+                    shortcuts = GetShortcutFiles(shortcutDirectory).ToList();
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (string shortcutPath in shortcuts)
+                {
+                    string shortcutName = Path.GetFileNameWithoutExtension(shortcutPath);
+                    if (shortcutName.IndexOf("WARNO", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        continue;
+                    }
+
+                    string? targetPath = ResolveShortcutTarget(shortcutPath);
+                    if (string.Equals(Path.GetFileName(targetPath), "Warno.exe", StringComparison.OrdinalIgnoreCase))
+                    {
+                        yield return new WarnoExecutable(targetPath!, WarnoExecutableSources.Shortcut);
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<string> GetShortcutFiles(string shortcutDirectory)
+        {
+            foreach (string shortcutPath in Directory.EnumerateFiles(shortcutDirectory, "*.lnk", SearchOption.TopDirectoryOnly))
+            {
+                yield return shortcutPath;
+            }
+
+            string programsDirectory = Path.Combine(shortcutDirectory, "Programs");
+            if (!Directory.Exists(programsDirectory))
+            {
+                yield break;
+            }
+
+            foreach (string shortcutPath in Directory.EnumerateFiles(programsDirectory, "*.lnk", SearchOption.TopDirectoryOnly))
+            {
+                yield return shortcutPath;
+            }
+
+            foreach (string childDirectory in Directory.EnumerateDirectories(programsDirectory))
+            {
+                string childName = Path.GetFileName(childDirectory);
+                if (childName.IndexOf("WARNO", StringComparison.OrdinalIgnoreCase) < 0 &&
+                    childName.IndexOf("Eugen", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+
+                foreach (string shortcutPath in Directory.EnumerateFiles(childDirectory, "*.lnk", SearchOption.TopDirectoryOnly))
+                {
+                    yield return shortcutPath;
+                }
+            }
+        }
+
+        private static IEnumerable<string> GetShortcutSearchDirectories()
+        {
+            foreach (Environment.SpecialFolder folder in new[] {
+                Environment.SpecialFolder.DesktopDirectory,
+                Environment.SpecialFolder.CommonDesktopDirectory,
+                Environment.SpecialFolder.StartMenu,
+                Environment.SpecialFolder.CommonStartMenu
+            })
+            {
+                string path = Environment.GetFolderPath(folder);
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    yield return path;
+                }
+            }
+        }
+
         private static IEnumerable<string> GetSteamInstallPaths()
         {
             string[] registryPaths = {
@@ -152,13 +418,68 @@ namespace YSMInstaller
             {
                 using (RegistryKey? key = rootKey.OpenSubKey(subKeyName))
                 {
-                    return Convert.ToString(key?.GetValue(valueName));
+                    return ReadRegistryString(key, valueName);
                 }
             }
             catch
             {
                 return null;
             }
+        }
+
+        private static RegistryKey? OpenRegistryKey(RegistryKey rootKey, string subKeyName)
+        {
+            try
+            {
+                return rootKey.OpenSubKey(subKeyName);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string? ReadRegistryString(RegistryKey? key, string valueName)
+        {
+            try
+            {
+                return Convert.ToString(key?.GetValue(valueName));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string ExpandPath(string path)
+        {
+            return Environment.ExpandEnvironmentVariables(path.Trim().Trim('"'));
+        }
+
+        private static string? ExtractExecutablePath(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            string expanded = Environment.ExpandEnvironmentVariables(value!.Trim());
+            if (expanded.StartsWith("\"", StringComparison.Ordinal))
+            {
+                int closingQuote = expanded.IndexOf('"', 1);
+                if (closingQuote > 1)
+                {
+                    return expanded.Substring(1, closingQuote - 1);
+                }
+            }
+
+            int exeIndex = expanded.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+            if (exeIndex < 0)
+            {
+                return null;
+            }
+
+            return expanded.Substring(0, exeIndex + 4).Trim().Trim('"');
         }
 
         private static IEnumerable<string> ReadSteamLibraryFolders(string libraryFoldersPath)
@@ -420,6 +741,11 @@ namespace YSMInstaller
         private static void SaveLastWarnoExecutablePath(List<WarnoExecutable> executables)
         {
             string path = executables.FirstOrDefault()?.Path ?? string.Empty;
+            SaveLastWarnoExecutablePath(path);
+        }
+
+        public static void SaveLastWarnoExecutablePath(string path)
+        {
             if (string.Equals(Properties.Settings.Default.LastWarnoExecutablePath, path, StringComparison.OrdinalIgnoreCase))
             {
                 return;
@@ -433,6 +759,33 @@ namespace YSMInstaller
             catch (Exception exception)
             {
                 AppLogger.Error("Failed to save last WARNO executable path.", exception);
+            }
+        }
+
+        private static string? ResolveShortcutTarget(string shortcutPath)
+        {
+            IShellLinkW? shellLink = null;
+            try
+            {
+                shellLink = (IShellLinkW)new ShellLink();
+                ((IPersistFile)shellLink).Load(shortcutPath, 0);
+
+                var targetPath = new StringBuilder(260);
+                shellLink.GetPath(targetPath, targetPath.Capacity, IntPtr.Zero, 0);
+                string result = targetPath.ToString();
+                return string.IsNullOrWhiteSpace(result) ? null : result;
+            }
+            catch (Exception exception)
+            {
+                AppLogger.Error($"Failed to read shortcut target: {shortcutPath}", exception);
+                return null;
+            }
+            finally
+            {
+                if (shellLink != null)
+                {
+                    Marshal.FinalReleaseComObject(shellLink);
+                }
             }
         }
 
@@ -504,6 +857,10 @@ namespace YSMInstaller
     public static class WarnoExecutableSources
     {
         public const string Steam = "Steam";
+        public const string Registry = "Registry";
+        public const string CommonFolder = "Folder";
+        public const string Shortcut = "Shortcut";
+        public const string Manual = "Manual";
     }
 
     public sealed class WarnoExecutable
@@ -516,5 +873,42 @@ namespace YSMInstaller
 
         public string Path { get; }
         public string SourceLabel { get; }
+    }
+
+    [ComImport]
+    [Guid("00021401-0000-0000-C000-000000000046")]
+    internal class ShellLink
+    {
+    }
+
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("000214F9-0000-0000-C000-000000000046")]
+    internal interface IShellLinkW
+    {
+        void GetPath(
+            [Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile,
+            int cchMaxPath,
+            IntPtr pfd,
+            uint fFlags
+        );
+
+        void GetIDList(out IntPtr ppidl);
+        void SetIDList(IntPtr pidl);
+        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cchMaxName);
+        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszDir, int cchMaxPath);
+        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
+        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszArgs, int cchMaxPath);
+        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
+        void GetHotkey(out short pwHotkey);
+        void SetHotkey(short wHotkey);
+        void GetShowCmd(out int piShowCmd);
+        void SetShowCmd(int iShowCmd);
+        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszIconPath, int cchIconPath, out int piIcon);
+        void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
+        void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, uint dwReserved);
+        void Resolve(IntPtr hwnd, uint fFlags);
+        void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
     }
 }

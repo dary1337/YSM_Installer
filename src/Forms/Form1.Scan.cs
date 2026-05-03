@@ -12,23 +12,58 @@ namespace YSMInstaller
         {
             ClearDynamicControls();
 
-            label1.Text = "Loading supported versions...";
-            AppLogger.Info("Starting WARNO scan.");
-            _supportedVersions = await ModCatalogService.DownloadSupportedModsAsync();
+            label1.Text = "Searching for Warno.exe...";
+            ScanResult scanResult = await _scanCoordinator.ScanAsync(_includeSystemFolders);
+            _supportedVersions = scanResult.SupportedVersions;
             if (_supportedVersions.Count == 0)
             {
                 UserMessages.ShowSupportedVersionsLoadFailed(this);
             }
 
-            label1.Text = "Searching for Warno.exe...";
-            var warnoPaths = await WarnoFinder.FindExecutablesAsync(_includeSystemFolders);
-            var entries = WarnoScanner.Scan(warnoPaths, _supportedVersions);
-            AppLogger.Info($"WARNO scan completed. Executables found: {warnoPaths.Count}, valid entries: {entries.Count}.");
+            var entries = scanResult.Entries;
+            if (entries.Count == 0 && _includeSystemFolders)
+            {
+                entries = SelectManualWarnoEntry();
+            }
 
             AddEntryControls(entries);
             SelectLatestEntry(entries);
             AddShowMoreButtonIfNeeded(entries.Count);
             await AddRescanButtonAsync();
+        }
+
+        private List<WarnoEntry> SelectManualWarnoEntry()
+        {
+            if (UserMessages.ConfirmSelectWarnoManually(this) != DialogResult.Yes)
+            {
+                return new List<WarnoEntry>();
+            }
+
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Select Warno.exe";
+                dialog.Filter = "WARNO executable (Warno.exe)|Warno.exe|Executable files (*.exe)|*.exe";
+                dialog.CheckFileExists = true;
+                dialog.Multiselect = false;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return new List<WarnoEntry>();
+                }
+
+                var executable = new WarnoExecutable(dialog.FileName, WarnoExecutableSources.Manual);
+                var entries = WarnoScanner.Scan(new List<WarnoExecutable> { executable }, _supportedVersions);
+                if (entries.Count > 0)
+                {
+                    WarnoFinder.SaveLastWarnoExecutablePath(dialog.FileName);
+                }
+                else
+                {
+                    UserMessages.ShowSelectedWarnoInvalid(this);
+                }
+
+                return entries;
+            }
         }
 
         private void AddEntryControls(List<WarnoEntry> entries)

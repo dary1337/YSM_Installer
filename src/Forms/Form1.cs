@@ -9,6 +9,7 @@ namespace YSMInstaller
     {
         private readonly List<RoundedButton> _installButtons = new List<RoundedButton>();
         private readonly List<WarnoEntryControl> _panels = new List<WarnoEntryControl>();
+        private readonly ScanCoordinator _scanCoordinator = new ScanCoordinator();
         private List<ModMetadata> _supportedVersions = new List<ModMetadata>();
 
         private TableLayoutPanel _rootLayout = null!;

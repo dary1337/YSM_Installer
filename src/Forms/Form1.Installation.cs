@@ -97,32 +97,19 @@ namespace YSMInstaller
 
             try
             {
-                if (UserMessages.ConfirmInstall(this, selectedGameVersion, metadata) != DialogResult.OK)
-                {
-                    button.Text = originalText;
-                    return;
-                }
-
-                InstallModResult installResult = await WarnoInstaller.InstallAsync(metadata, new Progress<int>(progress =>
+                var workflow = new InstallWorkflow(this);
+                InstallWorkflowResult installResult = await workflow.InstallAsync(metadata, selectedGameVersion, new Progress<int>(progress =>
                 {
                     button.Text = $"Installing ({progress}%)...";
                 }));
 
-                if (installResult == InstallModResult.AlreadyRunning)
+                if (installResult != InstallWorkflowResult.Installed)
                 {
-                    UserMessages.ShowInstallAlreadyRunning(this);
                     button.Text = originalText;
                     return;
                 }
 
-                UserMessages.ShowInstallCompleted(this);
                 button.Text = $"Reinstall ({originalText.Replace("Install ", "")})";
-            }
-            catch (Exception exception)
-            {
-                AppLogger.Critical("Mod installation failed.", exception);
-                UserMessages.ShowInstallFailed(this);
-                button.Text = originalText;
             }
             finally
             {

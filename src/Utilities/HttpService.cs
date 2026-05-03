@@ -9,12 +9,20 @@ namespace YSMInstaller
     {
         private static readonly HttpClient Client = CreateClient();
 
-        public static async Task<string> GetStringAsync(string url)
+        public static async Task<string> GetStringAsync(string url, string? acceptHeader = null)
         {
-            using (var response = await Client.GetAsync(url))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
             {
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(acceptHeader))
+                {
+                    request.Headers.Accept.ParseAdd(acceptHeader);
+                }
+
+                using (var response = await Client.SendAsync(request))
+                {
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsStringAsync();
+                }
             }
         }
 

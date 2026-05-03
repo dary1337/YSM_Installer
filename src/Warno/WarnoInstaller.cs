@@ -54,6 +54,8 @@ namespace YSMInstaller
                 AppLogger.Info("Extracting mod archive.");
                 SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath);
 
+                EnsureGameModConfigExists(gameConfig);
+
                 string modConfig = Path.Combine(tempModPath, "Config.ini");
                 Dictionary<string, string> ysmConfig = IniFile.ReadValues(modConfig);
                 Dictionary<string, string> gameConfigData = IniFile.ReadValues(gameConfig);
@@ -101,6 +103,27 @@ namespace YSMInstaller
                 }
                 _isInstalling = false;
             }
+        }
+
+        private static void EnsureGameModConfigExists(string gameConfig)
+        {
+            if (File.Exists(gameConfig))
+            {
+                return;
+            }
+
+            AppLogger.Info("WARNO mod Config.ini is missing. Creating default mod configuration.");
+            string? directory = Path.GetDirectoryName(gameConfig);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllLines(gameConfig, new[]
+            {
+                "[mod]",
+                "ActivatedMods ="
+            });
         }
 
         private static void CloseRunningGame()

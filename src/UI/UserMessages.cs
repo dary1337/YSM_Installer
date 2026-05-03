@@ -69,11 +69,33 @@ namespace YSMInstaller
             MessageBox.Show(owner, "WARNO executable not found.");
         }
 
+        public static void ShowSelectedWarnoInvalid(IWin32Window owner)
+        {
+            MessageBox.Show(
+                owner,
+                "Selected Warno.exe does not look like a valid WARNO installation.",
+                "WARNO Not Found",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning
+            );
+        }
+
         public static DialogResult ConfirmFullSystemScan(IWin32Window owner)
         {
             return MessageBox.Show(
                 owner,
                 "WARNO executable not found. Make sure it's not installed in C:\\Windows or C:\\Users.\n\nDo you want to scan all directories anyway?",
+                "WARNO Not Found",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+        }
+
+        public static DialogResult ConfirmSelectWarnoManually(IWin32Window owner)
+        {
+            return MessageBox.Show(
+                owner,
+                "WARNO executable was not found automatically.\n\nDo you want to select Warno.exe manually?",
                 "WARNO Not Found",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question

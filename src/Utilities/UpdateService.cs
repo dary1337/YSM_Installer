@@ -14,6 +14,7 @@ namespace YSMInstaller
     public static class UpdateService
     {
         private const string LatestReleaseUrl = "https://api.github.com/repos/dary1337/YSM_Installer/releases/latest";
+        private const string GitHubApiAcceptHeader = "application/vnd.github+json";
         private const string InstallerAssetName = "YSMInstaller.exe";
 
         public static async Task<bool> CheckForUpdatesAsync(IWin32Window owner)
@@ -74,7 +75,7 @@ namespace YSMInstaller
 
         private static async Task<UpdateInfo> FetchLatestReleaseAsync()
         {
-            var json = await HttpService.GetStringAsync(LatestReleaseUrl);
+            var json = await HttpService.GetStringAsync(LatestReleaseUrl, GitHubApiAcceptHeader);
             var release = JsonConvert.DeserializeObject<GitHubRelease>(json)
                 ?? throw new InvalidDataException("GitHub release response is empty.");
 

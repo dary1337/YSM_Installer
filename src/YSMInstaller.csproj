@@ -164,8 +164,10 @@
     <Compile Include="UI\Sizes.cs" />
     <Compile Include="UI\Theme.cs" />
     <Compile Include="UI\UserMessages.cs" />
+    <Compile Include="Warno\InstallWorkflow.cs" />
     <Compile Include="Warno\InstallModResult.cs" />
     <Compile Include="Warno\ModCatalogService.cs" />
+    <Compile Include="Warno\ScanCoordinator.cs" />
     <Compile Include="Warno\WarnoFinder.cs" />
     <Compile Include="Warno\WarnoInstaller.cs" />
     <Compile Include="Warno\WarnoInstallWarning.cs" />
