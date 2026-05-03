@@ -51,7 +51,7 @@ namespace YSMInstaller
             AttachEvents(this);
             AttachEvents(_label);
             if (_button != null)
-                AttachEvents(_button);
+                AttachEvents(_button, selectOnClick: false);
         }
 
         private bool HasKnownIssuesUrl =>
@@ -84,18 +84,20 @@ namespace YSMInstaller
             return Theme.RecommendedBackground;
         }
 
-        private void AttachEvents(Control control)
+        private void AttachEvents(Control control, bool selectOnClick = true)
         {
             control.Cursor = SystemCursors.Pointer;
 
-            control.Click += OnControlClick;
+            if (selectOnClick)
+                control.Click += OnControlClick;
             control.MouseEnter += OnHoverEnter;
             control.MouseLeave += OnHoverLeave;
         }
 
-        private void DetachEvents(Control control)
+        private void DetachEvents(Control control, bool selectOnClick = true)
         {
-            control.Click -= OnControlClick;
+            if (selectOnClick)
+                control.Click -= OnControlClick;
             control.MouseEnter -= OnHoverEnter;
             control.MouseLeave -= OnHoverLeave;
         }
@@ -176,9 +178,10 @@ namespace YSMInstaller
                 DetachEvents(this);
                 DetachEvents(_label);
                 if (_button != null)
-                    DetachEvents(_button);
-
-                _label.Click -= OpenKnownIssues;
+                {
+                    DetachEvents(_button, selectOnClick: false);
+                    _button.Click -= OpenKnownIssues;
+                }
             }
 
             base.Dispose(disposing);

@@ -27,40 +27,34 @@ namespace YSMInstaller
             var foundExecutables = new ConcurrentDictionary<string, WarnoExecutable>(StringComparer.OrdinalIgnoreCase);
 
             AddExecutableCandidates(GetCachedExecutableCandidates(), foundExecutables);
-            List<WarnoExecutable> cachedResults = ToSortedResults(foundExecutables);
-            if (cachedResults.Count > 0)
-            {
-                SaveLastWarnoExecutablePath(cachedResults);
-                return cachedResults;
-            }
 
-            AddExecutableCandidates(GetSteamExecutableCandidates(), foundExecutables);
+            bool foundSteamCandidates = AddExecutableCandidates(GetSteamExecutableCandidates(), foundExecutables);
             List<WarnoExecutable> steamResults = ToSortedResults(foundExecutables);
-            if (steamResults.Count > 0)
+            if (foundSteamCandidates)
             {
                 SaveLastWarnoExecutablePath(steamResults);
                 return steamResults;
             }
 
-            AddExecutableCandidates(GetCommonFolderCandidates(), foundExecutables);
+            bool foundCommonFolderCandidates = AddExecutableCandidates(GetCommonFolderCandidates(), foundExecutables);
             List<WarnoExecutable> commonFolderResults = ToSortedResults(foundExecutables);
-            if (commonFolderResults.Count > 0)
+            if (foundCommonFolderCandidates)
             {
                 SaveLastWarnoExecutablePath(commonFolderResults);
                 return commonFolderResults;
             }
 
-            AddExecutableCandidates(GetUninstallRegistryCandidates(), foundExecutables);
+            bool foundRegistryCandidates = AddExecutableCandidates(GetUninstallRegistryCandidates(), foundExecutables);
             List<WarnoExecutable> registryResults = ToSortedResults(foundExecutables);
-            if (registryResults.Count > 0)
+            if (foundRegistryCandidates)
             {
                 SaveLastWarnoExecutablePath(registryResults);
                 return registryResults;
             }
 
-            AddExecutableCandidates(GetShortcutCandidates(), foundExecutables);
+            bool foundShortcutCandidates = AddExecutableCandidates(GetShortcutCandidates(), foundExecutables);
             List<WarnoExecutable> shortcutResults = ToSortedResults(foundExecutables);
-            if (shortcutResults.Count > 0 || !includeSystemFolders)
+            if (foundShortcutCandidates || !includeSystemFolders)
             {
                 SaveLastWarnoExecutablePath(shortcutResults);
                 return shortcutResults;
@@ -79,15 +73,18 @@ namespace YSMInstaller
             return deepScanResults;
         }
 
-        private static void AddExecutableCandidates(
+        private static bool AddExecutableCandidates(
             IEnumerable<WarnoExecutable> candidates,
             ConcurrentDictionary<string, WarnoExecutable> foundExecutables
         )
         {
+            bool addedAny = false;
             foreach (WarnoExecutable candidate in candidates)
             {
-                AddExecutableIfValid(candidate, foundExecutables);
+                addedAny = AddExecutableIfValid(candidate, foundExecutables) || addedAny;
             }
+
+            return addedAny;
         }
 
         private static List<WarnoExecutable> ToSortedResults(ConcurrentDictionary<string, WarnoExecutable> foundExecutables)
