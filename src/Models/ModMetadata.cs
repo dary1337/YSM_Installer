@@ -1,10 +1,7 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
-namespace YSMInstaller
-{
-    public sealed class ModMetadata
-    {
-
+namespace YSMInstaller {
+    public sealed class ModMetadata {
         [JsonProperty("mod_type")]
         public string ModType { get; set; } = string.Empty;
 

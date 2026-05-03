@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import
+    Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
+    Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"
+  />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -15,8 +18,7 @@
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
+    <NuGetPackageImportStamp></NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -99,25 +101,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Controls\RoundedControls.cs" />
-    <Compile Include="Controls\RoundedBorderButton.cs">
+    <Compile Include="Controls\Rounded\RoundedControls.cs" />
+    <Compile Include="Controls\Rounded\RoundedBorderButton.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Controls\RoundedButton.cs">
+    <Compile Include="Controls\Rounded\RoundedButton.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Controls\RoundedLabel.cs">
+    <Compile Include="Controls\Rounded\RoundedLabel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Controls\RoundedPanel.cs">
+    <Compile Include="Controls\Rounded\RoundedPanel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Controls\RoundedPicturebox.cs">
+    <Compile Include="Controls\Rounded\RoundedPicturebox.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Controls\RoundedTextBox.cs">
+    <Compile Include="Controls\Rounded\RoundedTextBox.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Controls\Ui\DropdownSelect.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Ui\UiChrome.cs" />
     <Compile Include="Controls\WarnoEntryControl.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -162,18 +168,28 @@
     <Compile Include="Forms\StepsForm.Designer.cs">
       <DependentUpon>StepsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\SettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="UI\Sizes.cs" />
     <Compile Include="UI\Theme.cs" />
     <Compile Include="UI\UserMessages.cs" />
     <Compile Include="Warno\DevWarnoMocks.cs" />
+    <Compile Include="Warno\IModCatalogSource.cs" />
     <Compile Include="Warno\InstallWorkflow.cs" />
     <Compile Include="Warno\InstallModResult.cs" />
+    <Compile Include="Warno\ModCatalogDownloadResult.cs" />
+    <Compile Include="Warno\ModCatalogSettings.cs" />
     <Compile Include="Warno\ModCatalogService.cs" />
+    <Compile Include="Warno\ModCatalogSourceKind.cs" />
+    <Compile Include="Warno\ModCatalogSources.cs" />
+    <Compile Include="Warno\OfficialModCatalogSource.cs" />
     <Compile Include="Warno\ScanCoordinator.cs" />
     <Compile Include="Warno\WarnoFinder.cs" />
     <Compile Include="Warno\WarnoInstaller.cs" />
     <Compile Include="Warno\WarnoInstallWarning.cs" />
     <Compile Include="Warno\WarnoScanner.cs" />
+    <Compile Include="Warno\YokaisteReleaseCatalogSource.cs" />
     <EmbeddedResource Include="Forms\Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>

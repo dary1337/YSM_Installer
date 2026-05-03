@@ -1,12 +1,10 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace YSMInstaller
-{
-    public class WarnoEntryControl : RoundedPanel
-    {
+namespace YSMInstaller {
+    public class WarnoEntryControl : RoundedPanel {
         public event Action<int>? VersionSelected;
 
         private readonly RoundedBorderButton? _button;
@@ -15,17 +13,16 @@ namespace YSMInstaller
 
         public WarnoEntry Entry => _entry;
 
-        public WarnoEntryControl(WarnoEntry entry)
-        {
+        public WarnoEntryControl(WarnoEntry entry) {
             _entry = entry;
 
             Height = Sizes.PanelHeight;
-            Padding = new Padding(8);
+            Padding = new Padding(10);
             BackColor = Theme.PanelBackground;
-            SetCornerRadius(14);
+            SetCornerRadius(16);
+            SetOutline(Theme.EntryPanelBorder);
 
-            _label = new Label
-            {
+            _label = new Label {
                 Text = GetLabelText(),
                 AutoSize = true,
                 ForeColor = GetLabelColor(),
@@ -33,14 +30,13 @@ namespace YSMInstaller
                 Cursor = HasKnownIssuesUrl ? Cursors.Hand : Cursors.Default,
             };
 
-            if (HasKnownIssuesUrl)
-            {
-                _button = new RoundedBorderButton(Color.OrangeRed, 16)
-                {
+            if (HasKnownIssuesUrl) {
+                _button = new RoundedBorderButton(Color.OrangeRed, 16, Color.FromArgb(255, 115, 85)) {
                     Text = "Click to find out why",
                     Cursor = SystemCursors.Pointer,
                     Dock = DockStyle.Bottom,
                     ForeColor = Color.White,
+                    Margin = new Padding(0, 6, 0, 0),
                 };
                 _button.Click += OpenKnownIssues;
                 Controls.Add(_button);
@@ -55,11 +51,10 @@ namespace YSMInstaller
         }
 
         private bool HasKnownIssuesUrl =>
-            _entry.VersionMetadata != null &&
-            !string.IsNullOrWhiteSpace(_entry.VersionMetadata.KnownIssuesUrl);
+            _entry.VersionMetadata != null
+            && !string.IsNullOrWhiteSpace(_entry.VersionMetadata.KnownIssuesUrl);
 
-        private string GetLabelText()
-        {
+        private string GetLabelText() {
             string sourceText = string.IsNullOrWhiteSpace(_entry.SourceLabel)
                 ? string.Empty
                 : $", {_entry.SourceLabel}";
@@ -73,19 +68,15 @@ namespace YSMInstaller
             return $"{_entry.ExePath} (v{_entry.Version}{sourceText})";
         }
 
-        private Color GetLabelColor()
-        {
+        private Color GetLabelColor() {
             if (_entry.VersionMetadata == null)
-                return _entry.LatestCompatibleModVersion > 0
-                    ? Color.Orange
-                    : Color.Red;
+                return _entry.LatestCompatibleModVersion > 0 ? Color.Orange : Color.Red;
             if (HasKnownIssuesUrl)
                 return Color.OrangeRed;
             return Theme.RecommendedBackground;
         }
 
-        private void AttachEvents(Control control, bool selectOnClick = true)
-        {
+        private void AttachEvents(Control control, bool selectOnClick = true) {
             control.Cursor = SystemCursors.Pointer;
 
             if (selectOnClick)
@@ -94,26 +85,22 @@ namespace YSMInstaller
             control.MouseLeave += OnHoverLeave;
         }
 
-        private void DetachEvents(Control control, bool selectOnClick = true)
-        {
+        private void DetachEvents(Control control, bool selectOnClick = true) {
             if (selectOnClick)
                 control.Click -= OnControlClick;
             control.MouseEnter -= OnHoverEnter;
             control.MouseLeave -= OnHoverLeave;
         }
 
-        private void OnControlClick(object sender, EventArgs e)
-        {
+        private void OnControlClick(object sender, EventArgs e) {
             VersionSelected?.Invoke(_entry.Version);
         }
 
-        private void OnHoverEnter(object sender, EventArgs e)
-        {
+        private void OnHoverEnter(object sender, EventArgs e) {
             BackColor = Theme.PanelBackgroundHover;
         }
 
-        private void OnHoverLeave(object sender, EventArgs e)
-        {
+        private void OnHoverLeave(object sender, EventArgs e) {
             if (ClientRectangle.Contains(PointToClient(Cursor.Position)))
                 return;
 
@@ -125,45 +112,37 @@ namespace YSMInstaller
 
         private bool IsSelected { get; set; }
 
-        public void SetSelected(bool isSelected)
-        {
+        public void SetSelected(bool isSelected) {
             IsSelected = isSelected;
-            BackColor = isSelected
-                ? Theme.PanelBackgroundHover
-                : Theme.PanelBackground;
+            BackColor = isSelected ? Theme.PanelBackgroundHover : Theme.PanelBackground;
         }
 
-        private void OpenKnownIssues(object sender, EventArgs e)
-        {
+        private void OpenKnownIssues(object sender, EventArgs e) {
             var url = _entry.VersionMetadata?.KnownIssuesUrl;
             if (!TryCreateBrowserUrl(url, out Uri browserUrl))
                 return;
 
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = browserUrl.AbsoluteUri,
-                    UseShellExecute = true
-                });
+            try {
+                Process.Start(
+                    new ProcessStartInfo {
+                        FileName = browserUrl.AbsoluteUri,
+                        UseShellExecute = true,
+                    }
+                );
             }
-            catch (Exception exception)
-            {
+            catch (Exception exception) {
                 AppLogger.Error("Failed to open known issues URL.", exception);
             }
         }
 
-        private static bool TryCreateBrowserUrl(string? value, out Uri uri)
-        {
+        private static bool TryCreateBrowserUrl(string? value, out Uri uri) {
             uri = null!;
 
-            if (!Uri.TryCreate(value, UriKind.Absolute, out Uri parsedUri))
-            {
+            if (!Uri.TryCreate(value, UriKind.Absolute, out Uri parsedUri)) {
                 return false;
             }
 
-            if (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps)
-            {
+            if (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps) {
                 return false;
             }
 
@@ -171,14 +150,11 @@ namespace YSMInstaller
             return true;
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
+        protected override void Dispose(bool disposing) {
+            if (disposing) {
                 DetachEvents(this);
                 DetachEvents(_label);
-                if (_button != null)
-                {
+                if (_button != null) {
                     DetachEvents(_button, selectOnClick: false);
                     _button.Click -= OpenKnownIssues;
                 }

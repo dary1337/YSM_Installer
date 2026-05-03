@@ -1,9 +1,7 @@
-﻿using System.IO;
+using System.IO;
 
-namespace YSMInstaller
-{
-    public sealed class WarnoEntry
-    {
+namespace YSMInstaller {
+    public sealed class WarnoEntry {
         public string ExePath { get; set; } = string.Empty;
         public string SourceLabel { get; set; } = string.Empty;
         public string GamePath => Path.GetDirectoryName(ExePath) ?? string.Empty;

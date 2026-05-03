@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+
+[*.cs]
+# Opening brace always on the same line as the header (K&R / Java style).
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+
+# Keep typical C# readability for multi-line constructs (not about brace position).
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = false
+
+indent_style = space
+indent_size = 4

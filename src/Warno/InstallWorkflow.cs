@@ -2,14 +2,11 @@ using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace YSMInstaller
-{
-    public sealed class InstallWorkflow
-    {
+namespace YSMInstaller {
+    public sealed class InstallWorkflow {
         private readonly IWin32Window _owner;
 
-        public InstallWorkflow(IWin32Window owner)
-        {
+        public InstallWorkflow(IWin32Window owner) {
             _owner = owner;
         }
 
@@ -17,18 +14,20 @@ namespace YSMInstaller
             ModMetadata metadata,
             int selectedGameVersion,
             IProgress<int>? progress = null
-        )
-        {
-            try
-            {
-                if (UserMessages.ConfirmInstall(_owner, selectedGameVersion, metadata) != DialogResult.OK)
-                {
+        ) {
+            try {
+                if (
+                    UserMessages.ConfirmInstall(_owner, selectedGameVersion, metadata)
+                    != DialogResult.OK
+                ) {
                     return InstallWorkflowResult.Cancelled;
                 }
 
-                InstallModResult installResult = await WarnoInstaller.InstallAsync(metadata, progress);
-                if (installResult == InstallModResult.AlreadyRunning)
-                {
+                InstallModResult installResult = await WarnoInstaller.InstallAsync(
+                    metadata,
+                    progress
+                );
+                if (installResult == InstallModResult.AlreadyRunning) {
                     UserMessages.ShowInstallAlreadyRunning(_owner);
                     return InstallWorkflowResult.AlreadyRunning;
                 }
@@ -36,8 +35,7 @@ namespace YSMInstaller
                 UserMessages.ShowInstallCompleted(_owner);
                 return InstallWorkflowResult.Installed;
             }
-            catch (Exception exception)
-            {
+            catch (Exception exception) {
                 AppLogger.Critical("Mod installation failed.", exception);
                 UserMessages.ShowInstallFailed(_owner);
                 return InstallWorkflowResult.Failed;
@@ -45,11 +43,10 @@ namespace YSMInstaller
         }
     }
 
-    public enum InstallWorkflowResult
-    {
+    public enum InstallWorkflowResult {
         Cancelled,
         AlreadyRunning,
         Installed,
-        Failed
+        Failed,
     }
 }
