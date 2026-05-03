@@ -22,5 +22,29 @@ namespace YSMInstaller.Properties {
                 return defaultInstance;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastWarnoExecutablePath {
+            get {
+                return ((string)(this["LastWarnoExecutablePath"]));
+            }
+            set {
+                this["LastWarnoExecutablePath"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("OfficialModsList")]
+        public string ModCatalogSourceKind {
+            get {
+                return ((string)(this["ModCatalogSourceKind"]));
+            }
+            set {
+                this["ModCatalogSourceKind"] = value;
+            }
+        }
     }
 }

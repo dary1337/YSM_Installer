@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
@@ -9,14 +9,14 @@ namespace YSMInstaller {
             StartPosition = FormStartPosition.CenterScreen;
             AutoScroll = true;
             Icon = Properties.Resources.logo;
-            BackColor = Color.FromArgb(19, 22, 30);
-            ForeColor = Color.White;
+            BackColor = Theme.Background;
+            ForeColor = Theme.TextPrimary;
 
             TableLayoutPanel layout = new TableLayoutPanel {
                 Dock = DockStyle.Top,
                 ColumnCount = 1,
                 AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
             };
 
             layout.RowStyles.Clear();
@@ -24,12 +24,13 @@ namespace YSMInstaller {
             AddStep(layout, "Open properties", Properties.Resources.Screenshot_2025_03_02_182641);
             AddStep(layout, "Click Betas", Properties.Resources.Screenshot_2025_03_02_182659);
             AddStep(layout, "Choose version", Properties.Resources.Screenshot_2025_03_02_182718);
-            AddStep(layout, "Wait for Warno to load", Properties.Resources.Screenshot_2025_03_02_182724);
+            AddStep(
+                layout,
+                "Wait for Warno to load",
+                Properties.Resources.Screenshot_2025_03_02_182724
+            );
 
-            Panel panel = new Panel {
-                Dock = DockStyle.Fill,
-                AutoScroll = true
-            };
+            Panel panel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
             panel.Controls.Add(layout);
 
             Controls.Add(panel);
@@ -41,13 +42,13 @@ namespace YSMInstaller {
                 Dock = DockStyle.Top,
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize = true
+                AutoSize = true,
             };
 
             PictureBox pictureBox = new PictureBox {
                 Image = image,
                 SizeMode = PictureBoxSizeMode.AutoSize,
-                Dock = DockStyle.Top
+                Dock = DockStyle.Top,
             };
 
             layout.Controls.Add(label);
