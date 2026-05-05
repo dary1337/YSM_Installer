@@ -6,6 +6,17 @@ using System.Threading.Tasks;
 namespace YSMInstaller {
     public static class HttpService {
         private static readonly HttpClient Client = CreateClient();
+        private const int UnknownSizeProgressStepBytes = 256 * 1024;
+
+        public readonly struct DownloadProgressInfo {
+            public DownloadProgressInfo(long bytesReceived, long? totalBytes) {
+                BytesReceived = bytesReceived;
+                TotalBytes = totalBytes;
+            }
+
+            public long BytesReceived { get; }
+            public long? TotalBytes { get; }
+        }
 
         public static async Task<string> GetStringAsync(string url, string? acceptHeader = null) {
             using (var request = new HttpRequestMessage(HttpMethod.Get, url)) {
@@ -20,10 +31,43 @@ namespace YSMInstaller {
             }
         }
 
+        public static async Task<long?> TryGetRemoteFileSizeAsync(string url) {
+            try {
+                using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
+                using (var headResponse = await Client.SendAsync(headRequest)) {
+                    if (headResponse.IsSuccessStatusCode) {
+                        return headResponse.Content.Headers.ContentLength;
+                    }
+                }
+            }
+            catch {
+                // Ignore and fallback to GET headers probe.
+            }
+
+            try {
+                using (
+                    var response = await Client.GetAsync(
+                        url,
+                        HttpCompletionOption.ResponseHeadersRead
+                    )
+                ) {
+                    if (!response.IsSuccessStatusCode) {
+                        return null;
+                    }
+
+                    return response.Content.Headers.ContentLength;
+                }
+            }
+            catch {
+                return null;
+            }
+        }
+
         public static async Task DownloadFileAsync(
             string url,
             string destinationPath,
-            IProgress<int>? progress = null
+            IProgress<int>? progress = null,
+            IProgress<DownloadProgressInfo>? detailedProgress = null
         ) {
             using (
                 var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead)
@@ -48,10 +92,27 @@ namespace YSMInstaller {
                     long totalRead = 0;
                     int read;
                     int lastReported = -1;
+                    long lastReportedBytes = -UnknownSizeProgressStepBytes;
 
                     while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0) {
                         await fileStream.WriteAsync(buffer, 0, read);
                         totalRead += read;
+
+                        if (
+                            detailedProgress != null
+                            && (
+                                canReportProgress
+                                || totalRead - lastReportedBytes >= UnknownSizeProgressStepBytes
+                            )
+                        ) {
+                            detailedProgress.Report(
+                                new DownloadProgressInfo(
+                                    totalRead,
+                                    totalBytes == -1 ? (long?)null : totalBytes
+                                )
+                            );
+                            lastReportedBytes = totalRead;
+                        }
 
                         if (canReportProgress) {
                             int percent = (int)((totalRead * 100L) / totalBytes);
@@ -61,6 +122,13 @@ namespace YSMInstaller {
                             }
                         }
                     }
+
+                    detailedProgress?.Report(
+                        new DownloadProgressInfo(
+                            totalRead,
+                            totalBytes == -1 ? (long?)null : totalBytes
+                        )
+                    );
                 }
             }
         }

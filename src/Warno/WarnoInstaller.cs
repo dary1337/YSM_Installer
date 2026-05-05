@@ -10,8 +10,13 @@ namespace YSMInstaller {
 
         public static async Task<InstallModResult> InstallAsync(
             ModMetadata modMetadata,
-            IProgress<int>? progress = null
+            IProgress<int>? progress = null,
+            IProgress<string>? stageProgress = null
         ) {
+            if (DevWarnoMocks.IsEnabled) {
+                return await SimulateInstallAsync(modMetadata, progress, stageProgress);
+            }
+
             if (_isInstalling) {
                 AppLogger.Info(
                     "Install request ignored because another installation is already running."
@@ -49,22 +54,31 @@ namespace YSMInstaller {
                 AppLogger.Info(
                     $"Starting mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
                 );
+                ReportStage(stageProgress, "Preparing...");
                 Directory.CreateDirectory(modFolder);
 
                 AppLogger.Info("Downloading mod archive.");
+                ReportStage(stageProgress, "Downloading...");
                 await HttpService.DownloadFileAsync(
                     modMetadata.DownloadUrl,
                     modArchivePath,
-                    progress
+                    progress,
+                    new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
+                        ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
+                    })
                 );
 
                 Directory.CreateDirectory(tempModPath);
                 AppLogger.Info("Extracting mod archive.");
+                ReportStage(stageProgress, "Extracting...");
                 SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath);
+                string extractedModPath = ResolveExtractedModPath(tempModPath);
+                AppLogger.Info($"Resolved extracted mod root: {extractedModPath}");
 
+                ReportStage(stageProgress, "Reading config...");
                 EnsureGameModConfigExists(gameConfig);
 
-                string modConfig = Path.Combine(tempModPath, "Config.ini");
+                string modConfig = Path.Combine(extractedModPath, "Config.ini");
                 Dictionary<string, string> ysmConfig = IniFile.ReadValues(modConfig);
                 Dictionary<string, string> gameConfigData = IniFile.ReadValues(gameConfig);
 
@@ -81,10 +95,12 @@ namespace YSMInstaller {
                 ysmConfig["Name"] = manualVersion;
                 IniFile.WriteValues(modConfig, ysmConfig);
 
+                ReportStage(stageProgress, "Closing WARNO...");
                 CloseRunningGame();
                 File.Delete(lockFile);
 
                 AppLogger.Info("Backing up current WARNO mod configuration.");
+                ReportStage(stageProgress, "Backing up...");
                 File.Copy(gameConfig, gameConfigBackupPath, true);
 
                 AppLogger.Info("Backing up previously installed YSM mods.");
@@ -92,12 +108,16 @@ namespace YSMInstaller {
                     modFolder,
                     previousModsBackupPath,
                     previousModBackups,
-                    finalModPath
+                    finalModPath,
+                    tempModPath,
+                    extractedModPath
                 );
 
-                Directory.Move(tempModPath, finalModPath);
+                ReportStage(stageProgress, "Installing files...");
+                Directory.Move(extractedModPath, finalModPath);
                 finalModCreated = true;
 
+                ReportStage(stageProgress, "Finalizing...");
                 gameConfigData["ActivatedMods"] = $"{manualVersion}|";
                 IniFile.WriteValues(gameConfig, gameConfigData);
 
@@ -129,6 +149,76 @@ namespace YSMInstaller {
             }
         }
 
+        private static async Task<InstallModResult> SimulateInstallAsync(
+            ModMetadata modMetadata,
+            IProgress<int>? progress,
+            IProgress<string>? stageProgress
+        ) {
+            if (_isInstalling) {
+                AppLogger.Info(
+                    "Mock install request ignored because another installation is already running."
+                );
+                return InstallModResult.AlreadyRunning;
+            }
+
+            _isInstalling = true;
+            try {
+                AppLogger.Info(
+                    $"Starting mock mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
+                );
+
+                ReportStage(stageProgress, "Downloading...");
+                await ReportMockProgress(progress, 0, 45, 60);
+                ReportStage(stageProgress, "Extracting...");
+                await ReportMockProgress(progress, 45, 72, 60);
+                ReportStage(stageProgress, "Backing up...");
+                await ReportMockProgress(progress, 72, 88, 60);
+                ReportStage(stageProgress, "Installing files...");
+                await ReportMockProgress(progress, 88, 98, 60);
+                ReportStage(stageProgress, "Finalizing...");
+                await ReportMockProgress(progress, 98, 100, 75);
+
+                AppLogger.Info(
+                    $"Mock mod installation completed. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
+                );
+                return InstallModResult.Installed;
+            }
+            finally {
+                _isInstalling = false;
+            }
+        }
+
+        private static void ReportStage(IProgress<string>? stageProgress, string stage) {
+            stageProgress?.Report(stage);
+        }
+
+        private static string BuildDownloadStage(HttpService.DownloadProgressInfo progress) {
+            string downloaded = ToMegabytesLabel(progress.BytesReceived);
+            if (progress.TotalBytes.HasValue && progress.TotalBytes.Value > 0) {
+                string total = ToMegabytesLabel(progress.TotalBytes.Value);
+                return $"Downloading... {downloaded} / {total}";
+            }
+
+            return $"Downloading... {downloaded}";
+        }
+
+        private static string ToMegabytesLabel(long bytes) {
+            double megabytes = bytes / 1024d / 1024d;
+            return $"{megabytes:0.0} MB";
+        }
+
+        private static async Task ReportMockProgress(
+            IProgress<int>? progress,
+            int fromInclusive,
+            int toInclusive,
+            int delayMs
+        ) {
+            for (int value = fromInclusive; value <= toInclusive; value++) {
+                progress?.Report(value);
+                await Task.Delay(delayMs);
+            }
+        }
+
         private static void EnsureGameModConfigExists(string gameConfig) {
             if (File.Exists(gameConfig)) {
                 return;
@@ -141,6 +231,47 @@ namespace YSMInstaller {
             }
 
             File.WriteAllLines(gameConfig, new[] { "[mod]", "ActivatedMods =" });
+        }
+
+        private static string ResolveExtractedModPath(string extractedRoot) {
+            string currentPath = extractedRoot;
+            const int maxDepth = 64;
+
+            for (int depth = 0; depth < maxDepth; depth++) {
+                if (File.Exists(Path.Combine(currentPath, "Config.ini"))) {
+                    return currentPath;
+                }
+
+                string[] childDirectories = Directory.GetDirectories(currentPath);
+                if (childDirectories.Length != 1) {
+                    break;
+                }
+
+                currentPath = childDirectories[0];
+            }
+
+            string[] configMatches = Directory.GetFiles(
+                extractedRoot,
+                "Config.ini",
+                SearchOption.AllDirectories
+            );
+
+            if (configMatches.Length == 1) {
+                return Path.GetDirectoryName(configMatches[0])
+                    ?? throw new InvalidOperationException(
+                        "Extracted archive contains Config.ini with invalid path."
+                    );
+            }
+
+            if (configMatches.Length > 1) {
+                throw new InvalidOperationException(
+                    "Extracted archive contains multiple Config.ini files and cannot determine mod root."
+                );
+            }
+
+            throw new InvalidOperationException(
+                "Extracted archive does not contain Config.ini in any folder."
+            );
         }
 
         private static void CloseRunningGame() {
@@ -165,10 +296,16 @@ namespace YSMInstaller {
             string modFolder,
             string backupRoot,
             List<DirectoryBackup> backups,
-            string finalModPath
+            string finalModPath,
+            string tempModPath,
+            string extractedModPath
         ) {
             foreach (string directory in Directory.GetDirectories(modFolder)) {
-                if (IsSamePath(directory, backupRoot)) {
+                if (
+                    IsSamePath(directory, backupRoot)
+                    || IsSamePath(directory, tempModPath)
+                    || IsSamePath(directory, extractedModPath)
+                ) {
                     continue;
                 }
 

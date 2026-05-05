@@ -13,11 +13,20 @@ namespace YSMInstaller {
         public async Task<InstallWorkflowResult> InstallAsync(
             ModMetadata metadata,
             int selectedGameVersion,
-            IProgress<int>? progress = null
+            IProgress<int>? progress = null,
+            IProgress<string>? stageProgress = null
         ) {
             try {
+                long? archiveSizeBytes = await HttpService.TryGetRemoteFileSizeAsync(
+                    metadata.DownloadUrl
+                );
                 if (
-                    UserMessages.ConfirmInstall(_owner, selectedGameVersion, metadata)
+                    UserMessages.ConfirmInstall(
+                        _owner,
+                        selectedGameVersion,
+                        metadata,
+                        archiveSizeBytes
+                    )
                     != DialogResult.OK
                 ) {
                     return InstallWorkflowResult.Cancelled;
@@ -25,7 +34,8 @@ namespace YSMInstaller {
 
                 InstallModResult installResult = await WarnoInstaller.InstallAsync(
                     metadata,
-                    progress
+                    progress,
+                    stageProgress
                 );
                 if (installResult == InstallModResult.AlreadyRunning) {
                     UserMessages.ShowInstallAlreadyRunning(_owner);

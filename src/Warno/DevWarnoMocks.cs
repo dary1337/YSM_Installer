@@ -44,6 +44,11 @@ namespace YSMInstaller {
                     GameVersion = 188908,
                     DownloadUrl = "https://example.invalid/dev/ysm_wif_188908.zip",
                 },
+                new ModMetadata {
+                    ModType = ModTypes.YsmWto,
+                    GameVersion = 188908,
+                    DownloadUrl = "https://example.invalid/dev/ysm_wto_188908.zip",
+                },
             };
         }
 

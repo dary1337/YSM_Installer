@@ -95,14 +95,12 @@ namespace YSMInstaller {
         }
 
         private static List<ModMetadata> ValidateSupportedMods(List<ModMetadata> mods) {
-            var brokenVersions = new HashSet<int>();
             var validMods = new List<ModMetadata>();
 
             foreach (ModMetadata mod in mods) {
                 if (!IsValidModType(mod.ModType)) {
-                    brokenVersions.Add(mod.GameVersion);
                     AppLogger.Error(
-                        $"Catalog version {mod.GameVersion} is marked broken because mod_type '{mod.ModType}' is invalid."
+                        $"Catalog entry is skipped because mod_type '{mod.ModType}' is invalid (game version {mod.GameVersion})."
                     );
                     continue;
                 }
@@ -110,23 +108,13 @@ namespace YSMInstaller {
                 validMods.Add(mod);
             }
 
-            if (brokenVersions.Count == 0) {
-                return validMods;
-            }
-
-            var result = new List<ModMetadata>();
-            foreach (ModMetadata mod in validMods) {
-                if (!brokenVersions.Contains(mod.GameVersion)) {
-                    result.Add(mod);
-                }
-            }
-
-            return result;
+            return validMods;
         }
 
         private static bool IsValidModType(string modType) {
             return string.Equals(modType, ModTypes.Ysm, StringComparison.Ordinal)
-                || string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal);
+                || string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal)
+                || string.Equals(modType, ModTypes.YsmWto, StringComparison.Ordinal);
         }
     }
 }

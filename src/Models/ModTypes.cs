@@ -2,9 +2,18 @@ namespace YSMInstaller {
     public static class ModTypes {
         public const string Ysm = "ysm";
         public const string YsmWif = "ysm_wif";
+        public const string YsmWto = "ysm_wto";
 
         public static string ToDisplayName(string modType) {
-            return modType == YsmWif ? "YSM x WiF" : "YSM";
+            if (modType == YsmWif) {
+                return "YSM x WiF";
+            }
+
+            if (modType == YsmWto) {
+                return "YSM x WTO";
+            }
+
+            return "YSM";
         }
     }
 }

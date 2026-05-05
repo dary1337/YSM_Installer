@@ -38,6 +38,11 @@ namespace YSMInstaller {
                 "Install YSM x WiF",
                 version
             );
+            AddInstallButtonIfAvailable(
+                foundVersions.FirstOrDefault(mod => mod.ModType == ModTypes.YsmWto),
+                "Install YSM x WTO",
+                version
+            );
             RelayoutInstallButtons();
         }
 
@@ -96,6 +101,8 @@ namespace YSMInstaller {
             _isInstallButtonBusy = true;
             var originalText = (string)button.Tag;
             button.Text = "Installing...";
+            SetInstallProgressVisible(true);
+            UpdateInstallProgress(0);
 
             try {
                 var workflow = new InstallWorkflow(this);
@@ -103,7 +110,10 @@ namespace YSMInstaller {
                     metadata,
                     selectedGameVersion,
                     new Progress<int>(progress => {
-                        button.Text = $"Installing ({progress}%)...";
+                        UpdateInstallProgress(progress);
+                    }),
+                    new Progress<string>(stage => {
+                        button.Text = stage;
                     })
                 );
 
@@ -112,11 +122,23 @@ namespace YSMInstaller {
                     return;
                 }
 
+                UpdateInstallProgress(100);
                 button.Text = $"Reinstall ({originalText.Replace("Install ", "")})";
             }
             finally {
+                SetInstallProgressVisible(false);
                 _isInstallButtonBusy = false;
             }
+        }
+
+        private void SetInstallProgressVisible(bool isVisible) {
+            _installProgressBar.Visible = isVisible;
+            _installControlPanel.Margin = isVisible ? new Padding(0, 4, 0, 0) : Padding.Empty;
+            _installIslandPanel.Visible = _installControlPanel.Controls.Count > 0 || isVisible;
+        }
+
+        private void UpdateInstallProgress(int value) {
+            _installProgressBar.Value = value;
         }
     }
 }

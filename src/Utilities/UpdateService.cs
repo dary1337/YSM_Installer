@@ -15,6 +15,7 @@ namespace YSMInstaller {
             "https://api.github.com/repos/dary1337/YSM_Installer/releases/latest";
         private const string GitHubApiAcceptHeader = "application/vnd.github+json";
         private const string InstallerAssetName = "YSMInstaller.exe";
+        private const int MaxReleaseNotesLength = 1200;
 
         public static async Task<bool> CheckForUpdatesAsync(IWin32Window owner) {
             UpdateInfo updateInfo;
@@ -39,7 +40,7 @@ namespace YSMInstaller {
 
             var answer = MessageBox.Show(
                 owner,
-                $"A new YSM Installer version is available ({updateInfo.Version}). Install it now?",
+                BuildUpdateMessage(updateInfo),
                 "Update available",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Information
@@ -87,7 +88,29 @@ namespace YSMInstaller {
                 );
             }
 
-            return new UpdateInfo(version, installerAsset.BrowserDownloadUrl);
+            return new UpdateInfo(version, installerAsset.BrowserDownloadUrl, release.Body);
+        }
+
+        private static string BuildUpdateMessage(UpdateInfo updateInfo) {
+            string message =
+                $"A new YSM Installer version is available ({updateInfo.Version}). Install it now?";
+
+            if (string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes)) {
+                return message;
+            }
+
+            return message
+                + "\n\nWhat is new:\n"
+                + TrimReleaseNotes(updateInfo.ReleaseNotes);
+        }
+
+        private static string TrimReleaseNotes(string notes) {
+            string normalized = notes.Replace("\r\n", "\n").Trim();
+            if (normalized.Length <= MaxReleaseNotesLength) {
+                return normalized;
+            }
+
+            return normalized.Substring(0, MaxReleaseNotesLength).TrimEnd() + "\n...";
         }
 
         private static Version ParseTagVersion(string tagName) {
@@ -156,18 +179,23 @@ namespace YSMInstaller {
         }
 
         private sealed class UpdateInfo {
-            public UpdateInfo(Version version, string downloadUrl) {
+            public UpdateInfo(Version version, string downloadUrl, string? releaseNotes = null) {
                 Version = version;
                 DownloadUrl = downloadUrl;
+                ReleaseNotes = releaseNotes ?? string.Empty;
             }
 
             public Version Version { get; }
             public string DownloadUrl { get; }
+            public string ReleaseNotes { get; }
         }
 
         private sealed class GitHubRelease {
             [JsonProperty("tag_name")]
             public string TagName { get; set; } = string.Empty;
+
+            [JsonProperty("body")]
+            public string? Body { get; set; }
 
             [JsonProperty("assets")]
             public List<GitHubReleaseAsset> Assets { get; set; } = new List<GitHubReleaseAsset>();

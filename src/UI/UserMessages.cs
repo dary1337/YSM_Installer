@@ -5,7 +5,8 @@ namespace YSMInstaller {
         public static DialogResult ConfirmInstall(
             IWin32Window owner,
             int selectedGameVersion,
-            ModMetadata modMetadata
+            ModMetadata modMetadata,
+            long? archiveSizeBytes = null
         ) {
             string message = WarnoInstallWarning.BuildMessage();
 
@@ -15,6 +16,15 @@ namespace YSMInstaller {
                     + $"The installer can use the latest mod package for game version {modMetadata.GameVersion}.\n\n"
                     + "This can still work: sometimes game developers do not change the mod file structure, "
                     + "so the existing mod does not need an update and works as intended.\n\n";
+            }
+
+            if (archiveSizeBytes.HasValue && archiveSizeBytes.Value > 0) {
+                double sizeMb = archiveSizeBytes.Value / 1024d / 1024d;
+                message += $"Archive size: {sizeMb:0.0} MB\n\n";
+            }
+            else if (string.Equals(modMetadata.ModType, ModTypes.YsmWif, System.StringComparison.Ordinal)) {
+                message +=
+                    "Archive size could not be detected. YSM x WiF package may exceed 2 GB.\n\n";
             }
 
             return MessageBox.Show(
