@@ -38,6 +38,11 @@ namespace YSMInstaller {
                 "Install YSM x WiF",
                 version
             );
+            AddInstallButtonIfAvailable(
+                foundVersions.FirstOrDefault(mod => mod.ModType == ModTypes.YsmWto),
+                "Install YSM x WTO",
+                version
+            );
             RelayoutInstallButtons();
         }
 

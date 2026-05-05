@@ -7,24 +7,30 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     public partial class Form1 {
         private async Task ScanAsync() {
+            _isScanning = true;
             ClearDynamicControls();
 
-            label1.Text = "Searching for Warno.exe...";
-            ScanResult scanResult = await _scanCoordinator.ScanAsync(_includeSystemFolders);
-            _supportedVersions = scanResult.SupportedVersions;
-            if (_supportedVersions.Count == 0) {
-                UserMessages.ShowSupportedVersionsLoadFailed(this);
-            }
+            try {
+                label1.Text = "Searching for Warno.exe...";
+                ScanResult scanResult = await _scanCoordinator.ScanAsync(_includeSystemFolders);
+                _supportedVersions = scanResult.SupportedVersions;
+                if (_supportedVersions.Count == 0) {
+                    UserMessages.ShowSupportedVersionsLoadFailed(this);
+                }
 
-            var entries = scanResult.Entries;
-            if (entries.Count == 0 && _includeSystemFolders) {
-                entries = SelectManualWarnoEntry();
-            }
+                var entries = scanResult.Entries;
+                if (entries.Count == 0 && _includeSystemFolders) {
+                    entries = SelectManualWarnoEntry();
+                }
 
-            AddEntryControls(entries);
-            SelectLatestEntry(entries);
-            AddShowMoreButtonIfNeeded(entries.Count);
-            await AddRescanButtonAsync(scanResult);
+                AddEntryControls(entries);
+                SelectLatestEntry(entries);
+                AddShowMoreButtonIfNeeded(entries.Count);
+                await FinalizeScanUiAsync(scanResult);
+            }
+            finally {
+                _isScanning = false;
+            }
         }
 
         private List<WarnoEntry> SelectManualWarnoEntry() {
@@ -127,21 +133,11 @@ namespace YSMInstaller {
             ResizeFormToFitContent();
         }
 
-        private async Task AddRescanButtonAsync(ScanResult scanResult) {
-            _rescanButton = new RoundedButton(14) {
-                Dock = DockStyle.Bottom,
-                Text = "Rescan",
-                AutoSize = true,
-                ForeColor = Theme.ButtonForeground,
-                BackColor = Theme.ButtonBackground,
-                Margin = new Padding(0, Sizes.ButtonGap, 0, 0),
-            };
-            _rescanButton.Click += async (sender, args) => await ScanAsync();
-            _rootLayout.Controls.Add(_rescanButton, 0, 4);
-
+        private async Task FinalizeScanUiAsync(ScanResult scanResult) {
             label1.Text = BuildScanSummary(scanResult);
+            _hasFoundWarnoExe = _panels.Count > 0;
 
-            if (_panels.Count == 0) {
+            if (!_hasFoundWarnoExe) {
                 await HandleNoWarnoFoundAsync();
                 return;
             }

@@ -137,11 +137,6 @@ namespace YSMInstaller {
             }
             _panels.Clear();
 
-            if (_rescanButton != null) {
-                _rootLayout.Controls.Remove(_rescanButton);
-                _rescanButton.Dispose();
-                _rescanButton = null;
-            }
         }
 
         private void ClearInstallControls() {

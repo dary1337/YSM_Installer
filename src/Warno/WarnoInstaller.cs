@@ -61,10 +61,12 @@ namespace YSMInstaller {
                 Directory.CreateDirectory(tempModPath);
                 AppLogger.Info("Extracting mod archive.");
                 SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath);
+                string extractedModPath = ResolveExtractedModPath(tempModPath);
+                AppLogger.Info($"Resolved extracted mod root: {extractedModPath}");
 
                 EnsureGameModConfigExists(gameConfig);
 
-                string modConfig = Path.Combine(tempModPath, "Config.ini");
+                string modConfig = Path.Combine(extractedModPath, "Config.ini");
                 Dictionary<string, string> ysmConfig = IniFile.ReadValues(modConfig);
                 Dictionary<string, string> gameConfigData = IniFile.ReadValues(gameConfig);
 
@@ -95,7 +97,7 @@ namespace YSMInstaller {
                     finalModPath
                 );
 
-                Directory.Move(tempModPath, finalModPath);
+                Directory.Move(extractedModPath, finalModPath);
                 finalModCreated = true;
 
                 gameConfigData["ActivatedMods"] = $"{manualVersion}|";
@@ -141,6 +143,47 @@ namespace YSMInstaller {
             }
 
             File.WriteAllLines(gameConfig, new[] { "[mod]", "ActivatedMods =" });
+        }
+
+        private static string ResolveExtractedModPath(string extractedRoot) {
+            string currentPath = extractedRoot;
+            const int maxDepth = 64;
+
+            for (int depth = 0; depth < maxDepth; depth++) {
+                if (File.Exists(Path.Combine(currentPath, "Config.ini"))) {
+                    return currentPath;
+                }
+
+                string[] childDirectories = Directory.GetDirectories(currentPath);
+                if (childDirectories.Length != 1) {
+                    break;
+                }
+
+                currentPath = childDirectories[0];
+            }
+
+            string[] configMatches = Directory.GetFiles(
+                extractedRoot,
+                "Config.ini",
+                SearchOption.AllDirectories
+            );
+
+            if (configMatches.Length == 1) {
+                return Path.GetDirectoryName(configMatches[0])
+                    ?? throw new InvalidOperationException(
+                        "Extracted archive contains Config.ini with invalid path."
+                    );
+            }
+
+            if (configMatches.Length > 1) {
+                throw new InvalidOperationException(
+                    "Extracted archive contains multiple Config.ini files and cannot determine mod root."
+                );
+            }
+
+            throw new InvalidOperationException(
+                "Extracted archive does not contain Config.ini in any folder."
+            );
         }
 
         private static void CloseRunningGame() {
