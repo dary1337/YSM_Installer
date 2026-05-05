@@ -13,7 +13,8 @@ namespace YSMInstaller {
         public async Task<InstallWorkflowResult> InstallAsync(
             ModMetadata metadata,
             int selectedGameVersion,
-            IProgress<int>? progress = null
+            IProgress<int>? progress = null,
+            IProgress<string>? stageProgress = null
         ) {
             try {
                 if (
@@ -25,7 +26,8 @@ namespace YSMInstaller {
 
                 InstallModResult installResult = await WarnoInstaller.InstallAsync(
                     metadata,
-                    progress
+                    progress,
+                    stageProgress
                 );
                 if (installResult == InstallModResult.AlreadyRunning) {
                     UserMessages.ShowInstallAlreadyRunning(_owner);

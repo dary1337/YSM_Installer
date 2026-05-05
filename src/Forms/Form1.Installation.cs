@@ -111,7 +111,9 @@ namespace YSMInstaller {
                     selectedGameVersion,
                     new Progress<int>(progress => {
                         UpdateInstallProgress(progress);
-                        button.Text = $"Installing ({progress}%)...";
+                    }),
+                    new Progress<string>(stage => {
+                        button.Text = stage;
                     })
                 );
 

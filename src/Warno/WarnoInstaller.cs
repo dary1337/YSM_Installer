@@ -10,10 +10,11 @@ namespace YSMInstaller {
 
         public static async Task<InstallModResult> InstallAsync(
             ModMetadata modMetadata,
-            IProgress<int>? progress = null
+            IProgress<int>? progress = null,
+            IProgress<string>? stageProgress = null
         ) {
             if (DevWarnoMocks.IsEnabled) {
-                return await SimulateInstallAsync(modMetadata, progress);
+                return await SimulateInstallAsync(modMetadata, progress, stageProgress);
             }
 
             if (_isInstalling) {
@@ -53,9 +54,11 @@ namespace YSMInstaller {
                 AppLogger.Info(
                     $"Starting mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
                 );
+                ReportStage(stageProgress, "Preparing...");
                 Directory.CreateDirectory(modFolder);
 
                 AppLogger.Info("Downloading mod archive.");
+                ReportStage(stageProgress, "Downloading...");
                 await HttpService.DownloadFileAsync(
                     modMetadata.DownloadUrl,
                     modArchivePath,
@@ -64,10 +67,12 @@ namespace YSMInstaller {
 
                 Directory.CreateDirectory(tempModPath);
                 AppLogger.Info("Extracting mod archive.");
+                ReportStage(stageProgress, "Extracting...");
                 SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath);
                 string extractedModPath = ResolveExtractedModPath(tempModPath);
                 AppLogger.Info($"Resolved extracted mod root: {extractedModPath}");
 
+                ReportStage(stageProgress, "Reading config...");
                 EnsureGameModConfigExists(gameConfig);
 
                 string modConfig = Path.Combine(extractedModPath, "Config.ini");
@@ -87,10 +92,12 @@ namespace YSMInstaller {
                 ysmConfig["Name"] = manualVersion;
                 IniFile.WriteValues(modConfig, ysmConfig);
 
+                ReportStage(stageProgress, "Closing WARNO...");
                 CloseRunningGame();
                 File.Delete(lockFile);
 
                 AppLogger.Info("Backing up current WARNO mod configuration.");
+                ReportStage(stageProgress, "Backing up...");
                 File.Copy(gameConfig, gameConfigBackupPath, true);
 
                 AppLogger.Info("Backing up previously installed YSM mods.");
@@ -103,9 +110,11 @@ namespace YSMInstaller {
                     extractedModPath
                 );
 
+                ReportStage(stageProgress, "Installing files...");
                 Directory.Move(extractedModPath, finalModPath);
                 finalModCreated = true;
 
+                ReportStage(stageProgress, "Finalizing...");
                 gameConfigData["ActivatedMods"] = $"{manualVersion}|";
                 IniFile.WriteValues(gameConfig, gameConfigData);
 
@@ -139,7 +148,8 @@ namespace YSMInstaller {
 
         private static async Task<InstallModResult> SimulateInstallAsync(
             ModMetadata modMetadata,
-            IProgress<int>? progress
+            IProgress<int>? progress,
+            IProgress<string>? stageProgress
         ) {
             if (_isInstalling) {
                 AppLogger.Info(
@@ -154,11 +164,16 @@ namespace YSMInstaller {
                     $"Starting mock mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
                 );
 
-                int[] checkpoints = { 5, 12, 20, 30, 45, 60, 75, 88, 96, 100 };
-                foreach (int value in checkpoints) {
-                    progress?.Report(value);
-                    await Task.Delay(90);
-                }
+                ReportStage(stageProgress, "Downloading...");
+                await ReportMockProgress(progress, 0, 45, 60);
+                ReportStage(stageProgress, "Extracting...");
+                await ReportMockProgress(progress, 45, 72, 60);
+                ReportStage(stageProgress, "Backing up...");
+                await ReportMockProgress(progress, 72, 88, 60);
+                ReportStage(stageProgress, "Installing files...");
+                await ReportMockProgress(progress, 88, 98, 60);
+                ReportStage(stageProgress, "Finalizing...");
+                await ReportMockProgress(progress, 98, 100, 75);
 
                 AppLogger.Info(
                     $"Mock mod installation completed. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
@@ -167,6 +182,22 @@ namespace YSMInstaller {
             }
             finally {
                 _isInstalling = false;
+            }
+        }
+
+        private static void ReportStage(IProgress<string>? stageProgress, string stage) {
+            stageProgress?.Report(stage);
+        }
+
+        private static async Task ReportMockProgress(
+            IProgress<int>? progress,
+            int fromInclusive,
+            int toInclusive,
+            int delayMs
+        ) {
+            for (int value = fromInclusive; value <= toInclusive; value++) {
+                progress?.Report(value);
+                await Task.Delay(delayMs);
             }
         }
 
