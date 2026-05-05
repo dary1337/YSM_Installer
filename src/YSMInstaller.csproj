@@ -123,6 +123,9 @@
     <Compile Include="Controls\Ui\DropdownSelect.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Controls\Ui\InstallProgressBar.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Controls\Ui\UiChrome.cs" />
     <Compile Include="Controls\WarnoEntryControl.cs">
       <SubType>Component</SubType>

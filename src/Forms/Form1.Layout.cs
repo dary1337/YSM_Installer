@@ -115,17 +115,22 @@ namespace YSMInstaller {
             _installIslandPanel.SetOutline(Theme.EntryPanelBorder);
             _installIslandPanel.SizeChanged += (sender, args) => UpdateInstallButtonsLayout();
 
+            _installProgressBar = new InstallProgressBar {
+                Visible = false,
+            };
+
             _installControlPanel = new FlowLayoutPanel {
                 AutoSize = false,
                 BackColor = Color.Transparent,
                 Dock = DockStyle.Top,
                 FlowDirection = FlowDirection.LeftToRight,
-                Margin = Padding.Empty,
+                Margin = new Padding(0, 4, 0, 0),
                 Padding = Padding.Empty,
                 Visible = false,
                 WrapContents = false,
             };
             _installIslandPanel.Controls.Add(_installControlPanel);
+            _installIslandPanel.Controls.Add(_installProgressBar);
 
             return _installIslandPanel;
         }
@@ -159,6 +164,9 @@ namespace YSMInstaller {
 
             _installControlPanel.Controls.Clear();
             _installControlPanel.Visible = false;
+            _installControlPanel.Margin = Padding.Empty;
+            _installProgressBar.Value = 0;
+            _installProgressBar.Visible = false;
             _installIslandPanel.Visible = false;
         }
 

@@ -14,6 +14,7 @@ namespace YSMInstaller {
         private TableLayoutPanel _rootLayout = null!;
         private TableLayoutPanel _entriesLayout = null!;
         private RoundedPanel _installIslandPanel = null!;
+        private InstallProgressBar _installProgressBar = null!;
         private FlowLayoutPanel _installControlPanel = null!;
         private RoundedButton? _settingsButton;
         private RoundedButton? _showMoreButton;

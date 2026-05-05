@@ -12,6 +12,10 @@ namespace YSMInstaller {
             ModMetadata modMetadata,
             IProgress<int>? progress = null
         ) {
+            if (DevWarnoMocks.IsEnabled) {
+                return await SimulateInstallAsync(modMetadata, progress);
+            }
+
             if (_isInstalling) {
                 AppLogger.Info(
                     "Install request ignored because another installation is already running."
@@ -94,7 +98,9 @@ namespace YSMInstaller {
                     modFolder,
                     previousModsBackupPath,
                     previousModBackups,
-                    finalModPath
+                    finalModPath,
+                    tempModPath,
+                    extractedModPath
                 );
 
                 Directory.Move(extractedModPath, finalModPath);
@@ -127,6 +133,39 @@ namespace YSMInstaller {
                     DeleteFileIfExists(gameConfigBackupPath);
                     DeleteDirectoryIfExists(previousModsBackupPath);
                 }
+                _isInstalling = false;
+            }
+        }
+
+        private static async Task<InstallModResult> SimulateInstallAsync(
+            ModMetadata modMetadata,
+            IProgress<int>? progress
+        ) {
+            if (_isInstalling) {
+                AppLogger.Info(
+                    "Mock install request ignored because another installation is already running."
+                );
+                return InstallModResult.AlreadyRunning;
+            }
+
+            _isInstalling = true;
+            try {
+                AppLogger.Info(
+                    $"Starting mock mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
+                );
+
+                int[] checkpoints = { 5, 12, 20, 30, 45, 60, 75, 88, 96, 100 };
+                foreach (int value in checkpoints) {
+                    progress?.Report(value);
+                    await Task.Delay(90);
+                }
+
+                AppLogger.Info(
+                    $"Mock mod installation completed. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
+                );
+                return InstallModResult.Installed;
+            }
+            finally {
                 _isInstalling = false;
             }
         }
@@ -208,10 +247,16 @@ namespace YSMInstaller {
             string modFolder,
             string backupRoot,
             List<DirectoryBackup> backups,
-            string finalModPath
+            string finalModPath,
+            string tempModPath,
+            string extractedModPath
         ) {
             foreach (string directory in Directory.GetDirectories(modFolder)) {
-                if (IsSamePath(directory, backupRoot)) {
+                if (
+                    IsSamePath(directory, backupRoot)
+                    || IsSamePath(directory, tempModPath)
+                    || IsSamePath(directory, extractedModPath)
+                ) {
                     continue;
                 }
 
