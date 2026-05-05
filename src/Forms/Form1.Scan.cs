@@ -78,6 +78,7 @@ namespace YSMInstaller {
                 };
 
                 control.VersionSelected += VersionSelected;
+                control.HowToChangeVersionRequested += OpenStepsForm;
                 _panels.Add(control);
                 _entriesLayout.Controls.Add(control);
             }

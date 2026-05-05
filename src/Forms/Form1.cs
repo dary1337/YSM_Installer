@@ -13,6 +13,7 @@ namespace YSMInstaller {
 
         private TableLayoutPanel _rootLayout = null!;
         private TableLayoutPanel _entriesLayout = null!;
+        private RoundedPanel _installIslandPanel = null!;
         private FlowLayoutPanel _installControlPanel = null!;
         private RoundedButton? _settingsButton;
         private RoundedButton? _showMoreButton;
@@ -27,7 +28,7 @@ namespace YSMInstaller {
             label1.Text = "Starting...";
             Icon = Properties.Resources.logo;
             BackColor = Theme.Background;
-            Opacity = 0.95;
+            Opacity = 0.98;
             using (Graphics graphics = CreateGraphics()) {
                 AutoScaleDimensions = new SizeF(graphics.DpiX, graphics.DpiY);
             }
