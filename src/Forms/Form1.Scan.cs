@@ -147,7 +147,9 @@ namespace YSMInstaller {
         }
 
         private string BuildScanSummary(ScanResult scanResult) {
-            string summary = $"Found {_panels.Count} Warno.exe";
+            int visibleCount = _panels.Count(panel => panel.Visible);
+            int displayedCount = visibleCount > 0 ? visibleCount : _panels.Count;
+            string summary = $"Found {displayedCount} Warno.exe";
             if (scanResult.UsedCatalogFallback) {
                 return $"{summary} ({scanResult.CatalogSourceName} fallback)";
             }
