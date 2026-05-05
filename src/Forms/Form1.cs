@@ -21,6 +21,8 @@ namespace YSMInstaller {
         private bool _isInstallButtonBusy;
         private bool _isScanning;
         private bool _hasFoundWarnoExe;
+        private int _lastInstallButtonsLayoutWidth;
+        private int _lastInstallButtonsCount;
 
         public Form1() {
             InitializeComponent();

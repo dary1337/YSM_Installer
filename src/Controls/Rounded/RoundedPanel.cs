@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -6,6 +7,9 @@ namespace YSMInstaller {
     public class RoundedPanel : Panel {
         private int _cornerRadius;
         private Color _outlineColor = Color.Transparent;
+        private Size _lastRegionSize = Size.Empty;
+        private int _lastRegionRadius = -1;
+        private bool _regionDirty = true;
 
         public RoundedPanel(int cornerRadius = 5) {
             _cornerRadius = cornerRadius;
@@ -21,6 +25,8 @@ namespace YSMInstaller {
 
         public void SetCornerRadius(int cornerRadius) {
             _cornerRadius = cornerRadius;
+            _regionDirty = true;
+            Invalidate();
         }
 
         public void SetOutline(Color outlineColor) {
@@ -32,9 +38,7 @@ namespace YSMInstaller {
         // DrawRoundedBorder(..., mutateWindowRegion: false) would reset HWND shape every frame.
         protected override void OnPaintBackground(PaintEventArgs pevent) {
             if (BackColor.A <= 0) {
-                Region? previous = Region;
-                Region = null;
-                previous?.Dispose();
+                ClearRegionIfNeeded();
                 base.OnPaintBackground(pevent);
                 return;
             }
@@ -43,16 +47,7 @@ namespace YSMInstaller {
                 return;
             }
 
-            using (
-                GraphicsPath path = RoundedControlRenderer.GetFigurePath(
-                    ClientRectangle,
-                    _cornerRadius
-                )
-            ) {
-                Region? previous = Region;
-                Region = new Region(path);
-                previous?.Dispose();
-            }
+            EnsureRoundedRegion();
 
             using (SolidBrush brush = new SolidBrush(BackColor)) {
                 pevent.Graphics.FillRectangle(brush, ClientRectangle);
@@ -73,17 +68,44 @@ namespace YSMInstaller {
                     mutateWindowRegion: false
                 );
             }
-            else {
-                RoundedControlRenderer.ApplyRoundedRegion(
-                    ClientRectangle,
-                    0,
-                    _cornerRadius,
-                    e,
-                    this,
-                    clipToRoundedBounds: false,
-                    mutateWindowRegion: false
-                );
+        }
+
+        protected override void OnSizeChanged(EventArgs e) {
+            base.OnSizeChanged(e);
+            _regionDirty = true;
+        }
+
+        private void EnsureRoundedRegion() {
+            if (
+                !_regionDirty
+                && _lastRegionSize == ClientSize
+                && _lastRegionRadius == _cornerRadius
+            ) {
+                return;
             }
+
+            using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(ClientRectangle, _cornerRadius)) {
+                Region? previous = Region;
+                Region = new Region(path);
+                previous?.Dispose();
+            }
+
+            _lastRegionSize = ClientSize;
+            _lastRegionRadius = _cornerRadius;
+            _regionDirty = false;
+        }
+
+        private void ClearRegionIfNeeded() {
+            if (Region == null) {
+                return;
+            }
+
+            Region? previous = Region;
+            Region = null;
+            previous?.Dispose();
+            _lastRegionSize = Size.Empty;
+            _lastRegionRadius = -1;
+            _regionDirty = true;
         }
     }
 }

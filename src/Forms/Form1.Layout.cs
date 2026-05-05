@@ -154,6 +154,8 @@ namespace YSMInstaller {
                 control.Dispose();
             }
             _installButtons.Clear();
+            _lastInstallButtonsLayoutWidth = 0;
+            _lastInstallButtonsCount = 0;
 
             _installControlPanel.Controls.Clear();
             _installControlPanel.Visible = false;
@@ -180,6 +182,12 @@ namespace YSMInstaller {
             if (availableWidth <= 0) {
                 return;
             }
+            if (
+                _lastInstallButtonsLayoutWidth == availableWidth
+                && _lastInstallButtonsCount == _installButtons.Count
+            ) {
+                return;
+            }
 
             int gap = Sizes.ButtonGap;
             int buttonCount = _installButtons.Count;
@@ -204,6 +212,8 @@ namespace YSMInstaller {
             }
 
             _installControlPanel.Height = targetHeight;
+            _lastInstallButtonsLayoutWidth = availableWidth;
+            _lastInstallButtonsCount = _installButtons.Count;
         }
 
         private void ResizeFormToFitContent() {
