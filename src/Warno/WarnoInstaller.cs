@@ -62,7 +62,10 @@ namespace YSMInstaller {
                 await HttpService.DownloadFileAsync(
                     modMetadata.DownloadUrl,
                     modArchivePath,
-                    progress
+                    progress,
+                    new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
+                        ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
+                    })
                 );
 
                 Directory.CreateDirectory(tempModPath);
@@ -187,6 +190,21 @@ namespace YSMInstaller {
 
         private static void ReportStage(IProgress<string>? stageProgress, string stage) {
             stageProgress?.Report(stage);
+        }
+
+        private static string BuildDownloadStage(HttpService.DownloadProgressInfo progress) {
+            string downloaded = ToMegabytesLabel(progress.BytesReceived);
+            if (progress.TotalBytes.HasValue && progress.TotalBytes.Value > 0) {
+                string total = ToMegabytesLabel(progress.TotalBytes.Value);
+                return $"Downloading... {downloaded} / {total}";
+            }
+
+            return $"Downloading... {downloaded}";
+        }
+
+        private static string ToMegabytesLabel(long bytes) {
+            double megabytes = bytes / 1024d / 1024d;
+            return $"{megabytes:0.0} MB";
         }
 
         private static async Task ReportMockProgress(

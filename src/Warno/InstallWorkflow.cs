@@ -17,8 +17,16 @@ namespace YSMInstaller {
             IProgress<string>? stageProgress = null
         ) {
             try {
+                long? archiveSizeBytes = await HttpService.TryGetRemoteFileSizeAsync(
+                    metadata.DownloadUrl
+                );
                 if (
-                    UserMessages.ConfirmInstall(_owner, selectedGameVersion, metadata)
+                    UserMessages.ConfirmInstall(
+                        _owner,
+                        selectedGameVersion,
+                        metadata,
+                        archiveSizeBytes
+                    )
                     != DialogResult.OK
                 ) {
                     return InstallWorkflowResult.Cancelled;
