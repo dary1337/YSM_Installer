@@ -20,7 +20,7 @@ namespace YSMInstaller {
         private int _listChromeHeight;
         private bool _layoutSafe;
 
-        private const int HeaderHeight = 40;
+        private static readonly int HeaderHeight = Tokens.DropdownHeight;
 
         public DropdownSelect() {
             BackColor = Theme.Background;
@@ -332,7 +332,7 @@ namespace YSMInstaller {
             _listFlow.Width = innerWidth;
             foreach (RoundedButton button in _optionButtons) {
                 button.Width = innerWidth;
-                button.Height = 36;
+                button.Height = 42;
             }
 
             _listFlow.ResumeLayout(performLayout: true);
