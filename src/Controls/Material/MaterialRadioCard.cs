@@ -166,29 +166,30 @@ namespace YSMInstaller {
 
             x = DrawText(g, $"v{_entry.Version}", MaterialType.BodySmall, MaterialPalette.OnSurfaceVariant, x, midY) + 8;
 
-            string sourceGlyph = IsSteamEntry ? MaterialIcons.Steam : MaterialIcons.Folder;
-            Color sourceFill = IsSteamEntry ? Color.Transparent : MaterialPalette.SecondaryContainer;
-            Color sourceContent = IsSteamEntry ? MaterialPalette.SteamBrand : MaterialPalette.OnSecondaryContainer;
-            Color sourceOutline = IsSteamEntry ? MaterialPalette.SteamBrand : Color.Transparent;
-            x = DrawChip(g, _entry.SourceLabel, sourceGlyph, sourceFill, sourceContent, sourceOutline, x) + 8;
-
             if (NotSupported) {
                 x = DrawChip(g, "not supported", string.Empty, MaterialPalette.ErrorContainer, MaterialPalette.OnErrorContainer, Color.Transparent, x) + 8;
             }
             else if (UsesLatestMod) {
-                x = DrawText(g, $"latest mod v{_entry.LatestCompatibleModVersion}", MaterialType.LabelMedium, MaterialPalette.Warning, x, midY) + 8;
+                x = DrawChip(g, $"Game ahead — mod v{_entry.LatestCompatibleModVersion}", MaterialIcons.Warning,
+                    MaterialPalette.WarningContainer, MaterialPalette.OnWarningContainer, Color.Transparent, x) + 8;
+                _issuesLinkRect = Rectangle.Empty;
             }
             else if (HasKnownIssues) {
-                x = DrawText(g, "has issues", MaterialType.LabelMedium, MaterialPalette.Warning, x, midY) + 10;
-                _issuesLinkRect = DrawLink(g, "Click to find out why", MaterialIcons.Help,
+                _issuesLinkRect = DrawLink(g, "Has known issues — see why", MaterialIcons.Help,
                     iconOnLeft: true,
                     MaterialPalette.Warning, MaterialPalette.WarningContainer,
                     x, midY, _hoveredLink == HoveredLink.Issues);
-                x = _issuesLinkRect.Right;
+                x = _issuesLinkRect.Right + 8;
             }
             else {
                 _issuesLinkRect = Rectangle.Empty;
             }
+
+            string sourceGlyph = IsSteamEntry ? MaterialIcons.Steam : MaterialIcons.Folder;
+            Color sourceFill = IsSteamEntry ? Color.Transparent : MaterialPalette.SecondaryContainer;
+            Color sourceContent = IsSteamEntry ? MaterialPalette.SteamBrand : MaterialPalette.OnSecondaryContainer;
+            Color sourceOutline = IsSteamEntry ? MaterialPalette.SteamBrand : Color.Transparent;
+            DrawChip(g, _entry.SourceLabel, sourceGlyph, sourceFill, sourceContent, sourceOutline, x);
         }
 
         private float DrawText(Graphics g, string text, Font font, Color color, float x, int midY) {
@@ -310,7 +311,7 @@ namespace YSMInstaller {
                 Process.Start(new ProcessStartInfo { FileName = parsed.AbsoluteUri, UseShellExecute = true });
             }
             catch (Exception exception) {
-                AppLogger.Error("Failed to open known issues URL.", exception);
+                AppLogger.Critical("Failed to open known issues URL.", exception);
             }
         }
 
@@ -329,7 +330,7 @@ namespace YSMInstaller {
                 }
             }
             catch (Exception exception) {
-                AppLogger.Error($"Failed to extract icon from: {exePath}", exception);
+                AppLogger.Critical($"Failed to extract icon from: {exePath}", exception);
                 return null;
             }
         }

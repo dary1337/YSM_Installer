@@ -18,7 +18,7 @@ namespace YSMInstaller {
         public static Image? ForBuild(string modType) {
             string? key = null;
             if (modType == ModTypes.YsmWif) key = "ysm_wif";
-            else if (modType == ModTypes.YsmWto) key = "ysm_wto";
+            else if (modType == ModTypes.Wto) key = "wto";
             if (key == null) {
                 return null;
             }
@@ -41,22 +41,26 @@ namespace YSMInstaller {
                     .GetManifestResourceNames()
                     .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
                 if (name == null) {
-                    AppLogger.Error($"Build icon resource not found: {key}");
+                    AppLogger.Critical($"Build icon resource not found: {key}");
                     return null;
                 }
                 using (Stream? stream = assembly.GetManifestResourceStream(name)) {
                     if (stream == null) {
                         return null;
                     }
-                    // Copy to a memory stream so Image doesn't hold the resource stream open.
-                    var memory = new MemoryStream();
-                    stream.CopyTo(memory);
-                    memory.Position = 0;
-                    return Image.FromStream(memory);
+                    using (var memory = new MemoryStream()) {
+                        stream.CopyTo(memory);
+                        memory.Position = 0;
+                        // Clone into a new Bitmap to detach from the MemoryStream — Image.FromStream
+                        // keeps a handle to its source, which would leak the stream if returned directly.
+                        using (var loaded = Image.FromStream(memory)) {
+                            return new Bitmap(loaded);
+                        }
+                    }
                 }
             }
             catch (Exception exception) {
-                AppLogger.Error($"Failed to load build icon: {key}", exception);
+                AppLogger.Critical($"Failed to load build icon: {key}", exception);
                 return null;
             }
         }

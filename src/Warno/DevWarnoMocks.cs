@@ -29,7 +29,7 @@ namespace YSMInstaller {
                 Mod(ModTypes.Ysm, 146198, "https://steamcommunity.com/workshop/filedetails/discussion/3296415395/4509876644765422685/"),
                 Mod(ModTypes.Ysm, 188908),
                 Mod(ModTypes.YsmWif, 188908),
-                Mod(ModTypes.YsmWto, 188908),
+                Mod(ModTypes.Wto, 188908),
             };
         }
 

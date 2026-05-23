@@ -85,7 +85,14 @@ namespace YSMInstaller {
                 fullScanDone ? "Browse for Warno.exe" : "Browse manually",
                 MaterialIcons.Folder
             );
-            browse.Click += async (s, e) => await BrowseForWarnoAsync();
+            browse.Click += async (s, e) => {
+                try {
+                    await BrowseForWarnoAsync();
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("Browse-for-Warno flow failed.", ex);
+                }
+            };
 
             MaterialButton rescan = new MaterialButton {
                 Variant = MaterialButtonVariant.Text,

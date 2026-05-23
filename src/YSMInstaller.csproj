@@ -248,8 +248,42 @@
     <None Include="Properties\App.config" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\icons\*.svg" />
-    <EmbeddedResource Include="Resources\icons\*.png" />
+    <EmbeddedResource Include="Resources\icons\arrow_drop_down.svg" />
+    <EmbeddedResource Include="Resources\icons\arrow_forward.svg" />
+    <EmbeddedResource Include="Resources\icons\check.svg" />
+    <EmbeddedResource Include="Resources\icons\check_circle.svg" />
+    <EmbeddedResource Include="Resources\icons\check_circle_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\check_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\close.svg" />
+    <EmbeddedResource Include="Resources\icons\cloud.svg" />
+    <EmbeddedResource Include="Resources\icons\deployed_code.svg" />
+    <EmbeddedResource Include="Resources\icons\download.svg" />
+    <EmbeddedResource Include="Resources\icons\error.svg" />
+    <EmbeddedResource Include="Resources\icons\error_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\expand_more.svg" />
+    <EmbeddedResource Include="Resources\icons\folder.svg" />
+    <EmbeddedResource Include="Resources\icons\folder_open.svg" />
+    <EmbeddedResource Include="Resources\icons\help.svg" />
+    <EmbeddedResource Include="Resources\icons\help_outline.svg" />
+    <EmbeddedResource Include="Resources\icons\info.svg" />
+    <EmbeddedResource Include="Resources\icons\info_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\layers.svg" />
+    <EmbeddedResource Include="Resources\icons\open_in_new.svg" />
+    <EmbeddedResource Include="Resources\icons\play_arrow.svg" />
+    <EmbeddedResource Include="Resources\icons\play_arrow_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\radio_button_checked.svg" />
+    <EmbeddedResource Include="Resources\icons\radio_button_unchecked.svg" />
+    <EmbeddedResource Include="Resources\icons\refresh.svg" />
+    <EmbeddedResource Include="Resources\icons\search_off.svg" />
+    <EmbeddedResource Include="Resources\icons\settings.svg" />
+    <EmbeddedResource Include="Resources\icons\steam.svg" />
+    <EmbeddedResource Include="Resources\icons\tips_and_updates.svg" />
+    <EmbeddedResource Include="Resources\icons\travel_explore.svg" />
+    <EmbeddedResource Include="Resources\icons\videogame_asset.svg" />
+    <EmbeddedResource Include="Resources\icons\warning.svg" />
+    <EmbeddedResource Include="Resources\icons\warning_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\ysm_wif.png" />
+    <EmbeddedResource Include="Resources\icons\wto.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Screenshot 2025-03-02 182641.png" />

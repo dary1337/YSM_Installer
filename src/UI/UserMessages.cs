@@ -45,7 +45,7 @@ namespace YSMInstaller {
                 Process.Start(new ProcessStartInfo(AppLogger.LogPath) { UseShellExecute = true });
             }
             catch (Exception exception) {
-                AppLogger.Error("Failed to open log file.", exception);
+                AppLogger.Critical("Failed to open log file.", exception);
             }
         }
     }

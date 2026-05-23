@@ -16,7 +16,7 @@ namespace YSMInstaller {
                 }
             }
             catch (Exception exception) {
-                AppLogger.Error($"Failed to open link: {url}", exception);
+                AppLogger.Critical($"Failed to open link: {url}", exception);
             }
         }
     }

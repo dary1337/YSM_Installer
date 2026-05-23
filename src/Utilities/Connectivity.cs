@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
@@ -37,7 +38,7 @@ namespace YSMInstaller {
             catch (SocketException) {
                 return false;
             }
-            catch (Exception) {
+            catch (ArgumentException) {
                 return false;
             }
         }
@@ -53,7 +54,16 @@ namespace YSMInstaller {
                     }
                 }
             }
-            catch (Exception) {
+            catch (HttpRequestException) {
+                return false;
+            }
+            catch (TaskCanceledException) {
+                return false;
+            }
+            catch (IOException) {
+                return false;
+            }
+            catch (SocketException) {
                 return false;
             }
         }

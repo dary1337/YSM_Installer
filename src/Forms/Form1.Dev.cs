@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
@@ -10,7 +11,7 @@ namespace YSMInstaller {
         // Debug-only surface (compiled out of Release) to inspect every modal and every screen state —
         // including a simulated failed install — without a real game/network.
         private void OpenDevTestMenu() {
-            var form = new Form {
+            using (var form = new Form {
                 Text = "Dev test menu",
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
@@ -22,7 +23,7 @@ namespace YSMInstaller {
                 Font = MaterialType.BodyMedium,
                 Icon = Properties.Resources.logo,
                 ClientSize = new Size(380, 620),
-            };
+            }) {
             WindowChrome.ApplyDark(form);
 
             var flow = new FlowLayoutPanel {
@@ -55,7 +56,12 @@ namespace YSMInstaller {
                     Height = 32,
                     Margin = new Padding(0, 0, 0, 6),
                 };
-                button.Click += (s, e) => { form.Close(); BeginInvoke(new Action(action)); };
+                button.Click += (s, e) => {
+                    form.Close();
+                    if (IsHandleCreated && !IsDisposed) {
+                        BeginInvoke(new Action(action));
+                    }
+                };
                 flow.Controls.Add(button);
             }
 
@@ -74,7 +80,7 @@ namespace YSMInstaller {
             Add("Catalog unavailable", () => RenderCatalogUnavailable(
                 "Connected, but the mod list could not be loaded — the catalog response was invalid."));
             Add("Installs found", DevShowInstallsFound);
-            Add("Choose a build", DevShowChooseBuild);
+            Add("Choose a build", () => SafeFireDev(DevShowChooseBuildAsync, "DevShowChooseBuild failed."));
             Add("Installing (static)", DevShowInstalling);
             Add("Installation complete", () => RenderComplete("YSM", _entries.FirstOrDefault()));
             Add("Version mismatch", DevShowVersionMismatch);
@@ -93,6 +99,7 @@ namespace YSMInstaller {
             Add("Run install → failure", () => DevRunInstall(fail: true));
 
             form.ShowDialog(this);
+            }
         }
 
         private void DevShowUpdateDialog() {
@@ -129,19 +136,23 @@ namespace YSMInstaller {
             RenderInstallsFound();
         }
 
-        private async void DevShowChooseBuild() {
+        private async Task DevShowChooseBuildAsync() {
             if (_entries == null || _entries.Count == 0) {
                 return;
             }
             _selectedEntry = _entries.FirstOrDefault(e => GetVariantsForVersion(e.Version).Count > 1) ?? _entries[0];
             var variants = GetVariantsForVersion(_selectedEntry.Version);
             if (variants.Count > 0) {
-                try {
-                    await RenderChooseBuild(variants);
-                }
-                catch (Exception ex) {
-                    AppLogger.Critical("DevShowChooseBuild failed.", ex);
-                }
+                await RenderChooseBuild(variants);
+            }
+        }
+
+        private static async void SafeFireDev(Func<Task> work, string failureLog) {
+            try {
+                await work();
+            }
+            catch (Exception ex) {
+                AppLogger.Critical(failureLog, ex);
             }
         }
 
@@ -179,7 +190,7 @@ namespace YSMInstaller {
 
         private void DevShowVersionMismatch() {
             var catalog = DevWarnoMocks.Catalog();
-            ModMetadata? sample = catalog.FirstOrDefault(m => m.ModType == ModTypes.YsmWto)
+            ModMetadata? sample = catalog.FirstOrDefault(m => m.ModType == ModTypes.Wto)
                 ?? catalog.FirstOrDefault();
             if (sample == null) {
                 return;

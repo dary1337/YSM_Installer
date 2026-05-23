@@ -46,7 +46,7 @@ namespace YSMInstaller {
             }
 
             var ordered = new List<ModMetadata>();
-            foreach (string type in new[] { ModTypes.Ysm, ModTypes.YsmWif, ModTypes.YsmWto }) {
+            foreach (string type in new[] { ModTypes.Ysm, ModTypes.YsmWif, ModTypes.Wto }) {
                 ModMetadata? match = found.FirstOrDefault(mod => mod.ModType == type);
                 if (match != null) {
                     ordered.Add(match);
@@ -186,14 +186,12 @@ namespace YSMInstaller {
 
         private static (string description, bool recommended) DescribeBuild(string modType) {
             if (modType == ModTypes.YsmWif) {
-                // A World in Flames — modern-day (2015–2025) overhaul: new divisions for US, France,
-                return ("Collab with A World in Flames — modern-day overhaul (2015–2025) with new divisions and reworked traits.", false);
+                return ("Combined version of  Yokaiste's Sandbox Mod and A World in Flames.", false);
             }
-            if (modType == ModTypes.YsmWto) {
-                // Warno Tactical Overhaul — slower, methodical platoon/company-level combat: extended
-                return ("Collab with Warno Tactical Overhaul — methodical combat with longer ranges, denser concealment and stealth.", false);
+            if (modType == ModTypes.Wto) {
+                return ("WARNO Tactical Overhaul — Freedom Decks, Realistic LOS, Unit Speed, 2x Scale.", false);
             }
-            return ("Standalone YSM build by Yokaiste. New units, decks and rebalances.", false);
+            return ("Yokaiste's Sandbox Mod — an advanced open-source project for unlimited experience.", false);
         }
 
         // ---- Install flow ----
@@ -560,7 +558,7 @@ namespace YSMInstaller {
                     return;
                 }
                 cancel.Enabled = false;
-                cancel.Text = "Cancelling…";
+                cancel.Text = "Canceling…";
                 _installCts?.Cancel();
             };
 
@@ -633,7 +631,7 @@ namespace YSMInstaller {
                 Font = MaterialType.BodyMedium,
                 ForeColor = MaterialPalette.OnSurfaceVariant,
                 MaximumSize = new Size(440, 0),
-                Text = $"{modName} is installed. Launch Warno and select the mod from the in-game mods menu.",
+                Text = $"{modName} is installed and activated. Launch WARNO or install another mod.",
                 TextAlign = ContentAlignment.TopCenter,
                 Margin = new Padding(0, 0, 0, 16),
             };
@@ -841,7 +839,7 @@ namespace YSMInstaller {
                 }
             }
             catch (Exception exception) {
-                AppLogger.Error($"Failed to open path: {path}", exception);
+                AppLogger.Critical($"Failed to open path: {path}", exception);
             }
         }
 
@@ -853,7 +851,7 @@ namespace YSMInstaller {
                 }
             }
             catch (Exception exception) {
-                AppLogger.Error("Failed to launch WARNO.", exception);
+                AppLogger.Critical("Failed to launch WARNO.", exception);
                 UserMessages.ShowError(this, "Could not launch WARNO", exception.Message);
             }
         }

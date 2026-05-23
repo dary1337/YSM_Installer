@@ -5,6 +5,7 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     public partial class Form1 {
         private TableLayoutPanel _root = null!;
+        private FlowLayoutPanel _titleStack = null!;
         private Label _overlineLabel = null!;
         private Label _subLabel = null!;
         private MaterialButton _settingsButton = null!;
@@ -48,7 +49,8 @@ namespace YSMInstaller {
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            var titleStack = new FlowLayoutPanel {
+            _titleStack = new FlowLayoutPanel {
+                Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 BackColor = Color.Transparent,
@@ -72,8 +74,8 @@ namespace YSMInstaller {
                 Margin = Padding.Empty,
                 Text = "Preparing installer",
             };
-            titleStack.Controls.Add(_overlineLabel);
-            titleStack.Controls.Add(_subLabel);
+            _titleStack.Controls.Add(_overlineLabel);
+            _titleStack.Controls.Add(_subLabel);
 
             var rightActions = new FlowLayoutPanel {
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -111,7 +113,7 @@ namespace YSMInstaller {
             rightActions.Controls.Add(testButton);
 #endif
 
-            header.Controls.Add(titleStack, 0, 0);
+            header.Controls.Add(_titleStack, 0, 0);
             header.Controls.Add(rightActions, 1, 0);
             return header;
         }
@@ -163,7 +165,14 @@ namespace YSMInstaller {
 
         private void SetHeader(string overline, string sub) {
             _overlineLabel.Text = (overline ?? string.Empty).ToUpperInvariant();
+            bool hasSub = !string.IsNullOrEmpty(sub);
             _subLabel.Text = sub ?? string.Empty;
+            _subLabel.Visible = hasSub;
+            // Anchor=Left (no Top) lets the TLP cell center the stack vertically, matching the Settings
+            // button row when only the overline shows. With both labels, top-anchor keeps the original look.
+            _titleStack.Anchor = hasSub
+                ? AnchorStyles.Top | AnchorStyles.Left
+                : AnchorStyles.Left;
         }
 
         // Window height is fixed (no jumping). Stacked content is top-aligned; only the dedicated
@@ -217,7 +226,9 @@ namespace YSMInstaller {
             }
             _islandActions.SuspendLayout();
             for (int i = _islandActions.Controls.Count - 1; i >= 0; i--) {
+                Control old = _islandActions.Controls[i];
                 _islandActions.Controls.RemoveAt(i);
+                old.Dispose();
             }
             // RightToLeft flow puts the first-added control at the far right; iterate in reverse so
             // the primary (last input) lands rightmost.

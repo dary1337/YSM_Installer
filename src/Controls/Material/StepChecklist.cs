@@ -78,6 +78,10 @@ namespace YSMInstaller {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
+            using (var bg = new SolidBrush(BackColor)) {
+                g.FillRectangle(bg, ClientRectangle);
+            }
+
             using (var fmt = new StringFormat(StringFormat.GenericTypographic) {
                 Alignment = StringAlignment.Near,
                 LineAlignment = StringAlignment.Center,

@@ -28,10 +28,8 @@ namespace YSMInstaller {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
-            if (BackColor.A > 0) {
-                using (var bg = new SolidBrush(BackColor)) {
-                    g.FillRectangle(bg, ClientRectangle);
-                }
+            using (var bg = new SolidBrush(BackColor)) {
+                g.FillRectangle(bg, ClientRectangle);
             }
 
             if (string.IsNullOrEmpty(Text)) {

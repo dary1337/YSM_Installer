@@ -12,6 +12,13 @@ namespace YSMInstaller {
     /// <summary>
     /// Renders the embedded Material Symbols SVG icons to anti-aliased bitmaps, tinted to any color via
     /// an alpha-preserving color matrix. Results are cached by (key, size, color) for paint performance.
+    ///
+    /// Threading: <see cref="Get"/> is the only public entry point and acquires <c>Gate</c> for the full
+    /// render path (cache lookup, SVG load, rasterize, cache insert). All cache mutations are inside
+    /// that lock, so concurrent calls from paint threads are safe.
+    ///
+    /// Ownership: returned <see cref="Bitmap"/> instances are shared cache entries — callers must not
+    /// dispose them. The cache holds the bitmaps for the lifetime of the AppDomain.
     /// </summary>
     public static class MaterialIconRenderer {
         private static readonly Dictionary<string, Bitmap> Cache =
