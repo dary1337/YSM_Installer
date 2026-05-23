@@ -350,6 +350,12 @@ namespace YSMInstaller {
 
             TableLayoutPanel stack = NewStack();
 
+            bool isSteamEntry = string.Equals(
+                _selectedEntry?.SourceLabel,
+                WarnoExecutableSources.Steam,
+                StringComparison.Ordinal
+            );
+
             MaterialCard warn = BuildMessageCard(
                 MaterialIcons.Warning,
                 MaterialPalette.OnWarningContainer,
@@ -357,14 +363,16 @@ namespace YSMInstaller {
                 $"{name} targets Warno v{metadata.GameVersion}",
                 $"You have v{selectedGameVersion}. The mod may load but is not guaranteed to work."
             );
-            AddToStack(stack, warn, Sizes.ContentGap);
+            AddToStack(stack, warn, isSteamEntry ? Sizes.ContentGap : 0);
 
-            MaterialCard guide = BuildGuideCard(
-                "How to switch Warno versions",
-                "Steam → right-click Warno → Betas",
-                OpenStepsForm
-            );
-            AddToStack(stack, guide, 0);
+            if (isSteamEntry) {
+                MaterialCard guide = BuildGuideCard(
+                    "How to switch Warno versions",
+                    "Steam → right-click Warno → Betas",
+                    OpenStepsForm
+                );
+                AddToStack(stack, guide, 0);
+            }
 
             SetContent(stack, fill: false);
 
