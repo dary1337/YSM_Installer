@@ -17,8 +17,8 @@ namespace YSMInstaller {
 
         public static Image? ForBuild(string modType) {
             string? key = null;
-            if (modType == ModTypes.YsmWif) key = "ysm_wif";
-            else if (modType == ModTypes.Wto) key = "wto";
+            if (string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal)) key = "ysm_wif";
+            else if (string.Equals(modType, ModTypes.Wto, StringComparison.Ordinal)) key = "wto";
             if (key == null) {
                 return null;
             }

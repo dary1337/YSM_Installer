@@ -80,7 +80,7 @@ namespace YSMInstaller {
             Add("Catalog unavailable", () => RenderCatalogUnavailable(
                 "Connected, but the mod list could not be loaded — the catalog response was invalid."));
             Add("Installs found", DevShowInstallsFound);
-            Add("Choose a build", () => SafeFireDev(DevShowChooseBuildAsync, "DevShowChooseBuild failed."));
+            Add("Choose a build", () => _ = SafeFireDev(DevShowChooseBuildAsync, "DevShowChooseBuild failed."));
             Add("Installing (static)", DevShowInstalling);
             Add("Installation complete", () => RenderComplete("YSM", _entries.FirstOrDefault()));
             Add("Version mismatch", DevShowVersionMismatch);
@@ -147,7 +147,7 @@ namespace YSMInstaller {
             }
         }
 
-        private static async void SafeFireDev(Func<Task> work, string failureLog) {
+        private static async Task SafeFireDev(Func<Task> work, string failureLog) {
             try {
                 await work();
             }

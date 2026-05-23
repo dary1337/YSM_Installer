@@ -1,8 +1,8 @@
 # YSM Installer
 
-### [YSM Community](https://discord.gg/XmbhaSRqfZ)
+## [YSM Community](https://discord.gg/XmbhaSRqfZ)
 
-### [YSM Repository](https://github.com/Yokaiste/YSM)
+## [YSM Repository](https://github.com/Yokaiste/YSM)
 
 ## What it does
 
