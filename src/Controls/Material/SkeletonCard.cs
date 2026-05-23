@@ -13,6 +13,11 @@ namespace YSMInstaller {
         private static event Action? Tick;
         private float _phase;
 
+        static SkeletonCard() {
+            // Single fixed handler — re-subscribing on every restart would leak handlers as cards come and go.
+            SharedTimer.Tick += (s, a) => Tick?.Invoke();
+        }
+
         public SkeletonCard()
             : base(Sizes.RadiusMedium) {
             BackColor = MaterialPalette.SurfaceContainer;
@@ -25,13 +30,15 @@ namespace YSMInstaller {
             base.OnHandleCreated(e);
             Tick += OnTick;
             if (!SharedTimer.Enabled) {
-                SharedTimer.Tick += (s, a) => Tick?.Invoke();
                 SharedTimer.Start();
             }
         }
 
         protected override void OnHandleDestroyed(EventArgs e) {
             Tick -= OnTick;
+            if (Tick == null) {
+                SharedTimer.Stop();
+            }
             base.OnHandleDestroyed(e);
         }
 
@@ -52,12 +59,18 @@ namespace YSMInstaller {
 
             const int pad = 14;
             DrawBlock(g, new Rectangle(pad, pad, 36, 36), Sizes.RadiusExtraSmall);
-            DrawBlock(g, new Rectangle(pad + 48, pad, Math.Min(Width - pad * 2 - 60, 360), 14), 7);
+            int headerWidth = Math.Max(0, Math.Min(Width - pad * 2 - 60, 360));
+            if (headerWidth > 0) {
+                DrawBlock(g, new Rectangle(pad + 48, pad, headerWidth, 14), 7);
+            }
             DrawBlock(g, new Rectangle(pad + 48, pad + 24, 70, 16), 8);
             DrawBlock(g, new Rectangle(pad + 48 + 78, pad + 24, 56, 16), 8);
         }
 
         private void DrawBlock(Graphics g, Rectangle rect, int radius) {
+            if (rect.Width <= 0 || rect.Height <= 0) {
+                return;
+            }
             using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(rect, radius)) {
                 using (var baseBrush = new SolidBrush(MaterialPalette.SurfaceContainerHigh)) {
                     g.FillPath(baseBrush, path);
@@ -70,25 +83,26 @@ namespace YSMInstaller {
                     return;
                 }
 
-                Region prevClip = g.Clip;
-                g.SetClip(path);
-                using (var gradient = new LinearGradientBrush(
-                    bandRect,
-                    Color.FromArgb(0, MaterialPalette.OnSurface),
-                    Color.FromArgb(0, MaterialPalette.OnSurface),
-                    LinearGradientMode.Horizontal)) {
-                    var blend = new ColorBlend(3) {
-                        Colors = new[] {
-                            Color.FromArgb(0, MaterialPalette.OnSurface),
-                            Color.FromArgb(28, MaterialPalette.OnSurface),
-                            Color.FromArgb(0, MaterialPalette.OnSurface),
-                        },
-                        Positions = new[] { 0f, 0.5f, 1f },
-                    };
-                    gradient.InterpolationColors = blend;
-                    g.FillRectangle(gradient, bandRect);
+                using (Region prevClip = g.Clip) {
+                    g.SetClip(path);
+                    using (var gradient = new LinearGradientBrush(
+                        bandRect,
+                        Color.FromArgb(0, MaterialPalette.OnSurface),
+                        Color.FromArgb(0, MaterialPalette.OnSurface),
+                        LinearGradientMode.Horizontal)) {
+                        var blend = new ColorBlend(3) {
+                            Colors = new[] {
+                                Color.FromArgb(0, MaterialPalette.OnSurface),
+                                Color.FromArgb(28, MaterialPalette.OnSurface),
+                                Color.FromArgb(0, MaterialPalette.OnSurface),
+                            },
+                            Positions = new[] { 0f, 0.5f, 1f },
+                        };
+                        gradient.InterpolationColors = blend;
+                        g.FillRectangle(gradient, bandRect);
+                    }
+                    g.Clip = prevClip;
                 }
-                g.Clip = prevClip;
             }
         }
     }

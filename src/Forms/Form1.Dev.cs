@@ -129,14 +129,19 @@ namespace YSMInstaller {
             RenderInstallsFound();
         }
 
-        private void DevShowChooseBuild() {
+        private async void DevShowChooseBuild() {
             if (_entries == null || _entries.Count == 0) {
                 return;
             }
             _selectedEntry = _entries.FirstOrDefault(e => GetVariantsForVersion(e.Version).Count > 1) ?? _entries[0];
             var variants = GetVariantsForVersion(_selectedEntry.Version);
             if (variants.Count > 0) {
-                RenderChooseBuild(variants);
+                try {
+                    await RenderChooseBuild(variants);
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("DevShowChooseBuild failed.", ex);
+                }
             }
         }
 

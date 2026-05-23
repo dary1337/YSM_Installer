@@ -92,12 +92,19 @@ namespace YSMInstaller {
             }
 
             MaterialButton choose = PrimaryButton("Choose mod", MaterialIcons.Download);
-            choose.Click += (s, e) => RenderChooseBuild(variants);
+            choose.Click += async (s, e) => {
+                try {
+                    await RenderChooseBuild(variants);
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("RenderChooseBuild failed.", ex);
+                }
+            };
             SetIslandActions(choose);
         }
 
         // ---- Inline build selection ----
-        private async void RenderChooseBuild(List<ModMetadata> variants) {
+        private async Task RenderChooseBuild(List<ModMetadata> variants) {
             _state = AppState.ChooseBuild;
             _chooseVersion = _selectedEntry!.Version;
             _buildCards.Clear();
@@ -377,13 +384,18 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
 
             MaterialButton cancel = TonalButton("Cancel");
-            cancel.Click += (s, e) => {
-                List<ModMetadata> variants = GetVariantsForVersion(selectedGameVersion);
-                if (variants.Count > 1) {
-                    RenderChooseBuild(variants);
+            cancel.Click += async (s, e) => {
+                try {
+                    List<ModMetadata> variants = GetVariantsForVersion(selectedGameVersion);
+                    if (variants.Count > 1) {
+                        await RenderChooseBuild(variants);
+                    }
+                    else {
+                        RenderInstallsFound();
+                    }
                 }
-                else {
-                    RenderInstallsFound();
+                catch (Exception ex) {
+                    AppLogger.Critical("Cancel/back from version mismatch failed.", ex);
                 }
             };
             MaterialButton install = PrimaryButton("Install anyway", MaterialIcons.Download);

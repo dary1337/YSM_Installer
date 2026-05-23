@@ -36,6 +36,8 @@ namespace YSMInstaller {
         public void SetSteps(string[] steps) {
             _steps = steps ?? Array.Empty<string>();
             _errorIndex = -1;
+            _activeIndex = 0;
+            _spinner.Stop();
             Height = _steps.Length * RowHeight;
             Invalidate();
         }
@@ -76,33 +78,34 @@ namespace YSMInstaller {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
-            for (int i = 0; i < _steps.Length; i++) {
-                int y = i * RowHeight;
-                var indicatorRect = new Rectangle(0, y + (RowHeight - Indicator) / 2, Indicator, Indicator);
+            using (var fmt = new StringFormat(StringFormat.GenericTypographic) {
+                Alignment = StringAlignment.Near,
+                LineAlignment = StringAlignment.Center,
+            }) {
+                for (int i = 0; i < _steps.Length; i++) {
+                    int y = i * RowHeight;
+                    var indicatorRect = new Rectangle(0, y + (RowHeight - Indicator) / 2, Indicator, Indicator);
 
-                if (i == _errorIndex) {
-                    DrawError(g, indicatorRect);
-                }
-                else if (i < _activeIndex) {
-                    DrawDone(g, indicatorRect);
-                }
-                else if (i == _activeIndex && _errorIndex < 0) {
-                    DrawActive(g, indicatorRect);
-                }
-                else {
-                    DrawPending(g, indicatorRect);
-                }
+                    if (i == _errorIndex) {
+                        DrawError(g, indicatorRect);
+                    }
+                    else if (i < _activeIndex) {
+                        DrawDone(g, indicatorRect);
+                    }
+                    else if (i == _activeIndex && _errorIndex < 0) {
+                        DrawActive(g, indicatorRect);
+                    }
+                    else {
+                        DrawPending(g, indicatorRect);
+                    }
 
-                Color textColor = i == _errorIndex
-                    ? MaterialPalette.Error
-                    : i <= _activeIndex ? MaterialPalette.OnSurface : MaterialPalette.OnSurfaceMuted;
-                var textRect = new RectangleF(Indicator + 12, y, Width - Indicator - 12, RowHeight);
-                var fmt = new StringFormat(StringFormat.GenericTypographic) {
-                    Alignment = StringAlignment.Near,
-                    LineAlignment = StringAlignment.Center,
-                };
-                using (var brush = new SolidBrush(textColor)) {
-                    g.DrawString(_steps[i], MaterialType.BodyMedium, brush, textRect, fmt);
+                    Color textColor = i == _errorIndex
+                        ? MaterialPalette.Error
+                        : i <= _activeIndex ? MaterialPalette.OnSurface : MaterialPalette.OnSurfaceMuted;
+                    var textRect = new RectangleF(Indicator + 12, y, Width - Indicator - 12, RowHeight);
+                    using (var brush = new SolidBrush(textColor)) {
+                        g.DrawString(_steps[i], MaterialType.BodyMedium, brush, textRect, fmt);
+                    }
                 }
             }
         }

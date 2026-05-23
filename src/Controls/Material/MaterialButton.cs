@@ -196,11 +196,11 @@ namespace YSMInstaller {
             }
 
             if (!string.IsNullOrEmpty(text)) {
-                using (var brush = new SolidBrush(content)) {
-                    var fmt = new StringFormat(StringFormat.GenericTypographic) {
-                        LineAlignment = StringAlignment.Center,
-                        Alignment = StringAlignment.Near,
-                    };
+                using (var brush = new SolidBrush(content))
+                using (var fmt = new StringFormat(StringFormat.GenericTypographic) {
+                    LineAlignment = StringAlignment.Center,
+                    Alignment = StringAlignment.Near,
+                }) {
                     g.DrawString(text, Font, brush, new RectangleF(startX, midY - textSize.Height / 2f, textSize.Width + 2, textSize.Height), fmt);
                 }
             }

@@ -89,10 +89,11 @@ namespace YSMInstaller {
             using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(iconRect, Sizes.RadiusExtraSmall)) {
                 if (_customIcon != null) {
                     // Full-bleed colorful art clipped to the rounded square (no tile background).
-                    Region previousClip = g.Clip;
-                    g.SetClip(path);
-                    g.DrawImage(_customIcon, iconRect);
-                    g.Clip = previousClip;
+                    using (Region previousClip = g.Clip) {
+                        g.SetClip(path);
+                        g.DrawImage(_customIcon, iconRect);
+                        g.Clip = previousClip;
+                    }
                 }
                 else {
                     using (var brush = new SolidBrush(_selected ? MaterialPalette.PrimaryContainer : MaterialPalette.SurfaceContainerHighest)) {
@@ -105,47 +106,47 @@ namespace YSMInstaller {
 
             int textLeft = Pad + IconBox + 14;
             int textRight = Width - RadioArea - 8;
-            var nearFmt = new StringFormat(StringFormat.GenericTypographic) {
+            using (var nearFmt = new StringFormat(StringFormat.GenericTypographic) {
                 Alignment = StringAlignment.Near,
                 LineAlignment = StringAlignment.Center,
-            };
-
-            int sizeWidth = 0;
-            if (!string.IsNullOrEmpty(_sizeText)) {
-                SizeF measured = g.MeasureString(_sizeText, MaterialType.BodySmall);
-                sizeWidth = (int)Math.Ceiling(measured.Width) + 10;
-                using (var brush = new SolidBrush(MaterialPalette.OnSurfaceVariant)) {
-                    var rightFmt = new StringFormat(StringFormat.GenericTypographic) {
+            }) {
+                int sizeWidth = 0;
+                if (!string.IsNullOrEmpty(_sizeText)) {
+                    SizeF measured = g.MeasureString(_sizeText, MaterialType.BodySmall);
+                    sizeWidth = (int)Math.Ceiling(measured.Width) + 10;
+                    using (var brush = new SolidBrush(MaterialPalette.OnSurfaceVariant))
+                    using (var rightFmt = new StringFormat(StringFormat.GenericTypographic) {
                         Alignment = StringAlignment.Far,
                         LineAlignment = StringAlignment.Center,
-                    };
-                    g.DrawString(_sizeText, MaterialType.BodySmall, brush,
-                        new RectangleF(textRight - sizeWidth, 0, sizeWidth, Height), rightFmt);
+                    }) {
+                        g.DrawString(_sizeText, MaterialType.BodySmall, brush,
+                            new RectangleF(textRight - sizeWidth, 0, sizeWidth, Height), rightFmt);
+                    }
                 }
-            }
 
-            float titleY = 13;
-            SizeF titleSize = g.MeasureString(_title, MaterialType.TitleMedium, int.MaxValue, StringFormat.GenericTypographic);
-            using (var brush = new SolidBrush(MaterialPalette.OnSurface)) {
-                g.DrawString(_title, MaterialType.TitleMedium, brush,
-                    new RectangleF(textLeft, titleY, textRight - sizeWidth - textLeft, 22), nearFmt);
-            }
-            if (_recommended) {
-                using (var brush = new SolidBrush(MaterialPalette.Primary)) {
-                    g.DrawString(" · recommended", MaterialType.LabelMedium, brush,
-                        new RectangleF(textLeft + titleSize.Width, titleY + 1, 150, 20), nearFmt);
+                float titleY = 13;
+                SizeF titleSize = g.MeasureString(_title, MaterialType.TitleMedium, int.MaxValue, StringFormat.GenericTypographic);
+                using (var brush = new SolidBrush(MaterialPalette.OnSurface)) {
+                    g.DrawString(_title, MaterialType.TitleMedium, brush,
+                        new RectangleF(textLeft, titleY, textRight - sizeWidth - textLeft, 22), nearFmt);
                 }
-            }
+                if (_recommended) {
+                    using (var brush = new SolidBrush(MaterialPalette.Primary)) {
+                        g.DrawString(" · recommended", MaterialType.LabelMedium, brush,
+                            new RectangleF(textLeft + titleSize.Width, titleY + 1, 150, 20), nearFmt);
+                    }
+                }
 
-            var descFmt = new StringFormat(StringFormat.GenericTypographic) {
-                Alignment = StringAlignment.Near,
-                LineAlignment = StringAlignment.Center,
-                Trimming = StringTrimming.EllipsisCharacter,
-                FormatFlags = StringFormatFlags.NoWrap,
-            };
-            using (var brush = new SolidBrush(MaterialPalette.OnSurfaceVariant)) {
-                g.DrawString(_description, MaterialType.BodySmall, brush,
-                    new RectangleF(textLeft, 35, textRight - textLeft, 20), descFmt);
+                using (var descFmt = new StringFormat(StringFormat.GenericTypographic) {
+                    Alignment = StringAlignment.Near,
+                    LineAlignment = StringAlignment.Center,
+                    Trimming = StringTrimming.EllipsisCharacter,
+                    FormatFlags = StringFormatFlags.NoWrap,
+                })
+                using (var brush = new SolidBrush(MaterialPalette.OnSurfaceVariant)) {
+                    g.DrawString(_description, MaterialType.BodySmall, brush,
+                        new RectangleF(textLeft, 35, textRight - textLeft, 20), descFmt);
+                }
             }
 
             DrawRadio(g);
