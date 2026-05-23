@@ -45,7 +45,13 @@ namespace YSMInstaller {
 
         private StringFormat BuildFormat() {
             var format = new StringFormat();
-            format.Trimming = StringTrimming.None;
+            if (AutoEllipsis) {
+                format.FormatFlags = StringFormatFlags.NoWrap;
+                format.Trimming = StringTrimming.EllipsisPath;
+            }
+            else {
+                format.Trimming = StringTrimming.None;
+            }
 
             switch (TextAlign) {
                 case ContentAlignment.TopLeft:

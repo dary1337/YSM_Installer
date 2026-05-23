@@ -67,6 +67,9 @@ namespace YSMInstaller {
         protected override void OnPaint(PaintEventArgs e) {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var bg = new SolidBrush(BackColor)) {
+                g.FillRectangle(bg, ClientRectangle);
+            }
 
             int h = Math.Min(Height, 8);
             int y = (Height - h) / 2;

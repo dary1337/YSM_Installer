@@ -66,8 +66,7 @@ namespace YSMInstaller {
                 bool active = value >= 0 && value < _steps.Length;
                 if (active && !_spinner.Enabled) _spinner.Start();
                 if (!active && _spinner.Enabled) _spinner.Stop();
-                // Trigger morph for steps that just crossed into the done region.
-                for (int i = prev; i < value && i < _completionAnims.Length; i++) {
+                for (int i = Math.Max(0, prev); i < value && i < _completionAnims.Length; i++) {
                     if (_completionAnims[i] <= 0f) {
                         _completionAnims[i] = float.Epsilon;
                     }
@@ -83,7 +82,7 @@ namespace YSMInstaller {
             int prev = _activeIndex;
             _activeIndex = _steps.Length;
             _spinner.Stop();
-            for (int i = prev; i < _steps.Length; i++) {
+            for (int i = Math.Max(0, prev); i < _steps.Length; i++) {
                 if (i < _completionAnims.Length && _completionAnims[i] <= 0f) {
                     _completionAnims[i] = float.Epsilon;
                 }
