@@ -1,3 +1,5 @@
+![YSM Installer](docs/cover.png)
+
 # YSM Installer
 
 ## [YSM Community](https://discord.gg/XmbhaSRqfZ)
