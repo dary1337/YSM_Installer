@@ -6,10 +6,13 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     /// <summary>
     /// Material 3 linear determinate progress indicator: rounded track + primary indicator with the
-    /// signature trailing stop dot. Set <see cref="Value"/> in [0,100].
+    /// signature trailing stop dot. Set <see cref="Value"/> in [0,100]; the painted fill smoothly tweens
+    /// toward the target instead of jumping, so noisy progress reports look fluid.
     /// </summary>
     public sealed class MaterialProgressBar : Control {
         private int _value;
+        private float _displayValue;
+        private readonly Timer _tween;
 
         public MaterialProgressBar() {
             SetStyle(
@@ -22,6 +25,8 @@ namespace YSMInstaller {
             );
             Height = 8;
             BackColor = Color.Transparent;
+            _tween = new Timer { Interval = 16 };
+            _tween.Tick += OnTweenTick;
         }
 
         public int Value {
@@ -32,8 +37,31 @@ namespace YSMInstaller {
                     return;
                 }
                 _value = normalized;
-                Invalidate();
+                if (!_tween.Enabled) {
+                    _tween.Start();
+                }
             }
+        }
+
+        private void OnTweenTick(object? sender, EventArgs e) {
+            // Exponential approach: each frame closes ~22% of remaining distance — settles in ~250ms.
+            float delta = _value - _displayValue;
+            if (Math.Abs(delta) < 0.1f) {
+                _displayValue = _value;
+                _tween.Stop();
+            }
+            else {
+                _displayValue += delta * 0.22f;
+            }
+            Invalidate();
+        }
+
+        protected override void Dispose(bool disposing) {
+            if (disposing) {
+                _tween.Stop();
+                _tween.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         protected override void OnPaint(PaintEventArgs e) {
@@ -48,7 +76,7 @@ namespace YSMInstaller {
                 return;
             }
 
-            float fraction = _value / 100f;
+            float fraction = _displayValue / 100f;
             int indicatorWidth = (int)Math.Round((width - 6) * fraction);
             int gap = indicatorWidth > 0 && indicatorWidth < width - 6 ? 4 : 0;
 

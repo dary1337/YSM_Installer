@@ -19,6 +19,8 @@ namespace YSMInstaller {
         private readonly Image? _exeIcon;
         private bool _selected;
         private bool _hovered;
+        private float _selectionProgress;
+        private readonly Timer _selectionTween;
 
         private Rectangle _issuesLinkRect;
         private HoveredLink _hoveredLink = HoveredLink.None;
@@ -43,6 +45,22 @@ namespace YSMInstaller {
             MinimumSize = new Size(0, Sizes.RadioCardMinHeight);
             Cursor = SystemCursors.Pointer;
             SetOutline(StatusOutline());
+
+            _selectionTween = new Timer { Interval = 16 };
+            _selectionTween.Tick += OnSelectionTweenTick;
+        }
+
+        private void OnSelectionTweenTick(object? sender, EventArgs e) {
+            float target = _selected ? 1f : 0f;
+            float delta = target - _selectionProgress;
+            if (Math.Abs(delta) < 0.01f) {
+                _selectionProgress = target;
+                _selectionTween.Stop();
+            }
+            else {
+                _selectionProgress += delta * 0.22f;
+            }
+            Invalidate();
         }
 
         private bool HasKnownIssues =>
@@ -60,12 +78,17 @@ namespace YSMInstaller {
                 return;
             }
             _selected = true;
+            _selectionTween.Start();
             UpdateSurface();
             SelectedChanged?.Invoke(this);
         }
 
         public void SetSelected(bool selected) {
+            if (_selected == selected) {
+                return;
+            }
             _selected = selected;
+            _selectionTween.Start();
             UpdateSurface();
         }
 
@@ -289,12 +312,15 @@ namespace YSMInstaller {
             int cx = Width - RadioArea / 2 - 2;
             int cy = Height / 2;
             var outer = new Rectangle(cx - diameter / 2, cy - diameter / 2, diameter, diameter);
-            using (var pen = new Pen(_selected ? MaterialPalette.Primary : MaterialPalette.Outline, 2f)) {
+            Color ringColor = MaterialPalette.Overlay(MaterialPalette.Outline, MaterialPalette.Primary, _selectionProgress);
+            using (var pen = new Pen(ringColor, 2f)) {
                 g.DrawEllipse(pen, outer);
             }
-            if (_selected) {
+            if (_selectionProgress > 0.01f) {
+                float innerDiameter = 10f * _selectionProgress;
+                var inner = new RectangleF(cx - innerDiameter / 2f, cy - innerDiameter / 2f, innerDiameter, innerDiameter);
                 using (var brush = new SolidBrush(MaterialPalette.Primary)) {
-                    g.FillEllipse(brush, new Rectangle(cx - 5, cy - 5, 10, 10));
+                    g.FillEllipse(brush, inner);
                 }
             }
         }
@@ -337,6 +363,8 @@ namespace YSMInstaller {
 
         protected override void Dispose(bool disposing) {
             if (disposing) {
+                _selectionTween.Stop();
+                _selectionTween.Dispose();
                 _exeIcon?.Dispose();
             }
             base.Dispose(disposing);
