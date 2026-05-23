@@ -204,7 +204,6 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UI\Sizes.cs" />
-    <Compile Include="UI\Theme.cs" />
     <Compile Include="UI\UserMessages.cs" />
     <Compile Include="Warno\DevWarnoMocks.cs" />
     <Compile Include="Warno\IModCatalogSource.cs" />
