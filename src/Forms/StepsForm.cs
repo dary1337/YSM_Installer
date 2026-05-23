@@ -9,8 +9,9 @@ namespace YSMInstaller {
             StartPosition = FormStartPosition.CenterScreen;
             AutoScroll = true;
             Icon = Properties.Resources.logo;
-            BackColor = Theme.Background;
-            ForeColor = Theme.TextPrimary;
+            BackColor = MaterialPalette.Surface;
+            ForeColor = MaterialPalette.OnSurface;
+            WindowChrome.ApplyDark(this);
 
             TableLayoutPanel layout = new TableLayoutPanel {
                 Dock = DockStyle.Top,
@@ -37,7 +38,7 @@ namespace YSMInstaller {
         }
 
         private void AddStep(TableLayoutPanel layout, string text, Image image) {
-            Label label = new Label {
+            Label label = new SoftLabel {
                 Text = text,
                 Dock = DockStyle.Top,
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),

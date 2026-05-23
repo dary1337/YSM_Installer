@@ -1,107 +1,52 @@
+using System;
+using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
+    /// <summary>
+    /// Modal dialogs that survive the Material You redesign. Large flows — not-found, offline/catalog,
+    /// install progress, completion, failure — are inline states owned by Form1.
+    /// </summary>
     public static class UserMessages {
-        public static DialogResult ConfirmInstall(
-            IWin32Window owner,
-            int selectedGameVersion,
-            ModMetadata modMetadata,
-            long? archiveSizeBytes = null
-        ) {
-            string message = WarnoInstallWarning.BuildMessage();
-
-            if (selectedGameVersion > modMetadata.GameVersion) {
-                message +=
-                    $"Your WARNO version is newer than the latest available {ModTypes.ToDisplayName(modMetadata.ModType)} package.\n"
-                    + $"The installer can use the latest mod package for game version {modMetadata.GameVersion}.\n\n"
-                    + "This can still work: sometimes game developers do not change the mod file structure, "
-                    + "so the existing mod does not need an update and works as intended.\n\n";
+        /// <summary>Unexpected error: surfaces the log plus help links (issue tracker, Discord).</summary>
+        public static void ShowError(IWin32Window owner, string title, string body) {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.ErrorBadge;
+                dialog.IconColor = MaterialPalette.Error;
+                dialog.TitleText = title;
+                dialog.BodyText = body;
+                dialog.AddLink("Open log", MaterialIcons.OpenInNew, OpenLog);
+                dialog.AddLink("Report an issue", MaterialIcons.OpenInNew, () => AppLinks.Open(AppLinks.Issues));
+                dialog.AddLink("Discord", MaterialIcons.OpenInNew, () => AppLinks.Open(AppLinks.Discord));
+                dialog.AddAction("OK", DialogResult.OK, MaterialButtonVariant.Filled);
+                dialog.ShowDialog(owner);
             }
+        }
 
-            if (archiveSizeBytes.HasValue && archiveSizeBytes.Value > 0) {
-                double sizeMb = archiveSizeBytes.Value / 1024d / 1024d;
-                message += $"Archive size: {sizeMb:0.0} MB\n\n";
+        /// <summary>Plain informational notice (no log / no help links).</summary>
+        public static void ShowNotice(IWin32Window owner, string title, string body) {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Info;
+                dialog.IconColor = MaterialPalette.Primary;
+                dialog.TitleText = title;
+                dialog.BodyText = body;
+                dialog.AddAction("OK", DialogResult.OK, MaterialButtonVariant.Filled);
+                dialog.ShowDialog(owner);
             }
-            else if (string.Equals(modMetadata.ModType, ModTypes.YsmWif, System.StringComparison.Ordinal)) {
-                message +=
-                    "Archive size could not be detected. YSM x WiF package may exceed 2 GB.\n\n";
-            }
-
-            return MessageBox.Show(
-                owner,
-                message + "Continue?",
-                "Install",
-                MessageBoxButtons.OKCancel,
-                MessageBoxIcon.Question
-            );
-        }
-
-        public static void ShowInstallCompleted(IWin32Window owner) {
-            MessageBox.Show(owner, "Done, you can launch the game.");
-        }
-
-        public static void ShowInstallAlreadyRunning(IWin32Window owner) {
-            MessageBox.Show(
-                owner,
-                "Another installation is already running. Please wait for it to finish.",
-                "Install",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
-        }
-
-        public static void ShowInstallFailed(IWin32Window owner) {
-            MessageBox.Show(
-                owner,
-                $"Can't install the mod. Details were written to:\n{AppLogger.LogPath}",
-                "Install failed",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error
-            );
-        }
-
-        public static void ShowSupportedVersionsLoadFailed(IWin32Window owner) {
-            MessageBox.Show(
-                owner,
-                "Can't load supported versions. Check your internet connection.",
-                "YSM Installer",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning
-            );
-        }
-
-        public static void ShowWarnoNotFound(IWin32Window owner) {
-            MessageBox.Show(owner, "WARNO executable not found.");
         }
 
         public static void ShowSelectedWarnoInvalid(IWin32Window owner) {
-            MessageBox.Show(
-                owner,
-                "Selected Warno.exe does not look like a valid WARNO installation.",
-                "WARNO Not Found",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning
-            );
+            ShowNotice(owner, "Not a WARNO installation",
+                "The selected file does not look like a valid WARNO installation. Pick the Warno.exe inside your WARNO game folder.");
         }
 
-        public static DialogResult ConfirmFullSystemScan(IWin32Window owner) {
-            return MessageBox.Show(
-                owner,
-                "WARNO executable not found. Make sure it's not installed in C:\\Windows or C:\\Users.\n\nDo you want to scan all directories anyway?",
-                "WARNO Not Found",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question
-            );
-        }
-
-        public static DialogResult ConfirmSelectWarnoManually(IWin32Window owner) {
-            return MessageBox.Show(
-                owner,
-                "WARNO executable was not found automatically.\n\nDo you want to select Warno.exe manually?",
-                "WARNO Not Found",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question
-            );
+        private static void OpenLog() {
+            try {
+                Process.Start(new ProcessStartInfo(AppLogger.LogPath) { UseShellExecute = true });
+            }
+            catch (Exception exception) {
+                AppLogger.Error("Failed to open log file.", exception);
+            }
         }
     }
 }

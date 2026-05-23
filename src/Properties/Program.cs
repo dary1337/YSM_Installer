@@ -14,6 +14,8 @@ namespace YSMInstaller {
 
             try {
                 Application.EnableVisualStyles();
+                // Native GDI text rendering for stock controls; our owner-drawn text uses AntiAliasGridFit
+                // (smooth but grid-fitted, so not blurry) via SoftLabel and the Material controls.
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new Form1());
             }

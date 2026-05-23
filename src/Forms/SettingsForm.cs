@@ -10,29 +10,42 @@ namespace YSMInstaller {
         public SettingsForm() {
             _initialSource = ModCatalogSettings.SelectedSource;
 
-            UiChrome.ApplyDialogChrome(this);
             Text = "Settings";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(390, 320);
+            ClientSize = new Size(420, 300);
+            BackColor = MaterialPalette.Surface;
+            ForeColor = MaterialPalette.OnSurface;
+            Font = MaterialType.BodyMedium;
+            Icon = Properties.Resources.logo;
+            WindowChrome.ApplyDark(this);
 
-            var root = new FlowLayoutPanel {
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.TopDown,
-                Padding = new Padding(16),
-                WrapContents = false,
+            const int margin = 24;
+            int innerWidth = ClientSize.Width - margin * 2;
+
+            var overline = new SoftLabel {
+                AutoSize = true,
+                Font = MaterialType.Overline,
+                ForeColor = MaterialPalette.OnSurfaceVariant,
+                Location = new Point(margin, margin),
+                Text = "MOD CATALOG",
             };
+            Controls.Add(overline);
 
-            const int innerWidth = 358;
-
-            Label heading = UiChrome.CreateHeadingLabel("Mod catalog source");
-            root.Controls.Add(heading);
+            var fieldLabel = new SoftLabel {
+                AutoSize = true,
+                Font = MaterialType.BodySmall,
+                ForeColor = MaterialPalette.OnSurfaceVariant,
+                Location = new Point(margin, margin + 26),
+                Text = "Source",
+            };
+            Controls.Add(fieldLabel);
 
             _sourceDropdown = new DropdownSelect {
-                Margin = new Padding(0, 0, 0, 4),
+                Location = new Point(margin, margin + 46),
                 Width = innerWidth,
             };
             _sourceDropdown.AddItem(
@@ -44,35 +57,52 @@ namespace YSMInstaller {
                 ModCatalogSourceKind.YokaisteGitHubReleases
             );
             _sourceDropdown.SelectByTag(_initialSource);
+            Controls.Add(_sourceDropdown);
 
-            root.Controls.Add(_sourceDropdown);
-
-            Label note = UiChrome.CreateMutedLabel(
-                "Yokaiste releases fallback to official list if validation fails."
-            );
-            root.Controls.Add(note);
-
-            var buttonRow = new FlowLayoutPanel {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                FlowDirection = FlowDirection.RightToLeft,
-                Margin = new Padding(0, 8, 0, 0),
-                WrapContents = false,
-                Width = innerWidth,
+            int noteTop = margin + 46 + Tokens.DropdownHeight + Tokens.Space4;
+            var noteIcon = new PictureBox {
+                BackColor = Color.Transparent,
+                Image = MaterialIconRenderer.Get(MaterialIcons.Info, Tokens.IconXs, MaterialPalette.OnSurfaceMuted),
+                Location = new Point(margin, noteTop),
+                Size = new Size(Tokens.IconXs, Tokens.IconXs),
+                SizeMode = PictureBoxSizeMode.Normal,
             };
+            Controls.Add(noteIcon);
 
-            RoundedButton saveButton = UiChrome.CreateDialogButton("Save");
-            saveButton.DialogResult = DialogResult.OK;
-            saveButton.Click += (sender, args) => SaveSelectedSource();
+            var note = new SoftLabel {
+                AutoSize = false,
+                Font = MaterialType.BodySmall,
+                ForeColor = MaterialPalette.OnSurfaceMuted,
+                Location = new Point(margin + 22, noteTop - 1),
+                Size = new Size(innerWidth - 22, 40),
+                Text = "Yokaiste releases fall back to the official list if validation fails.",
+            };
+            Controls.Add(note);
 
-            buttonRow.Controls.Add(saveButton);
+            var saveButton = new MaterialButton {
+                Text = "Save",
+                Variant = MaterialButtonVariant.Filled,
+                Width = 92,
+                Location = new Point(ClientSize.Width - margin - 92, ClientSize.Height - margin - Sizes.ButtonHeight),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                DialogResult = DialogResult.OK,
+            };
+            saveButton.Click += (sender, args) => { SaveSelectedSource(); DialogResult = DialogResult.OK; Close(); };
+            Controls.Add(saveButton);
 
-            root.Controls.Add(buttonRow);
+            var cancelButton = new MaterialButton {
+                Text = "Cancel",
+                Variant = MaterialButtonVariant.Text,
+                Width = 88,
+                Location = new Point(ClientSize.Width - margin - 92 - 96, ClientSize.Height - margin - Sizes.ButtonHeight),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                DialogResult = DialogResult.Cancel,
+            };
+            cancelButton.Click += (sender, args) => { DialogResult = DialogResult.Cancel; Close(); };
+            Controls.Add(cancelButton);
 
-            Controls.Add(root);
-
-            // AcceptButton only after Controls.Add — earlier assignment left an invalid parent chain and NRE'd on activate.
             AcceptButton = saveButton;
+            CancelButton = cancelButton;
         }
 
         public bool SourceChanged => ModCatalogSettings.SelectedSource != _initialSource;

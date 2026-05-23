@@ -38,13 +38,16 @@ namespace YSMInstaller {
                 return false;
             }
 
-            var answer = MessageBox.Show(
-                owner,
-                BuildUpdateMessage(updateInfo),
-                "Update available",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information
-            );
+            DialogResult answer;
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Info;
+                dialog.IconColor = MaterialPalette.Primary;
+                dialog.TitleText = "Update available";
+                dialog.BodyText = BuildUpdateMessage(updateInfo);
+                dialog.AddAction("Later", DialogResult.No, MaterialButtonVariant.Text);
+                dialog.AddAction("Install update", DialogResult.Yes, MaterialButtonVariant.Filled);
+                answer = dialog.ShowDialog(owner);
+            }
 
             if (answer != DialogResult.Yes) {
                 AppLogger.Info(
@@ -60,12 +63,10 @@ namespace YSMInstaller {
             }
             catch (Exception exception) {
                 AppLogger.Critical("Auto-update failed.", exception);
-                MessageBox.Show(
+                UserMessages.ShowError(
                     owner,
-                    $"Auto-update failed. Details were written to:\n{AppLogger.LogPath}",
-                    "YSM Installer",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
+                    "Auto-update failed",
+                    $"Could not download the update. Details were written to:\n{AppLogger.LogPath}"
                 );
                 return false;
             }
@@ -93,7 +94,7 @@ namespace YSMInstaller {
 
         private static string BuildUpdateMessage(UpdateInfo updateInfo) {
             string message =
-                $"A new YSM Installer version is available ({updateInfo.Version}). Install it now?";
+                $"A new YSM Installer version is available ({updateInfo.Version}).";
 
             if (string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes)) {
                 return message;
