@@ -56,14 +56,19 @@ namespace YSMInstaller {
                 AppLogger.Info(
                     $"Starting mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
                 );
+                // Manual cancel checkpoints — Directory.Move/File.Copy don't honor CancellationToken,
+                // so without these a mid-install cancel would silently complete instead of rolling back.
+                cancellationToken.ThrowIfCancellationRequested();
                 ReportStage(stageProgress, "Preparing...");
                 Directory.CreateDirectory(modFolder);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Closing WARNO if running.");
                 ReportStage(stageProgress, "Closing WARNO...");
                 CloseRunningGame();
                 DeleteFileIfExists(lockFile);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Downloading mod archive.");
                 ReportStage(stageProgress, "Downloading...");
                 await HttpService.DownloadFileAsync(
@@ -76,6 +81,7 @@ namespace YSMInstaller {
                     cancellationToken
                 );
 
+                cancellationToken.ThrowIfCancellationRequested();
                 Directory.CreateDirectory(tempModPath);
                 AppLogger.Info("Extracting mod archive.");
                 ReportStage(stageProgress, "Extracting...");
@@ -83,7 +89,8 @@ namespace YSMInstaller {
                 string extractedModPath = ResolveExtractedModPath(tempModPath);
                 AppLogger.Info($"Resolved extracted mod root: {extractedModPath}");
 
-                ReportStage(stageProgress, "Reading config...");
+                cancellationToken.ThrowIfCancellationRequested();
+                ReportStage(stageProgress, "Reading mod settings...");
                 EnsureGameModConfigExists(gameConfig);
 
                 string modConfig = Path.Combine(extractedModPath, "Config.ini");
@@ -103,8 +110,9 @@ namespace YSMInstaller {
                 ysmConfig["Name"] = manualVersion;
                 IniFile.WriteValues(modConfig, ysmConfig);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Backing up current WARNO mod configuration.");
-                ReportStage(stageProgress, "Backing up...");
+                ReportStage(stageProgress, "Backing up your mods...");
                 File.Copy(gameConfig, gameConfigBackupPath, true);
 
                 AppLogger.Info("Backing up previously installed YSM mods.");
@@ -117,10 +125,12 @@ namespace YSMInstaller {
                     extractedModPath
                 );
 
-                ReportStage(stageProgress, "Installing files...");
+                cancellationToken.ThrowIfCancellationRequested();
+                ReportStage(stageProgress, "Installing...");
                 Directory.Move(extractedModPath, finalModPath);
                 finalModCreated = true;
 
+                // Past this point cancel is ignored: a half-written ActivatedMods corrupts game config.
                 ReportStage(stageProgress, "Finalizing...");
                 gameConfigData["ActivatedMods"] = $"{manualVersion}|";
                 IniFile.WriteValues(gameConfig, gameConfigData);
@@ -176,9 +186,9 @@ namespace YSMInstaller {
                 await ReportMockProgress(progress, 0, 45, 60, cancellationToken);
                 ReportStage(stageProgress, "Extracting...");
                 await ReportMockProgress(progress, 45, 72, 60, cancellationToken);
-                ReportStage(stageProgress, "Backing up...");
+                ReportStage(stageProgress, "Backing up your mods...");
                 await ReportMockProgress(progress, 72, 88, 60, cancellationToken);
-                ReportStage(stageProgress, "Installing files...");
+                ReportStage(stageProgress, "Installing...");
                 await ReportMockProgress(progress, 88, 98, 60, cancellationToken);
                 if (DevWarnoMocks.SimulateInstallFailure) {
                     DevWarnoMocks.SimulateInstallFailure = false;

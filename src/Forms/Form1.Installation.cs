@@ -11,14 +11,14 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     public partial class Form1 {
         private static readonly string[] InstallSteps = {
-            "Prepare",
-            "Close WARNO",
-            "Download package",
-            "Extract files",
-            "Read config",
-            "Back up existing mods",
-            "Install files",
-            "Finalize & activate",
+            "Preparing",
+            "Closing WARNO",
+            "Downloading",
+            "Extracting",
+            "Reading mod settings",
+            "Backing up your mods",
+            "Installing",
+            "Finalizing",
         };
 
         private int _currentStepIndex;
@@ -91,7 +91,7 @@ namespace YSMInstaller {
                 return;
             }
 
-            MaterialButton choose = PrimaryButton("Choose mod", MaterialIcons.Download);
+            MaterialButton choose = PrimaryButton("Continue", MaterialIcons.ArrowForward);
             choose.Click += async (s, e) => {
                 try {
                     await RenderChooseBuild(variants);
@@ -110,7 +110,7 @@ namespace YSMInstaller {
             _buildCards.Clear();
             _selectedBuild = null;
 
-            SetHeader("Choose a build", "YSM is the base mod. Other builds bundle it with extra content.");
+            SetHeader("Choose a build", "Each build is a separate collaboration. Pick the one you want to play.");
 
             TableLayoutPanel stack = NewStack();
             foreach (ModMetadata variant in variants) {
@@ -187,13 +187,13 @@ namespace YSMInstaller {
         private static (string description, bool recommended) DescribeBuild(string modType) {
             if (modType == ModTypes.YsmWif) {
                 // A World in Flames — modern-day (2015–2025) overhaul: new divisions for US, France,
-                return ("A World in Flames — modern-day overhaul (2015–2025) with new divisions and reworked traits.", false);
+                return ("Collab with A World in Flames — modern-day overhaul (2015–2025) with new divisions and reworked traits.", false);
             }
             if (modType == ModTypes.YsmWto) {
                 // Warno Tactical Overhaul — slower, methodical platoon/company-level combat: extended
-                return ("Warno Tactical Overhaul — realistic, methodical combat with longer ranges, denser concealment and stealth.", false);
+                return ("Collab with Warno Tactical Overhaul — methodical combat with longer ranges, denser concealment and stealth.", false);
             }
-            return ("Core framework. Required by every other YSM-compatible mod.", true);
+            return ("Standalone YSM build by Yokaiste. New units, decks and rebalances.", false);
         }
 
         // ---- Install flow ----
@@ -264,6 +264,18 @@ namespace YSMInstaller {
             }
         }
 
+        private bool ConfirmCancelInstall() {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialPalette.Warning;
+                dialog.TitleText = "Cancel installation?";
+                dialog.BodyText = "Changes already made will be rolled back. Your previous mods and game config will be restored.";
+                dialog.AddAction("Keep installing", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Cancel install", DialogResult.OK, MaterialButtonVariant.Filled);
+                return dialog.ShowDialog(this) == DialogResult.OK;
+            }
+        }
+
         private bool ConfirmWarnoCloseIfRunning() {
             if (!WarnoInstallWarning.IsGameRunning) {
                 return true;
@@ -326,7 +338,7 @@ namespace YSMInstaller {
             if (stage.StartsWith("Extracting", StringComparison.Ordinal)) return 3;
             if (stage.StartsWith("Reading", StringComparison.Ordinal)) return 4;
             if (stage.StartsWith("Backing up", StringComparison.Ordinal)) return 5;
-            if (stage.StartsWith("Installing files", StringComparison.Ordinal)) return 6;
+            if (stage.StartsWith("Installing", StringComparison.Ordinal)) return 6;
             if (stage.StartsWith("Finalizing", StringComparison.Ordinal)) return 7;
             return -1;
         }
@@ -544,6 +556,9 @@ namespace YSMInstaller {
             };
             cancel.SetAccent(MaterialPalette.Error, MaterialPalette.OnError);
             cancel.Click += (s, e) => {
+                if (!ConfirmCancelInstall()) {
+                    return;
+                }
                 cancel.Enabled = false;
                 cancel.Text = "Cancelling…";
                 _installCts?.Cancel();

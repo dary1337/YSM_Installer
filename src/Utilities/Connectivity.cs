@@ -49,8 +49,6 @@ namespace YSMInstaller {
                     client.DefaultRequestHeaders.UserAgent.ParseAdd("YSMInstaller/1.0");
                     using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4)))
                     using (var response = await client.SendAsync(request, cts.Token)) {
-                        // 4xx/5xx means the host is reachable but our probe failed — treat as unreachable
-                        // so the caller surfaces a GitHub reachability message, not a "catalog format" one.
                         return response.IsSuccessStatusCode;
                     }
                 }

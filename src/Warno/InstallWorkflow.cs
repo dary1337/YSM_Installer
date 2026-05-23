@@ -26,8 +26,7 @@ namespace YSMInstaller {
                     : InstallWorkflowResult.Installed;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-                // Only treat OCE as "Cancelled" when the user-passed token actually fired. Internal
-                // timeout tokens inside WarnoInstaller would otherwise be misreported as user cancels.
+                // Internal timeout OCEs would otherwise be reported as user cancellation.
                 AppLogger.Info("Mod installation cancelled by user.");
                 return InstallWorkflowResult.Cancelled;
             }

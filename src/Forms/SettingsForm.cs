@@ -75,7 +75,7 @@ namespace YSMInstaller {
                 ForeColor = MaterialPalette.OnSurfaceMuted,
                 Location = new Point(margin + 22, noteTop - 1),
                 Size = new Size(innerWidth - 22, 40),
-                Text = "Yokaiste releases fall back to the official list if validation fails.",
+                Text = "Loads releases straight from the GitHub repo. Falls back to the official list if unreachable.",
             };
             Controls.Add(note);
 

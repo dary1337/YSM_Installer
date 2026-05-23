@@ -10,7 +10,7 @@ namespace YSMInstaller {
         private MaterialButton _settingsButton = null!;
         private Panel _contentHost = null!;
         private Panel _island = null!;
-        private TableLayoutPanel _islandGrid = null!;
+        private FlowLayoutPanel _islandActions = null!;
 
         private void BuildChrome() {
             Controls.Clear();
@@ -130,28 +130,33 @@ namespace YSMInstaller {
         private Control BuildIsland() {
             // No island chrome — just a transparent host that holds the bottom action row.
             _island = new Panel {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 BackColor = Color.Transparent,
                 Dock = DockStyle.Top,
+                Height = Sizes.ButtonHeight + 4,
                 Margin = new Padding(0, Sizes.ContentGap, 0, 0),
                 Padding = Padding.Empty,
                 Visible = false,
             };
 
-            _islandGrid = new TableLayoutPanel {
+            _islandActions = new FlowLayoutPanel {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 BackColor = Color.Transparent,
-                ColumnCount = 1,
-                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty,
-                RowCount = 1,
+                WrapContents = false,
             };
-            _islandGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, Sizes.ButtonHeight + 4));
-            _island.Controls.Add(_islandGrid);
+            _island.Controls.Add(_islandActions);
+            _island.Resize += (s, e) => PositionIslandActions();
             return _island;
+        }
+
+        private void PositionIslandActions() {
+            // Anchor=Right doesn't pin until the host has a measured width, so place manually on resize.
+            _islandActions.Left = _island.ClientSize.Width - _islandActions.Width;
+            _islandActions.Top = (_island.ClientSize.Height - _islandActions.Height) / 2;
         }
 
         // ---- Content helpers ----
@@ -210,18 +215,22 @@ namespace YSMInstaller {
                 _island.Visible = false;
                 return;
             }
-            _islandGrid.SuspendLayout();
-            _islandGrid.Controls.Clear();
-            _islandGrid.ColumnStyles.Clear();
-            _islandGrid.ColumnCount = Math.Max(1, actions.Length);
-            for (int i = 0; i < actions.Length; i++) {
-                _islandGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / actions.Length));
-                actions[i].Dock = DockStyle.Fill;
-                actions[i].Margin = new Padding(i == 0 ? 0 : 4, 2, i == actions.Length - 1 ? 0 : 4, 2);
-                _islandGrid.Controls.Add(actions[i], i, 0);
+            _islandActions.SuspendLayout();
+            for (int i = _islandActions.Controls.Count - 1; i >= 0; i--) {
+                _islandActions.Controls.RemoveAt(i);
             }
-            _islandGrid.ResumeLayout(true);
+            // RightToLeft flow puts the first-added control at the far right; iterate in reverse so
+            // the primary (last input) lands rightmost.
+            for (int i = actions.Length - 1; i >= 0; i--) {
+                Control action = actions[i];
+                action.Dock = DockStyle.None;
+                action.AutoSize = true;
+                action.Margin = new Padding(i == 0 ? 0 : Tokens.Space2, 2, 0, 2);
+                _islandActions.Controls.Add(action);
+            }
+            _islandActions.ResumeLayout(true);
             _island.Visible = actions.Length > 0;
+            PositionIslandActions();
         }
 
         private Control BuildButtonRow(params MaterialButton[] buttons) {

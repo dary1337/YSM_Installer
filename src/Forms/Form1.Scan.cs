@@ -34,8 +34,8 @@ namespace YSMInstaller {
                 }
             }
             catch (Exception exception) {
-                // Don't map this to RenderNotFound — that conflates real misses with scanner/catalog/network
-                // failures and pushes the user into the manual-browse flow without valid _supportedVersions.
+                // Avoid RenderNotFound: a scanner crash isn't a "not installed" answer, and the manual-browse
+                // flow it leads to needs _supportedVersions which may have failed to load.
                 AppLogger.Critical("Scan failed.", exception);
                 _hasFoundWarnoExe = false;
                 RenderCatalogUnavailable($"Scan failed unexpectedly: {exception.Message}");

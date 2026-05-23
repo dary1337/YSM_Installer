@@ -14,7 +14,7 @@ namespace YSMInstaller {
         private float _phase;
 
         static SkeletonCard() {
-            // Single fixed handler — re-subscribing on every restart would leak handlers as cards come and go.
+            // Subscribe once: re-subscribing on every Start would leak handlers as cards come and go.
             SharedTimer.Tick += (s, a) => Tick?.Invoke();
         }
 

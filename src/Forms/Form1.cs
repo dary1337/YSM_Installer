@@ -86,8 +86,7 @@ namespace YSMInstaller {
         private async Task OpenSettingsAsync() {
             try {
                 using (var form = new SettingsForm()) {
-                    // A rescan during an active install would call SetContent and replace the install UI,
-                    // leaving the install progress callbacks writing into disposed controls.
+                    // Rescan during install would replace the live progress UI with disposed controls.
                     if (form.ShowDialog(this) == DialogResult.OK && form.SourceChanged && !_isInstalling) {
                         await ScanAsync();
                     }

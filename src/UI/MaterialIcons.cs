@@ -22,6 +22,7 @@ namespace YSMInstaller {
         public const string Game = "videogame_asset";
         public const string Download = "download";
         public const string ChevronDown = "expand_more";
+        public const string ArrowForward = "arrow_forward";
         public const string Help = "help_outline";
         public const string Drive = "travel_explore";
         public const string Document = "open_in_new";
