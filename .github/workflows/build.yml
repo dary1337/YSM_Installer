@@ -1,0 +1,40 @@
+name: build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Framework SDK
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: dotnet restore src/YSMInstaller.csproj
+
+      - name: Build (Release)
+        run: dotnet build src/YSMInstaller.csproj --configuration Release --no-restore -p:WarningLevel=4
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YSMInstaller-${{ github.sha }}
+          path: src/bin/Release/YSMInstaller.exe
+          if-no-files-found: error
+          retention-days: 14
