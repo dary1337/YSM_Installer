@@ -44,7 +44,7 @@ namespace YSMInstaller {
         }
 
         private StringFormat BuildFormat() {
-            var format = new StringFormat(StringFormatFlags.LineLimit);
+            var format = new StringFormat();
             format.Trimming = StringTrimming.None;
 
             switch (TextAlign) {
