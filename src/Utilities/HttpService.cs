@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace YSMInstaller {
@@ -67,10 +68,11 @@ namespace YSMInstaller {
             string url,
             string destinationPath,
             IProgress<int>? progress = null,
-            IProgress<DownloadProgressInfo>? detailedProgress = null
+            IProgress<DownloadProgressInfo>? detailedProgress = null,
+            CancellationToken cancellationToken = default
         ) {
             using (
-                var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead)
+                var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             ) {
                 response.EnsureSuccessStatusCode();
 
@@ -94,8 +96,8 @@ namespace YSMInstaller {
                     int lastReported = -1;
                     long lastReportedBytes = -UnknownSizeProgressStepBytes;
 
-                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0) {
-                        await fileStream.WriteAsync(buffer, 0, read);
+                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
+                        await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
                         totalRead += read;
 
                         if (

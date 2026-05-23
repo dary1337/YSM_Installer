@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace YSMInstaller {
@@ -11,10 +12,11 @@ namespace YSMInstaller {
         public static async Task<InstallModResult> InstallAsync(
             ModMetadata modMetadata,
             IProgress<int>? progress = null,
-            IProgress<string>? stageProgress = null
+            IProgress<string>? stageProgress = null,
+            CancellationToken cancellationToken = default
         ) {
             if (DevWarnoMocks.IsEnabled) {
-                return await SimulateInstallAsync(modMetadata, progress, stageProgress);
+                return await SimulateInstallAsync(modMetadata, progress, stageProgress, cancellationToken);
             }
 
             if (_isInstalling) {
@@ -57,6 +59,11 @@ namespace YSMInstaller {
                 ReportStage(stageProgress, "Preparing...");
                 Directory.CreateDirectory(modFolder);
 
+                AppLogger.Info("Closing WARNO if running.");
+                ReportStage(stageProgress, "Closing WARNO...");
+                CloseRunningGame();
+                DeleteFileIfExists(lockFile);
+
                 AppLogger.Info("Downloading mod archive.");
                 ReportStage(stageProgress, "Downloading...");
                 await HttpService.DownloadFileAsync(
@@ -65,7 +72,8 @@ namespace YSMInstaller {
                     progress,
                     new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
                         ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
-                    })
+                    }),
+                    cancellationToken
                 );
 
                 Directory.CreateDirectory(tempModPath);
@@ -94,10 +102,6 @@ namespace YSMInstaller {
                 ysmConfig["ID"] = manualVersion;
                 ysmConfig["Name"] = manualVersion;
                 IniFile.WriteValues(modConfig, ysmConfig);
-
-                ReportStage(stageProgress, "Closing WARNO...");
-                CloseRunningGame();
-                File.Delete(lockFile);
 
                 AppLogger.Info("Backing up current WARNO mod configuration.");
                 ReportStage(stageProgress, "Backing up...");
@@ -152,7 +156,8 @@ namespace YSMInstaller {
         private static async Task<InstallModResult> SimulateInstallAsync(
             ModMetadata modMetadata,
             IProgress<int>? progress,
-            IProgress<string>? stageProgress
+            IProgress<string>? stageProgress,
+            CancellationToken cancellationToken
         ) {
             if (_isInstalling) {
                 AppLogger.Info(
@@ -168,15 +173,19 @@ namespace YSMInstaller {
                 );
 
                 ReportStage(stageProgress, "Downloading...");
-                await ReportMockProgress(progress, 0, 45, 60);
+                await ReportMockProgress(progress, 0, 45, 60, cancellationToken);
                 ReportStage(stageProgress, "Extracting...");
-                await ReportMockProgress(progress, 45, 72, 60);
+                await ReportMockProgress(progress, 45, 72, 60, cancellationToken);
                 ReportStage(stageProgress, "Backing up...");
-                await ReportMockProgress(progress, 72, 88, 60);
+                await ReportMockProgress(progress, 72, 88, 60, cancellationToken);
                 ReportStage(stageProgress, "Installing files...");
-                await ReportMockProgress(progress, 88, 98, 60);
+                await ReportMockProgress(progress, 88, 98, 60, cancellationToken);
+                if (DevWarnoMocks.SimulateInstallFailure) {
+                    DevWarnoMocks.SimulateInstallFailure = false;
+                    throw new InvalidOperationException("Simulated install failure (dev test).");
+                }
                 ReportStage(stageProgress, "Finalizing...");
-                await ReportMockProgress(progress, 98, 100, 75);
+                await ReportMockProgress(progress, 98, 100, 75, cancellationToken);
 
                 AppLogger.Info(
                     $"Mock mod installation completed. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
@@ -211,11 +220,13 @@ namespace YSMInstaller {
             IProgress<int>? progress,
             int fromInclusive,
             int toInclusive,
-            int delayMs
+            int delayMs,
+            CancellationToken cancellationToken
         ) {
             for (int value = fromInclusive; value <= toInclusive; value++) {
+                cancellationToken.ThrowIfCancellationRequested();
                 progress?.Report(value);
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, cancellationToken);
             }
         }
 
