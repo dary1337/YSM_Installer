@@ -210,6 +210,7 @@ namespace YSMInstaller {
                             remoteSize,
                             rangedDownloadProgress,
                             detailedDownloadProgress,
+                            stageProgress,
                             cancellationToken
                         );
                     }

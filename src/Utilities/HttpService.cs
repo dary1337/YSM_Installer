@@ -10,6 +10,15 @@ namespace YSMInstaller {
         private static readonly HttpClient Client = CreateClient();
         private const int UnknownSizeProgressStepBytes = 256 * 1024;
 
+        // Per-chunk retry budget for multi-part downloads. Covers transient hiccups (5xx, brief
+        // network drop, server-side reset) without disguising deterministic failures — the
+        // backoff is short enough that real outages bubble up within ~10 s.
+        private const int MaxChunkAttempts = 3;
+        private static readonly TimeSpan[] ChunkRetryBackoff = {
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(5),
+        };
+
         public readonly struct DownloadProgressInfo {
             public DownloadProgressInfo(long bytesReceived, long? totalBytes) {
                 BytesReceived = bytesReceived;
@@ -101,7 +110,7 @@ namespace YSMInstaller {
                 string? mediaType = response.Content.Headers.ContentType?.MediaType;
                 if (!string.IsNullOrEmpty(mediaType)
                     && mediaType!.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)) {
-                    throw new IOException(
+                    throw new RemoteHtmlResponseException(
                         $"Server returned HTML instead of a file for {url} — the host likely " +
                         "rate-limited or quota-blocked this download (common with public Google " +
                         "Drive files). Try again later, or ask the mod publisher to refresh the link."
@@ -197,6 +206,7 @@ namespace YSMInstaller {
             long? knownTotalBytes = null,
             IProgress<int>? progress = null,
             IProgress<DownloadProgressInfo>? detailedProgress = null,
+            IProgress<string>? retryStatus = null,
             CancellationToken cancellationToken = default
         ) {
             if (urls == null || urls.Count == 0) {
@@ -223,55 +233,110 @@ namespace YSMInstaller {
 
                 for (int i = 0; i < urls.Count; i++) {
                     string url = GoogleDriveLinks.Normalize(urls[i]);
-                    using (
-                        var response = await Client.GetAsync(
-                            url,
-                            HttpCompletionOption.ResponseHeadersRead,
-                            cancellationToken
-                        )
-                    ) {
-                        response.EnsureSuccessStatusCode();
-                        string? mediaType = response.Content.Headers.ContentType?.MediaType;
-                        if (!string.IsNullOrEmpty(mediaType)
-                            && mediaType!.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)) {
-                            throw new IOException(
-                                $"Server returned HTML instead of a file for {url} — the host likely " +
-                                "rate-limited or quota-blocked this download. Try again later, or " +
-                                "ask the mod publisher to refresh the link."
-                            );
-                        }
 
-                        using (var contentStream = await response.Content.ReadAsStreamAsync()) {
-                            int read;
-                            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
-                                await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
-                                writtenSoFar += read;
+                    // Snapshot the per-chunk start so a mid-stream failure can be retried by
+                    // truncating partial bytes for this chunk only and rewinding counters —
+                    // bytes from earlier successful chunks stay on disk.
+                    long chunkStartPosition = fileStream.Position;
+                    long chunkStartBytes = writtenSoFar;
+                    long chunkStartReported = lastReportedBytes;
+                    int chunkStartPercent = lastPercent;
 
-                                if (
-                                    detailedProgress != null
-                                    && (
-                                        canReportPercent
-                                        || writtenSoFar - lastReportedBytes >= UnknownSizeProgressStepBytes
-                                    )
-                                ) {
-                                    detailedProgress.Report(
-                                        new DownloadProgressInfo(
-                                            writtenSoFar,
-                                            totalBytes > 0 ? totalBytes : (long?)null
-                                        )
+                    int attempt = 0;
+                    while (true) {
+                        attempt++;
+                        try {
+                            using (
+                                var response = await Client.GetAsync(
+                                    url,
+                                    HttpCompletionOption.ResponseHeadersRead,
+                                    cancellationToken
+                                )
+                            ) {
+                                response.EnsureSuccessStatusCode();
+                                string? mediaType = response.Content.Headers.ContentType?.MediaType;
+                                if (!string.IsNullOrEmpty(mediaType)
+                                    && mediaType!.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)) {
+                                    throw new RemoteHtmlResponseException(
+                                        $"Server returned HTML instead of a file for {url} — the host likely " +
+                                        "rate-limited or quota-blocked this download. Try again later, or " +
+                                        "ask the mod publisher to refresh the link."
                                     );
-                                    lastReportedBytes = writtenSoFar;
                                 }
 
-                                if (canReportPercent) {
-                                    int percent = (int)((writtenSoFar * 100L) / totalBytes);
-                                    if (percent != lastPercent) {
-                                        progress!.Report(percent);
-                                        lastPercent = percent;
+                                using (var contentStream = await response.Content.ReadAsStreamAsync()) {
+                                    int read;
+                                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
+                                        await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
+                                        writtenSoFar += read;
+
+                                        if (
+                                            detailedProgress != null
+                                            && (
+                                                canReportPercent
+                                                || writtenSoFar - lastReportedBytes >= UnknownSizeProgressStepBytes
+                                            )
+                                        ) {
+                                            detailedProgress.Report(
+                                                new DownloadProgressInfo(
+                                                    writtenSoFar,
+                                                    totalBytes > 0 ? totalBytes : (long?)null
+                                                )
+                                            );
+                                            lastReportedBytes = writtenSoFar;
+                                        }
+
+                                        if (canReportPercent) {
+                                            int percent = (int)((writtenSoFar * 100L) / totalBytes);
+                                            if (percent != lastPercent) {
+                                                progress!.Report(percent);
+                                                lastPercent = percent;
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            break;
                         }
+                        catch (RemoteHtmlResponseException) {
+                            // Quota / interstitial — won't clear in seconds, retry is pointless.
+                            throw;
+                        }
+                        catch (TaskCanceledException exception) when (
+                            !cancellationToken.IsCancellationRequested
+                            && attempt < MaxChunkAttempts
+                        ) {
+                            // HttpClient timeout (not user cancel — that case is filtered out and
+                            // handled by the OperationCanceledException catch below).
+                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                            throw;
+                        }
+                        catch (HttpRequestException exception) when (attempt < MaxChunkAttempts) {
+                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count);
+                        }
+                        catch (IOException exception) when (attempt < MaxChunkAttempts) {
+                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count);
+                        }
+                    }
+
+                    async Task ResetChunkAndBackoffAsync(Exception exception, int attemptNo, int partNo, int partTotal) {
+                        AppLogger.Info(
+                            $"Chunk {partNo}/{partTotal} attempt {attemptNo} failed ({exception.GetType().Name}: {exception.Message}); retrying."
+                        );
+                        // Stage-text format is "Downloading..." so the UI's step-checklist stays
+                        // on the Downloading row instead of bouncing between matched prefixes.
+                        TimeSpan delay = ChunkRetryBackoff[attemptNo - 1];
+                        retryStatus?.Report(
+                            $"Downloading... retrying part {partNo}/{partTotal} (attempt {attemptNo + 1}) in {delay.TotalSeconds:0}s"
+                        );
+                        fileStream.SetLength(chunkStartPosition);
+                        fileStream.Position = chunkStartPosition;
+                        writtenSoFar = chunkStartBytes;
+                        lastReportedBytes = chunkStartReported;
+                        lastPercent = chunkStartPercent;
+                        await Task.Delay(delay, cancellationToken);
                     }
                 }
 
