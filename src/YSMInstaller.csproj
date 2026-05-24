@@ -189,6 +189,7 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Utilities\AppLogger.cs" />
+    <Compile Include="Utilities\DiskSpace.cs" />
     <Compile Include="Utilities\Connectivity.cs" />
     <Compile Include="Utilities\DevService.cs" />
     <Compile Include="Utilities\GoogleDriveLinks.cs" />
@@ -221,6 +222,7 @@
     <Compile Include="Warno\DevWarnoMocks.cs" />
     <Compile Include="Warno\IModCatalogSource.cs" />
     <Compile Include="Warno\InstallWorkflow.cs" />
+    <Compile Include="Warno\InstallDeclinedByUserException.cs" />
     <Compile Include="Warno\InstallModResult.cs" />
     <Compile Include="Warno\ModCatalogDownloadResult.cs" />
     <Compile Include="Warno\ModCatalogSettings.cs" />

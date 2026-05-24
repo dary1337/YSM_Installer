@@ -25,8 +25,8 @@ namespace YSMInstaller {
     }
 
     public static class SafeArchiveExtractor {
-        private const int CopyBufferSize = 81920;
-        private const long ProgressReportThresholdBytes = 256 * 1024;
+        private const int CopyBufferSize = 1024 * 1024;
+        private const long ProgressReportThresholdBytes = 1024 * 1024;
 
         static SafeArchiveExtractor() {
             // Older zip/rar/7z entries can carry filenames in legacy code pages (cp866, cp1251)
@@ -58,6 +58,51 @@ namespace YSMInstaller {
             }
             else {
                 ExtractWithSharpCompress(archivePath, fullDestinationPath, progress, detailedProgress, cancellationToken);
+            }
+        }
+
+        // Reads only the archive's central directory / index, not the body — cheap (~10-100 ms
+        // even for multi-GB archives). Used for pre-extraction disk-space checks.
+        public static long MeasureUncompressedSize(
+            string archivePath,
+            CancellationToken cancellationToken = default
+        ) {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsZip(archivePath)) {
+                using (var archive = ZipFile.OpenRead(archivePath)) {
+                    long total = 0;
+                    foreach (var entry in archive.Entries) {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!string.IsNullOrEmpty(entry.Name)) {
+                            total = AddOrThrow(total, entry.Length, entry.FullName);
+                        }
+                    }
+                    return total;
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            using (var archive = ArchiveFactory.Open(archivePath)) {
+                long total = 0;
+                foreach (var entry in archive.Entries) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!entry.IsDirectory) {
+                        total = AddOrThrow(total, Math.Max(0, entry.Size), entry.Key ?? "<unknown>");
+                    }
+                }
+                return total;
+            }
+        }
+
+        // Checked addition so a malformed/malicious archive declaring huge per-entry sizes
+        // can't overflow to negative and silently bypass the downstream disk-space check.
+        private static long AddOrThrow(long total, long delta, string entryName) {
+            try {
+                return checked(total + delta);
+            }
+            catch (OverflowException) {
+                throw new InvalidDataException(
+                    $"Archive's total uncompressed size overflows int64 — file may be malformed or malicious (entry: {entryName})."
+                );
             }
         }
 

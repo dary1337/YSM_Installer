@@ -36,6 +36,11 @@ namespace YSMInstaller {
             string url,
             CancellationToken cancellationToken = default
         ) {
+            // Manual / synthetic mod entries have no DownloadUrl; skip the probe instead of
+            // letting HttpClient throw InvalidOperationException on a missing absolute URI.
+            if (string.IsNullOrWhiteSpace(url)) {
+                return null;
+            }
             url = GoogleDriveLinks.Normalize(url);
             try {
                 using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
@@ -88,6 +93,19 @@ namespace YSMInstaller {
                 var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             ) {
                 response.EnsureSuccessStatusCode();
+
+                // Google Drive (and similar) return 200 OK with text/html when the file is
+                // throttled / quota-exceeded / behind an interstitial; downloading that as a
+                // "mod archive" would only fail later with a cryptic SharpCompress error.
+                string? mediaType = response.Content.Headers.ContentType?.MediaType;
+                if (!string.IsNullOrEmpty(mediaType)
+                    && mediaType!.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)) {
+                    throw new IOException(
+                        $"Server returned HTML instead of a file for {url} — the host likely " +
+                        "rate-limited or quota-blocked this download (common with public Google " +
+                        "Drive files). Try again later, or ask the mod publisher to refresh the link."
+                    );
+                }
 
                 var totalBytes = response.Content.Headers.ContentLength ?? -1L;
                 var canReportProgress = totalBytes != -1 && progress != null;

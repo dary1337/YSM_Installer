@@ -232,6 +232,10 @@ namespace YSMInstaller {
                     return;
                 }
                 var variant = (ModMetadata)card.Tag2!;
+                // Manual install has no remote URL to probe — its card stays size-less.
+                if (string.IsNullOrWhiteSpace(variant.DownloadUrl)) {
+                    continue;
+                }
                 long? size = await HttpService.TryGetRemoteFileSizeAsync(variant.DownloadUrl);
                 if (_state != AppState.ChooseBuild || card.IsDisposed) {
                     return;
@@ -315,6 +319,7 @@ namespace YSMInstaller {
                     metadata,
                     new Progress<int>(OnInstallPercent),
                     new Progress<string>(OnInstallStage),
+                    ConfirmLowDiskSpaceAsync,
                     _installCts.Token
                 );
             }
@@ -593,6 +598,41 @@ namespace YSMInstaller {
                 dialog.AddAction("Keep installing", DialogResult.Cancel, MaterialButtonVariant.Text);
                 dialog.AddAction("Cancel install", DialogResult.OK, MaterialButtonVariant.Filled);
                 return dialog.ShowDialog(this) == DialogResult.OK;
+            }
+        }
+
+        // Task-returning so WarnoInstaller can await us from its background extraction thread,
+        // even though the dialog itself is synchronous.
+        private Task<bool> ConfirmLowDiskSpaceAsync(DiskSpaceWarning warning) {
+            // Form may have started disposing while extraction was mid-flight (e.g. user closed
+            // the window). Invoke against a dead handle would throw — default to "don't proceed"
+            // so the install fails closed via InstallDeclinedByUserException.
+            if (IsDisposed || !IsHandleCreated) {
+                return Task.FromResult(false);
+            }
+            if (InvokeRequired) {
+                // Race: form disposed between the IsDisposed/IsHandleCreated check above and
+                // Invoke firing. Treat as "declined" so InstallDeclinedByUserException routes
+                // through Cancelled instead of bubbling up as a Failed install.
+                // InvalidOperationException covers ObjectDisposedException (its subclass) too —
+                // both fire when Invoke targets a handle that's gone away mid-flight.
+                try {
+                    return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
+                }
+                catch (InvalidOperationException) {
+                    return Task.FromResult(false);
+                }
+            }
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialPalette.Warning;
+                dialog.TitleText = "Low disk space";
+                dialog.BodyText =
+                    $"{warning.Message}\n\nContinue anyway?";
+                dialog.AddAction("Cancel install", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Continue anyway", DialogResult.OK, MaterialButtonVariant.Filled);
+                bool proceed = dialog.ShowDialog(this) == DialogResult.OK;
+                return Task.FromResult(proceed);
             }
         }
 

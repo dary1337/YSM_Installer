@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Text;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
@@ -12,6 +13,9 @@ namespace YSMInstaller {
         private Panel _contentHost = null!;
         private Panel _island = null!;
         private FlowLayoutPanel _islandActions = null!;
+        // _subLabel.Text is truncated in place on resize; without the original here we'd lose
+        // characters every time the user grew/shrank the window.
+        private string _headerSubFull = string.Empty;
 
         private void BuildChrome() {
             Controls.Clear();
@@ -165,14 +169,81 @@ namespace YSMInstaller {
 
         private void SetHeader(string overline, string sub) {
             _overlineLabel.Text = (overline ?? string.Empty).ToUpperInvariant();
-            bool hasSub = !string.IsNullOrEmpty(sub);
-            _subLabel.Text = sub ?? string.Empty;
+            _headerSubFull = sub ?? string.Empty;
+            bool hasSub = _headerSubFull.Length > 0;
+            ApplyHeaderSubtitle();
             _subLabel.Visible = hasSub;
             // Anchor=Left (no Top) lets the TLP cell center the stack vertically, matching the Settings
             // button row when only the overline shows. With both labels, top-anchor keeps the original look.
             _titleStack.Anchor = hasSub
                 ? AnchorStyles.Top | AnchorStyles.Left
                 : AnchorStyles.Left;
+        }
+
+        // Manual ellipsis because AutoEllipsis only works with AutoSize=false, and the parent
+        // FlowLayoutPanel needs AutoSize=true — without this the path silently clips off the edge.
+        private void ApplyHeaderSubtitle() {
+            if (_subLabel == null) {
+                return;
+            }
+            int availablePx = GetHeaderSubAvailableWidth();
+            _subLabel.Text = TruncateToWidth(_headerSubFull, _subLabel.Font, availablePx);
+        }
+
+        // Rough subtraction (not column-exact) is intentional — pixel-perfect would require
+        // a layout pass and we just need "show what fits".
+        private int GetHeaderSubAvailableWidth() {
+            int total = ClientSize.Width;
+            int rightReserve = 140; // Settings button (~110) + margins.
+            int padding = Padding.Horizontal + (_root?.Padding.Horizontal ?? 0);
+            return Math.Max(120, total - rightReserve - padding);
+        }
+
+        // GDI+ MeasureString (matched to SoftLabel.OnPaint's Graphics.DrawString) — TextRenderer
+        // is GDI and yields slightly different widths, which would clip the ellipsis a few px
+        // off from where the label actually renders.
+        private static string TruncateToWidth(string text, Font font, int maxPx) {
+            if (string.IsNullOrEmpty(text) || maxPx <= 0) {
+                return text ?? string.Empty;
+            }
+            using (var bmp = new Bitmap(1, 1))
+            using (var g = Graphics.FromImage(bmp)) {
+                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                if (MeasureWidth(g, text, font) <= maxPx) {
+                    return text;
+                }
+                const string ellipsis = "…";
+                int low = 0;
+                int high = text.Length;
+                while (low < high) {
+                    int mid = (low + high + 1) / 2;
+                    string candidate = text.Substring(0, mid) + ellipsis;
+                    if (MeasureWidth(g, candidate, font) <= maxPx) {
+                        low = mid;
+                    }
+                    else {
+                        high = mid - 1;
+                    }
+                }
+                return low > 0 ? text.Substring(0, low) + ellipsis : ellipsis;
+            }
+        }
+
+        private static int MeasureWidth(Graphics g, string text, Font font) {
+            return (int)Math.Ceiling(g.MeasureString(text, font).Width);
+        }
+
+        protected override void OnResize(EventArgs e) {
+            base.OnResize(e);
+            // OnResize fires during early form init before BuildChrome runs and before the
+            // handle exists; ClientSize is unreliable until then, so skip — the first valid
+            // SetHeader call after BuildChrome will fit correctly.
+            if (!IsHandleCreated) {
+                return;
+            }
+            // Other labels are AutoSize or content-bound; only the manually-ellipsized subtitle
+            // needs to be re-fit when the window changes width.
+            ApplyHeaderSubtitle();
         }
 
         // Window height is fixed (no jumping). Stacked content is top-aligned; only the dedicated

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,6 +31,7 @@ namespace YSMInstaller {
             ModMetadata modMetadata,
             IProgress<int>? progress = null,
             IProgress<string>? stageProgress = null,
+            Func<DiskSpaceWarning, Task<bool>>? lowDiskSpaceConfirm = null,
             CancellationToken cancellationToken = default
         ) {
             if (DevWarnoMocks.IsEnabled) {
@@ -110,6 +112,18 @@ namespace YSMInstaller {
                             $"Manual install source folder is missing: {modMetadata.LocalSourceFolder}"
                         );
                     }
+                    // Off-thread: huge mod trees can take seconds to enumerate, and we're still on
+                    // the install-async chain that started on the UI sync context.
+                    long folderBytes = await Task.Run(
+                        () => MeasureFolderSize(modMetadata.LocalSourceFolder!, cancellationToken),
+                        cancellationToken
+                    );
+                    await ConfirmDiskSpaceAsync(
+                        tempModPath,
+                        DiskSpace.ApplyKnownSizeHeadroom(folderBytes),
+                        "copying the mod folder",
+                        lowDiskSpaceConfirm
+                    );
                     // Stage into temp so we can rewrite Config.ini without touching the user's folder.
                     Directory.CreateDirectory(tempModPath);
                     await Task.Run(
@@ -130,6 +144,21 @@ namespace YSMInstaller {
                     }
                     ReportStage(stageProgress, "Extracting...");
                     progress?.Report(PercentExtractManualStart);
+                    // No pre-download estimate covered this flow — archive lives on the user's
+                    // disk already; check destination drive against the real uncompressed size.
+                    long extractedBytes = await Task.Run(
+                        () => SafeArchiveExtractor.MeasureUncompressedSize(
+                            modMetadata.LocalSourceArchive!,
+                            cancellationToken
+                        ),
+                        cancellationToken
+                    );
+                    await ConfirmDiskSpaceAsync(
+                        tempModPath,
+                        DiskSpace.ApplyKnownSizeHeadroom(extractedBytes),
+                        "extracting the archive",
+                        lowDiskSpaceConfirm
+                    );
                     Directory.CreateDirectory(tempModPath);
                     await Task.Run(
                         () => SafeArchiveExtractor.ExtractToDirectory(
@@ -151,6 +180,20 @@ namespace YSMInstaller {
                     AppLogger.Info("Downloading mod archive.");
                     ReportStage(stageProgress, "Downloading...");
                     progress?.Report(PercentDownloadStart);
+                    long? remoteSize = await HttpService.TryGetRemoteFileSizeAsync(
+                        modMetadata.DownloadUrl,
+                        cancellationToken
+                    );
+                    if (remoteSize.HasValue) {
+                        // Footprint = compressed archive + extracted tree on the same drive at
+                        // peak, so checking just remoteSize would let hopeless installs through.
+                        await ConfirmDiskSpaceAsync(
+                            modArchivePath,
+                            DiskSpace.EstimatePeakBytesForDownloadAndExtract(remoteSize.Value),
+                            "downloading and extracting the mod",
+                            lowDiskSpaceConfirm
+                        );
+                    }
                     await HttpService.DownloadFileAsync(
                         modMetadata.DownloadUrl,
                         modArchivePath,
@@ -340,6 +383,28 @@ namespace YSMInstaller {
 
         private static void ReportStage(IProgress<string>? stageProgress, string stage) {
             stageProgress?.Report(stage);
+        }
+
+        // No callback = silently proceed (CLI/test contexts); UI layer is expected to wire the
+        // confirmation dialog so end-users actually see the warning.
+        private static async Task ConfirmDiskSpaceAsync(
+            string path,
+            long requiredBytes,
+            string action,
+            Func<DiskSpaceWarning, Task<bool>>? lowDiskSpaceConfirm
+        ) {
+            DiskSpaceWarning? warning = DiskSpace.CheckAvailableSpace(path, requiredBytes, action);
+            if (warning == null) {
+                return;
+            }
+            AppLogger.Info(warning.Message);
+            if (lowDiskSpaceConfirm == null) {
+                return;
+            }
+            bool proceed = await lowDiskSpaceConfirm(warning);
+            if (!proceed) {
+                throw new InstallDeclinedByUserException(warning.Message);
+            }
         }
 
         // Lets each phase emit its native 0..100 byte-fraction without knowing the overall
@@ -615,6 +680,39 @@ namespace YSMInstaller {
                 }
             }
             return sb.ToString().Trim();
+        }
+
+        // Pre-flight sum so a multi-gigabyte copy doesn't die on disk-full halfway.
+        // Per-file token check keeps cancel-mid-scan latency in the ms range on huge trees.
+        private static long MeasureFolderSize(string folder, CancellationToken cancellationToken) {
+            long total = 0;
+            var stack = new System.Collections.Generic.Stack<string>();
+            stack.Push(folder);
+            while (stack.Count > 0) {
+                cancellationToken.ThrowIfCancellationRequested();
+                string current = stack.Pop();
+                // Silently skip per-file/per-dir FS noise (permissions, locked subfolders); the
+                // real copy below hits any structural issue with a clearer error.
+                try {
+                    foreach (string file in Directory.GetFiles(current)) {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        try {
+                            total += new FileInfo(file).Length;
+                        }
+                        // IOException covers PathTooLongException (its subclass) too.
+                        catch (IOException) { }
+                        catch (UnauthorizedAccessException) { }
+                        catch (SecurityException) { }
+                    }
+                    foreach (string sub in Directory.GetDirectories(current)) {
+                        stack.Push(sub);
+                    }
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+                catch (SecurityException) { }
+            }
+            return total;
         }
 
         // CancellationToken is checked per-file so cancel during a 2GB mod copy stops within ms
