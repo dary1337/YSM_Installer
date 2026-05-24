@@ -232,6 +232,10 @@ namespace YSMInstaller {
                     return;
                 }
                 var variant = (ModMetadata)card.Tag2!;
+                // Manual install has no remote URL to probe — its card stays size-less.
+                if (string.IsNullOrWhiteSpace(variant.DownloadUrl)) {
+                    continue;
+                }
                 long? size = await HttpService.TryGetRemoteFileSizeAsync(variant.DownloadUrl);
                 if (_state != AppState.ChooseBuild || card.IsDisposed) {
                     return;
