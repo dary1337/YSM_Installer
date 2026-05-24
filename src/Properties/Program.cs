@@ -74,7 +74,8 @@ namespace YSMInstaller {
             try {
                 MessageBox.Show(body, "YSM Installer — UI error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch {
+            catch (Exception fallbackException) {
+                AppLogger.Critical("MessageBox fallback for UI error also failed.", fallbackException);
             }
         }
 
@@ -88,7 +89,8 @@ namespace YSMInstaller {
             try {
                 MessageBox.Show(body, "YSM Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch {
+            catch (Exception fallbackException) {
+                AppLogger.Critical("MessageBox fallback for critical error also failed.", fallbackException);
             }
         }
 
@@ -117,7 +119,8 @@ namespace YSMInstaller {
                 }
                 return true;
             }
-            catch {
+            catch (Exception materialException) {
+                AppLogger.Critical("Material error dialog failed; falling back to MessageBox.", materialException);
                 return false;
             }
         }
