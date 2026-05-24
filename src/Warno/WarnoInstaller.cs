@@ -71,6 +71,11 @@ namespace YSMInstaller {
 
                 bool isManualFolder = !string.IsNullOrEmpty(modMetadata.LocalSourceFolder);
                 bool isManualArchive = !string.IsNullOrEmpty(modMetadata.LocalSourceArchive);
+                if (isManualFolder && isManualArchive) {
+                    throw new InvalidOperationException(
+                        "Specify either LocalSourceFolder or LocalSourceArchive, not both."
+                    );
+                }
                 string extractedModPath;
                 if (isManualFolder) {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -84,7 +89,7 @@ namespace YSMInstaller {
                     // Stage into temp so we can rewrite Config.ini without touching the user's folder.
                     Directory.CreateDirectory(tempModPath);
                     await Task.Run(
-                        () => CopyDirectoryRecursive(modMetadata.LocalSourceFolder!, tempModPath),
+                        () => CopyDirectoryRecursive(modMetadata.LocalSourceFolder!, tempModPath, cancellationToken),
                         cancellationToken
                     );
                     extractedModPath = ResolveExtractedModPath(tempModPath);
@@ -497,13 +502,18 @@ namespace YSMInstaller {
             return sb.ToString().Trim();
         }
 
-        private static void CopyDirectoryRecursive(string sourceDir, string destDir) {
+        // CancellationToken is checked per-file so cancel during a 2GB mod copy stops within ms
+        // instead of waiting for the whole tree — Task.Run(action, token) only honors the token
+        // before action starts, not while it runs.
+        private static void CopyDirectoryRecursive(string sourceDir, string destDir, CancellationToken cancellationToken) {
             Directory.CreateDirectory(destDir);
             foreach (string file in Directory.GetFiles(sourceDir)) {
+                cancellationToken.ThrowIfCancellationRequested();
                 File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite: true);
             }
             foreach (string subDir in Directory.GetDirectories(sourceDir)) {
-                CopyDirectoryRecursive(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
+                cancellationToken.ThrowIfCancellationRequested();
+                CopyDirectoryRecursive(subDir, Path.Combine(destDir, Path.GetFileName(subDir)), cancellationToken);
             }
         }
 

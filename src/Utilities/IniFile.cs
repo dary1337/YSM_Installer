@@ -11,6 +11,9 @@ namespace YSMInstaller {
         }
 
         public static Dictionary<string, string> ReadValues(TextReader reader) {
+            if (reader == null) {
+                throw new ArgumentNullException(nameof(reader));
+            }
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             string? line;

@@ -347,28 +347,41 @@ namespace YSMInstaller {
                 return;
             }
 
-            (string? configPath, string? error) = LocateConfigInFolder(folder);
-            if (error != null) {
-                UserMessages.ShowError(this, "Invalid mod folder", error);
+            // Probe off the UI thread — deep folder trees or slow disks would otherwise freeze input.
+            (string? configPath, string? scanError, Dictionary<string, string>? config, string? readError) =
+                await Task.Run(() => ProbeManualFolder(folder));
+
+            if (scanError != null) {
+                UserMessages.ShowError(this, "Invalid mod folder", scanError);
+                return;
+            }
+            if (readError != null) {
+                UserMessages.ShowError(this, "Invalid mod folder", readError);
                 return;
             }
 
-            Dictionary<string, string> config;
-            try {
-                config = IniFile.ReadValues(configPath!);
-            }
-            catch (Exception exception) {
-                UserMessages.ShowError(this, "Invalid mod folder", $"Could not read Config.ini: {exception.Message}");
-                return;
-            }
-
-            if (!HasRequiredConfigKeys(config, out string? keyError)) {
+            if (!HasRequiredConfigKeys(config!, out string? keyError)) {
                 UserMessages.ShowError(this, "Invalid mod folder", keyError!);
                 return;
             }
 
             string modRoot = Path.GetDirectoryName(configPath!) ?? folder;
-            await StartManualInstallAsync(modRoot, archive: null, config);
+            await StartManualInstallAsync(modRoot, archive: null, config!);
+        }
+
+        private static (string? configPath, string? scanError, Dictionary<string, string>? config, string? readError)
+            ProbeManualFolder(string folder) {
+            (string? configPath, string? scanError) = LocateConfigInFolder(folder);
+            if (scanError != null) {
+                return (null, scanError, null, null);
+            }
+            try {
+                Dictionary<string, string> config = IniFile.ReadValues(configPath!);
+                return (configPath, null, config, null);
+            }
+            catch (Exception exception) {
+                return (configPath, null, null, $"Could not read Config.ini: {exception.Message}");
+            }
         }
 
         private async Task BrowseForManualArchiveAsync() {
@@ -377,31 +390,39 @@ namespace YSMInstaller {
                 return;
             }
 
-            // Peek into the zip without full extraction so we can show version-mismatch / display
-            // name before committing to the install.
-            Dictionary<string, string> config;
-            try {
-                config = ReadConfigFromArchive(archivePath, out string? peekError);
-                if (peekError != null) {
-                    UserMessages.ShowError(this, "Invalid mod archive", peekError);
-                    return;
-                }
-            }
-            catch (Exception exception) {
-                UserMessages.ShowError(this, "Invalid mod archive", $"Could not read the archive: {exception.Message}");
+            // Peek into the zip off the UI thread — opening a large archive can stall repaint.
+            (Dictionary<string, string>? config, string? peekError) =
+                await Task.Run(() => ProbeManualArchive(archivePath));
+
+            if (peekError != null) {
+                UserMessages.ShowError(this, "Invalid mod archive", peekError);
                 return;
             }
 
-            if (!HasRequiredConfigKeys(config, out string? keyError)) {
+            if (!HasRequiredConfigKeys(config!, out string? keyError)) {
                 UserMessages.ShowError(this, "Invalid mod archive", keyError!);
                 return;
             }
 
-            await StartManualInstallAsync(folder: null, archive: archivePath, config);
+            await StartManualInstallAsync(folder: null, archive: archivePath, config!);
+        }
+
+        private static (Dictionary<string, string>? config, string? error) ProbeManualArchive(string archivePath) {
+            try {
+                Dictionary<string, string> config = ReadConfigFromArchive(archivePath, out string? peekError);
+                if (peekError != null) {
+                    return ((Dictionary<string, string>?)null, peekError);
+                }
+                return (config, (string?)null);
+            }
+            catch (Exception exception) {
+                return ((Dictionary<string, string>?)null, $"Could not read the archive: {exception.Message}");
+            }
         }
 
         private async Task StartManualInstallAsync(string? folder, string? archive, Dictionary<string, string> config) {
-            int modGenVersion = TryParseInt(config, "ModGenVersion") ?? _chooseVersion;
+            // Safe to !-deref: HasRequiredConfigKeys guarantees ModGenVersion parses.
+            int modGenVersion = TryParseInt(config, "ModGenVersion")!.Value;
             string? displayName = config.TryGetValue("Name", out string name) && !string.IsNullOrWhiteSpace(name)
                 ? name
                 : null;
@@ -501,9 +522,15 @@ namespace YSMInstaller {
             }
         }
 
+        // ModGenVersion must parse: if we fell back to _chooseVersion silently, an incompatible mod
+        // would slip past the version-mismatch gate and install as if it matched.
         private static bool HasRequiredConfigKeys(Dictionary<string, string> config, out string? error) {
             if (!config.ContainsKey("DeckFormatVersion") || !config.ContainsKey("Name")) {
                 error = "Config.ini is missing required keys (DeckFormatVersion, Name).";
+                return false;
+            }
+            if (TryParseInt(config, "ModGenVersion") == null) {
+                error = "Config.ini is missing a valid ModGenVersion (required to verify WARNO compatibility).";
                 return false;
             }
             error = null;
