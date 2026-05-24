@@ -131,8 +131,21 @@ namespace YSMInstaller {
 
         private static bool HasExactlyOneDownloadSource(ModMetadata mod) {
             bool hasSingle = !string.IsNullOrWhiteSpace(mod.DownloadUrl);
-            bool hasParts = mod.DownloadUrlParts != null && mod.DownloadUrlParts.Length > 0;
+            // Reject entries where any part is blank — concatenating around an empty URL
+            // would silently corrupt the cached archive on download.
+            bool hasParts = mod.DownloadUrlParts != null
+                && mod.DownloadUrlParts.Length > 0
+                && AllNonBlank(mod.DownloadUrlParts);
             return hasSingle ^ hasParts;
+        }
+
+        private static bool AllNonBlank(string[] values) {
+            for (int i = 0; i < values.Length; i++) {
+                if (string.IsNullOrWhiteSpace(values[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static bool IsValidModType(string modType) {

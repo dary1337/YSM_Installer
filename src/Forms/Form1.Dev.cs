@@ -80,10 +80,12 @@ namespace YSMInstaller {
                 if (!IsHandleCreated || IsDisposed) {
                     return;
                 }
-                BeginInvoke(new Action(async () => {
+                BeginInvoke(new Action(() => {
                     DevService.IsMockWarnoPathsEnabled = newValue;
                     AppLogger.Info($"Dev: MockWarnoPaths set to {newValue}.");
-                    await SafeFireDev(ScanAsync, "Rescan after MockWarnoPaths toggle failed.");
+                    // Fire-and-forget — SafeFireDev internally try/catches and logs, so the Task
+                    // is never faulted; discarding it avoids async-void semantics.
+                    _ = SafeFireDev(ScanAsync, "Rescan after MockWarnoPaths toggle failed.");
                 }));
             };
             flow.Controls.Add(mockButton);
@@ -116,11 +118,11 @@ namespace YSMInstaller {
                 if (!IsHandleCreated || IsDisposed) {
                     return;
                 }
-                BeginInvoke(new Action(async () => {
+                BeginInvoke(new Action(() => {
                     DevService.ModListUrlOverride =
                         string.IsNullOrWhiteSpace(captured) ? null : captured.Trim();
                     AppLogger.Info($"Dev catalog override set to: {DevService.ModListUrlOverride ?? "<none>"}");
-                    await SafeFireDev(ScanAsync, "Rescan after catalog override failed.");
+                    _ = SafeFireDev(ScanAsync, "Rescan after catalog override failed.");
                 }));
             };
             flow.Controls.Add(applyButton);
@@ -138,10 +140,10 @@ namespace YSMInstaller {
                 if (!IsHandleCreated || IsDisposed) {
                     return;
                 }
-                BeginInvoke(new Action(async () => {
+                BeginInvoke(new Action(() => {
                     DevService.ModListUrlOverride = null;
                     AppLogger.Info("Dev catalog override cleared.");
-                    await SafeFireDev(ScanAsync, "Rescan after catalog override clear failed.");
+                    _ = SafeFireDev(ScanAsync, "Rescan after catalog override clear failed.");
                 }));
             };
             flow.Controls.Add(clearButton);

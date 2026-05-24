@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -29,7 +30,19 @@ namespace YSMInstaller {
 
         private static string ResolveModListUrl() {
             string? @override = DevService.ModListUrlOverride;
-            return string.IsNullOrWhiteSpace(@override) ? ModListUrl : @override!;
+            if (string.IsNullOrWhiteSpace(@override)) {
+                return ModListUrl;
+            }
+            // Reject non-http(s) / non-absolute overrides — a stray file:// or gibberish would
+            // either crash HttpClient or behave unexpectedly; better to fall back loudly.
+            if (!Uri.TryCreate(@override, UriKind.Absolute, out Uri uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)) {
+                AppLogger.Error(
+                    $"Ignoring invalid ModListUrlOverride '{@override}': use an absolute http(s) URL."
+                );
+                return ModListUrl;
+            }
+            return @override!;
         }
     }
 }

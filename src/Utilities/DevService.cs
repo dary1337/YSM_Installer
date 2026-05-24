@@ -1,8 +1,9 @@
 namespace YSMInstaller {
     /// <summary>
-    /// Dev-build switches owned by the Test menu. Debug builds default to "dev mode" (mocks on,
-    /// log next to exe); the Test menu can flip mutable ones at runtime. Release builds compile
-    /// out the menu, so defaults below are the only thing end-users ever see.
+    /// Dev-build switches owned by the Test menu. Debug builds log next to the exe; mocks are
+    /// off by default in both configs (the Test menu flips them on when you need to exercise
+    /// UI states without a real game). Release builds compile the menu out, so the defaults
+    /// below are the only thing end-users ever see.
     /// </summary>
     internal static class DevService {
         // One-shot at startup (AppLogger.Initialize captures it); no point in a runtime toggle.
