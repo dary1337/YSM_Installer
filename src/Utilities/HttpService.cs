@@ -276,11 +276,13 @@ namespace YSMInstaller {
                     while (true) {
                         attempt++;
                         try {
-                            // Dev injection point — lets the Test menu exercise the retry loop
-                            // without a real network failure. No-op in production (counter is 0).
+#if DEBUG
+                            // Dev injection point for the Test menu to exercise the retry loop
+                            // without a real network failure. Compiled out of Release entirely.
                             if (DevWarnoMocks.TryConsumeChunkFailure(out string mockReason)) {
                                 throw new IOException($"[mock] {mockReason}");
                             }
+#endif
                             using (
                                 var response = await Client.GetAsync(
                                     url,
