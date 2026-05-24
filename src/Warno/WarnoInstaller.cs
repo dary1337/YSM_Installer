@@ -147,11 +147,19 @@ namespace YSMInstaller {
                 Dictionary<string, string> ysmConfig = IniFile.ReadValues(modConfig);
                 Dictionary<string, string> gameConfigData = IniFile.ReadValues(gameConfig);
 
-                string deckFormatVersion = IniFile.GetRequiredValue(
+                string rawDeckFormatVersion = IniFile.GetRequiredValue(
                     ysmConfig,
                     "DeckFormatVersion",
                     modConfig
                 );
+                // DeckFormatVersion is interpolated into a folder path — a crafted value like
+                // "../../Windows" would otherwise let Path.Combine escape modFolder.
+                string deckFormatVersion = SanitizeForFolderName(rawDeckFormatVersion);
+                if (string.IsNullOrEmpty(deckFormatVersion)) {
+                    throw new InvalidDataException(
+                        $"DeckFormatVersion in {modConfig} contains only invalid characters."
+                    );
+                }
                 string rawBaseName = !string.IsNullOrWhiteSpace(modMetadata.DisplayNameOverride)
                     ? modMetadata.DisplayNameOverride!
                     : ModTypes.ToDisplayName(modMetadata.ModType);
@@ -163,6 +171,13 @@ namespace YSMInstaller {
                 }
                 string manualVersion = $"{baseName} (v{deckFormatVersion}) (Installer)";
                 finalModPath = Path.Combine(modFolder, manualVersion);
+                // Defense in depth — even after sanitization, refuse to proceed if the final path
+                // somehow escapes modFolder (symlinks, normalized traversal we missed).
+                if (!IsPathInside(finalModPath, modFolder)) {
+                    throw new InvalidDataException(
+                        $"Resolved install path '{finalModPath}' escapes the mod folder."
+                    );
+                }
 
                 ysmConfig["ID"] = manualVersion;
                 ysmConfig["Name"] = manualVersion;
@@ -489,6 +504,13 @@ namespace YSMInstaller {
             if (Directory.Exists(path)) {
                 Directory.Delete(path, true);
             }
+        }
+
+        private static bool IsPathInside(string candidate, string root) {
+            string fullCandidate = Path.GetFullPath(candidate);
+            string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            return fullCandidate.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase);
         }
 
         private static string SanitizeForFolderName(string value) {

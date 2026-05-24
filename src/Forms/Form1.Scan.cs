@@ -116,14 +116,26 @@ namespace YSMInstaller {
                 IconGlyph = MaterialIcons.Refresh,
             };
             rescan.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
-            rescan.Click += async (s, e) => await ScanAsync();
+            rescan.Click += async (s, e) => {
+                try {
+                    await ScanAsync();
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("Re-scan failed.", ex);
+                }
+            };
 
             var buttons = new List<MaterialButton> { browse };
             if (!fullScanDone) {
                 MaterialButton scanAll = TonalButton("Scan all drives", MaterialIcons.Drive);
                 scanAll.Click += async (s, e) => {
-                    _includeSystemFolders = true;
-                    await ScanAsync();
+                    try {
+                        _includeSystemFolders = true;
+                        await ScanAsync();
+                    }
+                    catch (Exception ex) {
+                        AppLogger.Critical("Scan-all-drives failed.", ex);
+                    }
                 };
                 buttons.Add(scanAll);
             }
@@ -167,7 +179,14 @@ namespace YSMInstaller {
             AddToStack(stack, card, Sizes.ContentGap);
 
             MaterialButton retry = TonalButton("Retry", MaterialIcons.Refresh);
-            retry.Click += async (s, e) => await ScanAsync();
+            retry.Click += async (s, e) => {
+                try {
+                    await ScanAsync();
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("Retry scan failed.", ex);
+                }
+            };
 
             MaterialButton help = OutlinedButton("Get help", MaterialIcons.OpenInNew);
             help.Click += (s, e) => AppLinks.Open(AppLinks.Discord);
@@ -176,7 +195,7 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
         }
 
-        private async Task BrowseForWarnoAsync() {
+        private Task BrowseForWarnoAsync() {
             using (var dialog = new OpenFileDialog()) {
                 dialog.Title = "Select Warno.exe";
                 dialog.Filter = "WARNO executable (Warno.exe)|Warno.exe|Executable files (*.exe)|*.exe";
@@ -184,7 +203,7 @@ namespace YSMInstaller {
                 dialog.Multiselect = false;
 
                 if (dialog.ShowDialog(this) != DialogResult.OK) {
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var executable = new WarnoExecutable(dialog.FileName, WarnoExecutableSources.Manual);
@@ -195,7 +214,7 @@ namespace YSMInstaller {
 
                 if (entries.Count == 0) {
                     UserMessages.ShowSelectedWarnoInvalid(this);
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 WarnoFinder.SaveLastWarnoExecutablePath(dialog.FileName);
@@ -204,7 +223,7 @@ namespace YSMInstaller {
                 RenderInstallsFound();
             }
 
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
 
         // ---- Installs found ----

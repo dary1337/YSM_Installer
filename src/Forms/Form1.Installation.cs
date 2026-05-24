@@ -214,7 +214,14 @@ namespace YSMInstaller {
             string name = ModTypes.ToDisplayName(_selectedBuild.ModType);
             MaterialButton install = PrimaryButton($"Install {name}", MaterialIcons.Download);
             ModMetadata target = _selectedBuild;
-            install.Click += async (s, e) => await StartInstallAsync(target, _chooseVersion);
+            install.Click += async (s, e) => {
+                try {
+                    await StartInstallAsync(target, _chooseVersion);
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("StartInstall failed (build card).", ex);
+                }
+            };
 
             SetIslandActions(back, install);
         }
@@ -747,7 +754,14 @@ namespace YSMInstaller {
                 }
             };
             MaterialButton install = PrimaryButton("Install anyway", MaterialIcons.Download);
-            install.Click += async (s, e) => await ProceedWithInstallAsync(metadata, selectedGameVersion);
+            install.Click += async (s, e) => {
+                try {
+                    await ProceedWithInstallAsync(metadata, selectedGameVersion);
+                }
+                catch (Exception ex) {
+                    AppLogger.Critical("Install-anyway (version mismatch) failed.", ex);
+                }
+            };
             SetIslandActions(cancel, install);
         }
 
@@ -1053,11 +1067,16 @@ namespace YSMInstaller {
 
             MaterialButton tryAgain = TonalButton("Try again", MaterialIcons.Refresh);
             tryAgain.Click += async (s, e) => {
-                if (_lastInstallMetadata != null) {
-                    await StartInstallAsync(_lastInstallMetadata, _lastInstallVersion);
+                try {
+                    if (_lastInstallMetadata != null) {
+                        await StartInstallAsync(_lastInstallMetadata, _lastInstallVersion);
+                    }
+                    else {
+                        RenderInstallsFound();
+                    }
                 }
-                else {
-                    RenderInstallsFound();
+                catch (Exception ex) {
+                    AppLogger.Critical("Try-again install failed.", ex);
                 }
             };
 
