@@ -2,9 +2,9 @@
 
 # YSM Installer
 
-### [YSM Community](https://discord.gg/XmbhaSRqfZ)
+### <img src="https://cdn.simpleicons.org/discord/5865F2" height="18" alt="" /> [YSM Community](https://discord.gg/XmbhaSRqfZ)
 
-### [YSM Repository](https://github.com/Yokaiste/YSM)
+### <picture><source media="(prefers-color-scheme: dark)" srcset="https://cdn.simpleicons.org/github/white" /><img src="https://cdn.simpleicons.org/github/181717" height="18" alt="" /></picture> [YSM Repository](https://github.com/Yokaiste/YSM)
 
 ## What it does
 
