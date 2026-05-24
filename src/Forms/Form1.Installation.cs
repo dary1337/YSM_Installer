@@ -600,6 +600,12 @@ namespace YSMInstaller {
         // Task-returning so WarnoInstaller can await us from its background extraction thread,
         // even though the dialog itself is synchronous.
         private Task<bool> ConfirmLowDiskSpaceAsync(DiskSpaceWarning warning) {
+            // Form may have started disposing while extraction was mid-flight (e.g. user closed
+            // the window). Invoke against a dead handle would throw — default to "don't proceed"
+            // so the install fails closed via InstallDeclinedByUserException.
+            if (IsDisposed || !IsHandleCreated) {
+                return Task.FromResult(false);
+            }
             if (InvokeRequired) {
                 return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
             }

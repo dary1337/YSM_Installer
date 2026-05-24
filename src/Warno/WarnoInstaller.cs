@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -111,7 +112,12 @@ namespace YSMInstaller {
                             $"Manual install source folder is missing: {modMetadata.LocalSourceFolder}"
                         );
                     }
-                    long folderBytes = MeasureFolderSize(modMetadata.LocalSourceFolder!, cancellationToken);
+                    // Off-thread: huge mod trees can take seconds to enumerate, and we're still on
+                    // the install-async chain that started on the UI sync context.
+                    long folderBytes = await Task.Run(
+                        () => MeasureFolderSize(modMetadata.LocalSourceFolder!, cancellationToken),
+                        cancellationToken
+                    );
                     await ConfirmDiskSpaceAsync(
                         tempModPath,
                         DiskSpace.ApplyKnownSizeHeadroom(folderBytes),
@@ -140,8 +146,12 @@ namespace YSMInstaller {
                     progress?.Report(PercentExtractManualStart);
                     // No pre-download estimate covered this flow — archive lives on the user's
                     // disk already; check destination drive against the real uncompressed size.
-                    long extractedBytes = SafeArchiveExtractor.MeasureUncompressedSize(
-                        modMetadata.LocalSourceArchive!
+                    long extractedBytes = await Task.Run(
+                        () => SafeArchiveExtractor.MeasureUncompressedSize(
+                            modMetadata.LocalSourceArchive!,
+                            cancellationToken
+                        ),
+                        cancellationToken
                     );
                     await ConfirmDiskSpaceAsync(
                         tempModPath,
@@ -687,7 +697,12 @@ namespace YSMInstaller {
                         try {
                             total += new FileInfo(file).Length;
                         }
-                        catch {
+                        catch (Exception exception) when (
+                            exception is IOException
+                            || exception is UnauthorizedAccessException
+                            || exception is PathTooLongException
+                            || exception is SecurityException
+                        ) {
                             // Permission glitch on stat — let the real copy below surface the
                             // actual error if it matters; pre-scan shouldn't bail on noise.
                         }
@@ -696,7 +711,12 @@ namespace YSMInstaller {
                         stack.Push(sub);
                     }
                 }
-                catch {
+                catch (Exception exception) when (
+                    exception is IOException
+                    || exception is UnauthorizedAccessException
+                    || exception is PathTooLongException
+                    || exception is SecurityException
+                ) {
                     // Locked subfolder — skip; the real copy will hit it with a clearer error.
                 }
             }

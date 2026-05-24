@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Text;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
@@ -198,31 +199,48 @@ namespace YSMInstaller {
             return Math.Max(120, total - rightReserve - padding);
         }
 
+        // GDI+ MeasureString (matched to SoftLabel.OnPaint's Graphics.DrawString) — TextRenderer
+        // is GDI and yields slightly different widths, which would clip the ellipsis a few px
+        // off from where the label actually renders.
         private static string TruncateToWidth(string text, Font font, int maxPx) {
             if (string.IsNullOrEmpty(text) || maxPx <= 0) {
                 return text ?? string.Empty;
             }
-            if (TextRenderer.MeasureText(text, font).Width <= maxPx) {
-                return text;
-            }
-            const string ellipsis = "…";
-            int low = 0;
-            int high = text.Length;
-            while (low < high) {
-                int mid = (low + high + 1) / 2;
-                string candidate = text.Substring(0, mid) + ellipsis;
-                if (TextRenderer.MeasureText(candidate, font).Width <= maxPx) {
-                    low = mid;
+            using (var bmp = new Bitmap(1, 1))
+            using (var g = Graphics.FromImage(bmp)) {
+                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                if (MeasureWidth(g, text, font) <= maxPx) {
+                    return text;
                 }
-                else {
-                    high = mid - 1;
+                const string ellipsis = "…";
+                int low = 0;
+                int high = text.Length;
+                while (low < high) {
+                    int mid = (low + high + 1) / 2;
+                    string candidate = text.Substring(0, mid) + ellipsis;
+                    if (MeasureWidth(g, candidate, font) <= maxPx) {
+                        low = mid;
+                    }
+                    else {
+                        high = mid - 1;
+                    }
                 }
+                return low > 0 ? text.Substring(0, low) + ellipsis : ellipsis;
             }
-            return low > 0 ? text.Substring(0, low) + ellipsis : ellipsis;
+        }
+
+        private static int MeasureWidth(Graphics g, string text, Font font) {
+            return (int)Math.Ceiling(g.MeasureString(text, font).Width);
         }
 
         protected override void OnResize(EventArgs e) {
             base.OnResize(e);
+            // OnResize fires during early form init before BuildChrome runs and before the
+            // handle exists; ClientSize is unreliable until then, so skip — the first valid
+            // SetHeader call after BuildChrome will fit correctly.
+            if (!IsHandleCreated) {
+                return;
+            }
             // Other labels are AutoSize or content-bound; only the manually-ellipsized subtitle
             // needs to be re-fit when the window changes width.
             ApplyHeaderSubtitle();

@@ -63,18 +63,33 @@ namespace YSMInstaller {
 
         // Reads only the archive's central directory / index, not the body — cheap (~10-100 ms
         // even for multi-GB archives). Used for pre-extraction disk-space checks.
-        public static long MeasureUncompressedSize(string archivePath) {
+        public static long MeasureUncompressedSize(
+            string archivePath,
+            CancellationToken cancellationToken = default
+        ) {
+            cancellationToken.ThrowIfCancellationRequested();
             if (IsZip(archivePath)) {
                 using (var archive = ZipFile.OpenRead(archivePath)) {
-                    return archive.Entries
-                        .Where(e => !string.IsNullOrEmpty(e.Name))
-                        .Sum(e => e.Length);
+                    long total = 0;
+                    foreach (var entry in archive.Entries) {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!string.IsNullOrEmpty(entry.Name)) {
+                            total += entry.Length;
+                        }
+                    }
+                    return total;
                 }
             }
+            cancellationToken.ThrowIfCancellationRequested();
             using (var archive = ArchiveFactory.Open(archivePath)) {
-                return archive.Entries
-                    .Where(e => !e.IsDirectory)
-                    .Sum(e => Math.Max(0, e.Size));
+                long total = 0;
+                foreach (var entry in archive.Entries) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!entry.IsDirectory) {
+                        total += Math.Max(0, entry.Size);
+                    }
+                }
+                return total;
             }
         }
 
