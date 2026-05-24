@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace YSMInstaller {
     public static class ModCatalogService {
+        private static readonly Version CurrentInstallerVersion =
+            Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
+
         private static readonly IModCatalogSource OfficialSource = new OfficialModCatalogSource();
         private static readonly IModCatalogSource YokaisteSource =
             new YokaisteReleaseCatalogSource();
@@ -105,6 +109,13 @@ namespace YSMInstaller {
                     continue;
                 }
 
+                if (!MeetsMinInstallerVersion(mod, out string? requiredVersion)) {
+                    AppLogger.Info(
+                        $"Catalog entry is skipped because it requires installer {requiredVersion} (current {CurrentInstallerVersion}); mod_type '{mod.ModType}', game version {mod.GameVersion}."
+                    );
+                    continue;
+                }
+
                 validMods.Add(mod);
             }
 
@@ -114,7 +125,25 @@ namespace YSMInstaller {
         private static bool IsValidModType(string modType) {
             return string.Equals(modType, ModTypes.Ysm, StringComparison.Ordinal)
                 || string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal)
+                || string.Equals(modType, ModTypes.YsmWifWto, StringComparison.Ordinal)
                 || string.Equals(modType, ModTypes.Wto, StringComparison.Ordinal);
+        }
+
+        // Unparseable min_installer_version is treated as "no requirement" rather than blocking —
+        // a typo in the catalog shouldn't hide entries from every user.
+        private static bool MeetsMinInstallerVersion(ModMetadata mod, out string? requiredVersion) {
+            requiredVersion = null;
+            if (string.IsNullOrWhiteSpace(mod.MinInstallerVersion)) {
+                return true;
+            }
+            if (!Version.TryParse(mod.MinInstallerVersion, out Version required)) {
+                AppLogger.Error(
+                    $"Catalog entry has unparseable min_installer_version '{mod.MinInstallerVersion}' — ignoring constraint."
+                );
+                return true;
+            }
+            requiredVersion = required.ToString();
+            return CurrentInstallerVersion >= required;
         }
     }
 }

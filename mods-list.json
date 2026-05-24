@@ -166,5 +166,19 @@
         "game_version": 189668,
         "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v189668wto/wto_189668.7z",
         "known_issues_url": null
+    },
+    {
+        "mod_type": "ysm_wif",
+        "game_version": 189668,
+        "download_url": "https://drive.google.com/file/d/1B1x9sKP33XxnhTKErj0LtW4KvKSYuQ6r/view?usp=drive_link",
+        "known_issues_url": null,
+        "min_installer_version": "1.1.0.0"
+    },
+    {
+        "mod_type": "ysm_wif_wto",
+        "game_version": 189668,
+        "download_url": "https://drive.google.com/file/d/1dGxcPY4rVRdSJEOsJyxyrT6pnGXFkT1W/view?usp=drive_link",
+        "known_issues_url": null,
+        "min_installer_version": "1.1.0.0"
     }
 ]

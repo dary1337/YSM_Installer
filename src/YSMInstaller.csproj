@@ -191,6 +191,7 @@
     <Compile Include="Utilities\AppLogger.cs" />
     <Compile Include="Utilities\Connectivity.cs" />
     <Compile Include="Utilities\DevService.cs" />
+    <Compile Include="Utilities\GoogleDriveLinks.cs" />
     <Compile Include="Utilities\HttpService.cs" />
     <Compile Include="Utilities\IniFile.cs" />
     <Compile Include="Utilities\SafeArchiveExtractor.cs" />
@@ -295,6 +296,7 @@
     <EmbeddedResource Include="Resources\icons\warning.svg" />
     <EmbeddedResource Include="Resources\icons\warning_filled.svg" />
     <EmbeddedResource Include="Resources\icons\ysm_wif.png" />
+    <EmbeddedResource Include="Resources\icons\ysm_wif_wto.png" />
     <EmbeddedResource Include="Resources\icons\wto.png" />
   </ItemGroup>
   <ItemGroup>

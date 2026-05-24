@@ -33,6 +33,7 @@ namespace YSMInstaller {
         }
 
         public static async Task<long?> TryGetRemoteFileSizeAsync(string url) {
+            url = GoogleDriveLinks.Normalize(url);
             try {
                 using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
                 using (var headResponse = await Client.SendAsync(headRequest)) {
@@ -71,6 +72,7 @@ namespace YSMInstaller {
             IProgress<DownloadProgressInfo>? detailedProgress = null,
             CancellationToken cancellationToken = default
         ) {
+            url = GoogleDriveLinks.Normalize(url);
             using (
                 var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             ) {
