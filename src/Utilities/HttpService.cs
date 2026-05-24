@@ -19,6 +19,11 @@ namespace YSMInstaller {
             TimeSpan.FromSeconds(5),
         };
 
+        // Caps detailed-progress reports to ~5/sec so the "X / Y MB" label doesn't flicker on
+        // fast pipes (10+ MB/s would otherwise update 10+ times per second). Final state is
+        // always reported once after the loop, so the visible MB count lands on the true total.
+        private static readonly TimeSpan DetailedReportMinInterval = TimeSpan.FromMilliseconds(200);
+
         public readonly struct DownloadProgressInfo {
             public DownloadProgressInfo(long bytesReceived, long? totalBytes) {
                 BytesReceived = bytesReceived;
@@ -136,6 +141,7 @@ namespace YSMInstaller {
                     int read;
                     int lastReported = -1;
                     long lastReportedBytes = -UnknownSizeProgressStepBytes;
+                    DateTime lastDetailedReportAt = DateTime.MinValue;
 
                     while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
                         await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
@@ -147,7 +153,9 @@ namespace YSMInstaller {
                                 canReportProgress
                                 || totalRead - lastReportedBytes >= UnknownSizeProgressStepBytes
                             )
+                            && DateTime.UtcNow - lastDetailedReportAt >= DetailedReportMinInterval
                         ) {
+                            lastDetailedReportAt = DateTime.UtcNow;
                             detailedProgress.Report(
                                 new DownloadProgressInfo(
                                     totalRead,
@@ -229,6 +237,7 @@ namespace YSMInstaller {
                 long writtenSoFar = 0;
                 int lastPercent = -1;
                 long lastReportedBytes = -UnknownSizeProgressStepBytes;
+                DateTime lastDetailedReportAt = DateTime.MinValue;
                 var buffer = new byte[8192];
 
                 for (int i = 0; i < urls.Count; i++) {
@@ -246,6 +255,11 @@ namespace YSMInstaller {
                     while (true) {
                         attempt++;
                         try {
+                            // Dev injection point — lets the Test menu exercise the retry loop
+                            // without a real network failure. No-op in production (counter is 0).
+                            if (DevWarnoMocks.TryConsumeChunkFailure(out string mockReason)) {
+                                throw new IOException($"[mock] {mockReason}");
+                            }
                             using (
                                 var response = await Client.GetAsync(
                                     url,
@@ -276,7 +290,9 @@ namespace YSMInstaller {
                                                 canReportPercent
                                                 || writtenSoFar - lastReportedBytes >= UnknownSizeProgressStepBytes
                                             )
+                                            && DateTime.UtcNow - lastDetailedReportAt >= DetailedReportMinInterval
                                         ) {
+                                            lastDetailedReportAt = DateTime.UtcNow;
                                             detailedProgress.Report(
                                                 new DownloadProgressInfo(
                                                     writtenSoFar,
@@ -327,7 +343,10 @@ namespace YSMInstaller {
                         );
                         // Stage-text format is "Downloading..." so the UI's step-checklist stays
                         // on the Downloading row instead of bouncing between matched prefixes.
-                        TimeSpan delay = ChunkRetryBackoff[attemptNo - 1];
+                        // Clamp the index so growing MaxChunkAttempts without extending the
+                        // backoff array can't crash — extra retries just reuse the last delay.
+                        int backoffIndex = Math.Min(attemptNo - 1, ChunkRetryBackoff.Length - 1);
+                        TimeSpan delay = ChunkRetryBackoff[backoffIndex];
                         retryStatus?.Report(
                             $"Downloading... retrying part {partNo}/{partTotal} (attempt {attemptNo + 1}) in {delay.TotalSeconds:0}s"
                         );

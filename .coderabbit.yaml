@@ -16,6 +16,13 @@ reviews:
   changed_files_summary: true
   abort_on_close: true
 
+  # Application code, not library API. Per code_generation.docstrings.path_instructions
+  # we document only non-obvious public surface — chasing an 80% coverage bar would force
+  # noise comments contradicting our own guidance.
+  pre_merge_checks:
+    docstrings:
+      mode: off
+
   auto_review:
     enabled: true
     auto_incremental_review: true

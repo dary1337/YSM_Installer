@@ -8,6 +8,28 @@ namespace YSMInstaller {
         /// <summary>One-shot flag: when set, the next simulated install throws to exercise the failure UI.</summary>
         public static bool SimulateInstallFailure { get; set; }
 
+        // Counter consumed by HttpService.DownloadFilePartsAsync before each chunk attempt.
+        // Each non-zero value injects a synthetic IOException so the retry path is exercised
+        // without real network failures. Always-readable in Release (counter starts at 0 and
+        // can only be set from Form1.Dev which is #if DEBUG-gated).
+        private static int _chunkFailuresRemaining;
+        private static string _chunkFailureReason = string.Empty;
+
+        public static void QueueChunkFailures(int count, string reason) {
+            _chunkFailureReason = reason ?? string.Empty;
+            _chunkFailuresRemaining = count < 0 ? 0 : count;
+        }
+
+        public static bool TryConsumeChunkFailure(out string reason) {
+            if (_chunkFailuresRemaining > 0) {
+                _chunkFailuresRemaining--;
+                reason = _chunkFailureReason;
+                return true;
+            }
+            reason = string.Empty;
+            return false;
+        }
+
         public static bool TryCreateScanResult(out ScanResult scanResult) {
             if (!IsEnabled) {
                 scanResult = EmptyScanResult();

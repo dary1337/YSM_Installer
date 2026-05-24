@@ -148,6 +148,14 @@ namespace YSMInstaller {
             };
             flow.Controls.Add(clearButton);
 
+            Section("Inject chunk failures (next multi-part download)");
+            Add("Inject 1 chunk failure (retries, succeeds)",
+                () => DevWarnoMocks.QueueChunkFailures(1, "single transient failure for retry test"));
+            Add("Inject 3 chunk failures (exhausts retries, fails)",
+                () => DevWarnoMocks.QueueChunkFailures(3, "all-attempts failure for fatal-path test"));
+            Add("Clear injected chunk failures",
+                () => DevWarnoMocks.QueueChunkFailures(0, string.Empty));
+
             Section("Dialogs");
             Add("Update available", DevShowUpdateDialog);
             Add("WARNO is running", DevShowWarnoRunningDialog);

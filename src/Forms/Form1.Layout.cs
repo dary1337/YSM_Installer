@@ -6,6 +6,7 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     public partial class Form1 {
         private TableLayoutPanel _root = null!;
+        private TableLayoutPanel _headerRow = null!;
         private FlowLayoutPanel _titleStack = null!;
         private Label _overlineLabel = null!;
         private Label _subLabel = null!;
@@ -42,7 +43,7 @@ namespace YSMInstaller {
         }
 
         private Control BuildHeader() {
-            var header = new TableLayoutPanel {
+            _headerRow = new TableLayoutPanel {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 ColumnCount = 2,
@@ -50,8 +51,9 @@ namespace YSMInstaller {
                 Margin = new Padding(0, 0, 0, Sizes.ContentGap),
                 Padding = Padding.Empty,
             };
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            _headerRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _headerRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            var header = _headerRow;
 
             _titleStack = new FlowLayoutPanel {
                 Anchor = AnchorStyles.Left,
@@ -190,13 +192,20 @@ namespace YSMInstaller {
             _subLabel.Text = TruncateToWidth(_headerSubFull, _subLabel.Font, availablePx);
         }
 
-        // Rough subtraction (not column-exact) is intentional — pixel-perfect would require
-        // a layout pass and we just need "show what fits".
+        // Reads the actual width of the percent-100 title column from the laid-out header,
+        // rather than approximating via ClientSize − magic constants. Previously the magic
+        // constants under-reported the available width on wide windows and truncated the
+        // subtitle even when there was plenty of room.
         private int GetHeaderSubAvailableWidth() {
-            int total = ClientSize.Width;
-            int rightReserve = 140; // Settings button (~110) + margins.
-            int padding = Padding.Horizontal + (_root?.Padding.Horizontal ?? 0);
-            return Math.Max(120, total - rightReserve - padding);
+            if (_headerRow != null && _headerRow.IsHandleCreated && _headerRow.Width > 0) {
+                int[] columnWidths = _headerRow.GetColumnWidths();
+                if (columnWidths.Length > 0 && columnWidths[0] > 0) {
+                    // Leave a few px so the ellipsis doesn't kiss the Settings cluster.
+                    return Math.Max(120, columnWidths[0] - 8);
+                }
+            }
+            // Fallback for very early calls before layout has settled.
+            return Math.Max(120, ClientSize.Width - 200);
         }
 
         // GDI+ MeasureString (matched to SoftLabel.OnPaint's Graphics.DrawString) — TextRenderer
