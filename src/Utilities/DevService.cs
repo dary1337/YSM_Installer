@@ -13,14 +13,10 @@ namespace YSMInstaller {
             false;
 #endif
 
-        // Runtime-mutable so the Test menu can flip between mocked scan/install (default DEBUG)
-        // and the real path without rebuilding.
-        public static bool IsMockWarnoPathsEnabled { get; set; } =
-#if DEBUG
-            true;
-#else
-            false;
-#endif
+        // Default OFF in both configs so DEBUG runs the real scan/install path out of the box
+        // (matches what end-users experience). Test menu flips it on when you want UI states
+        // without a real game.
+        public static bool IsMockWarnoPathsEnabled { get; set; }
 
         // Optional override for the official mods-list URL. Set via the Test menu to point at
         // a local fork / staging file (e.g. raw.githubusercontent.com on a feature branch)

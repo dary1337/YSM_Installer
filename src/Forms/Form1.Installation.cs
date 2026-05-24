@@ -232,11 +232,14 @@ namespace YSMInstaller {
                     return;
                 }
                 var variant = (ModMetadata)card.Tag2!;
+                bool hasParts = variant.DownloadUrlParts != null && variant.DownloadUrlParts.Length > 0;
                 // Manual install has no remote URL to probe — its card stays size-less.
-                if (string.IsNullOrWhiteSpace(variant.DownloadUrl)) {
+                if (string.IsNullOrWhiteSpace(variant.DownloadUrl) && !hasParts) {
                     continue;
                 }
-                long? size = await HttpService.TryGetRemoteFileSizeAsync(variant.DownloadUrl);
+                long? size = hasParts
+                    ? await HttpService.TryGetTotalSizeAsync(variant.DownloadUrlParts!)
+                    : await HttpService.TryGetRemoteFileSizeAsync(variant.DownloadUrl);
                 if (_state != AppState.ChooseBuild || card.IsDisposed) {
                     return;
                 }
