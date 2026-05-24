@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace YSMInstaller {
     public partial class Form1 {
-        private static readonly string[] InstallSteps = {
+        private static readonly string[] AutoInstallSteps = {
             "Preparing",
             "Closing WARNO",
             "Downloading",
@@ -20,6 +20,28 @@ namespace YSMInstaller {
             "Installing",
             "Finalizing",
         };
+
+        private static readonly string[] ManualFolderInstallSteps = {
+            "Preparing",
+            "Closing WARNO",
+            "Copying mod",
+            "Reading mod settings",
+            "Backing up your mods",
+            "Installing",
+            "Finalizing",
+        };
+
+        private static readonly string[] ManualArchiveInstallSteps = {
+            "Preparing",
+            "Closing WARNO",
+            "Extracting",
+            "Reading mod settings",
+            "Backing up your mods",
+            "Installing",
+            "Finalizing",
+        };
+
+        private string[] _currentInstallSteps = AutoInstallSteps;
 
         private int _currentStepIndex;
 
@@ -70,27 +92,10 @@ namespace YSMInstaller {
                 return;
             }
 
+            // Always route through ChooseBuild — even with 0 or 1 standard variant. Manual install is
+            // appended there, so user always has at least one path forward (including "not supported"
+            // versions where only the manual option exists).
             List<ModMetadata> variants = GetVariantsForVersion(_selectedEntry.Version);
-            if (variants.Count == 0) {
-                MaterialButton disabled = TonalButton("No compatible mod for this version");
-                disabled.Enabled = false;
-                SetIslandActions(disabled);
-                return;
-            }
-
-            if (variants.Count == 1) {
-                ModMetadata metadata = variants[0];
-                string name = ModTypes.ToDisplayName(metadata.ModType);
-                bool installed = _installedKeys.Contains(ModKey(metadata, _selectedEntry.Version));
-                string baseText = installed ? $"Reinstall {name}" : $"Install {name}";
-                MaterialButton button = PrimaryButton(baseText, MaterialIcons.Download);
-                int version = _selectedEntry.Version;
-                button.Click += async (s, e) => await StartInstallAsync(metadata, version);
-                SetIslandActions(button);
-                _ = ShowSizeOnButtonAsync(button, metadata, baseText);
-                return;
-            }
-
             MaterialButton choose = PrimaryButton("Continue", MaterialIcons.ArrowForward);
             choose.Click += async (s, e) => {
                 try {
@@ -110,7 +115,7 @@ namespace YSMInstaller {
             _buildCards.Clear();
             _selectedBuild = null;
 
-            SetHeader("Choose a build", "Each build is a separate collaboration. Pick the one you want to play.");
+            SetHeader("Choose a build", "Pick a build to install, or bring your own mod folder.");
 
             TableLayoutPanel stack = NewStack();
             foreach (ModMetadata variant in variants) {
@@ -127,11 +132,36 @@ namespace YSMInstaller {
                 _buildCards.Add(card);
                 AddToStack(stack, card, Sizes.ContentGap);
             }
+
+            // Manual install: sentinel ModMetadata (no DownloadUrl) selected when the user wants to
+            // point at their own mod folder. Always appended — even for "not supported" versions where
+            // no compatible standard variants exist.
+            var manualMetadata = new ModMetadata {
+                ModType = ModTypes.Manual,
+                GameVersion = _chooseVersion,
+            };
+            (string manualDescription, _) = DescribeBuild(ModTypes.Manual);
+            var manualCard = new MaterialOptionCard(
+                ModTypes.ToDisplayName(ModTypes.Manual),
+                manualDescription,
+                recommended: false,
+                customIcon: null,
+                fallbackGlyph: MaterialIcons.Game
+            ) {
+                Height = 70,
+                Tag2 = manualMetadata,
+            };
+            manualCard.SelectedChanged += OnBuildSelected;
+            _buildCards.Add(manualCard);
+            AddToStack(stack, manualCard, Sizes.ContentGap);
+
             SetContent(stack, fill: false);
 
+            // Default: first standard variant if available; otherwise Manual (covers not-supported case).
             MaterialOptionCard def =
                 _buildCards.FirstOrDefault(c => ((ModMetadata)c.Tag2!).ModType == ModTypes.Ysm)
-                ?? _buildCards.First();
+                ?? _buildCards.FirstOrDefault(c => ((ModMetadata)c.Tag2!).ModType != ModTypes.Manual)
+                ?? manualCard;
             def.SetSelected(true);
             _selectedBuild = (ModMetadata)def.Tag2!;
             UpdateChooseBuildIsland();
@@ -156,6 +186,32 @@ namespace YSMInstaller {
             }
             MaterialButton back = TonalButton("Back");
             back.Click += (s, e) => RenderInstallsFound();
+
+            bool isManual = string.Equals(_selectedBuild.ModType, ModTypes.Manual, StringComparison.Ordinal);
+            if (isManual) {
+                MaterialButton browseFolder = TonalButton("Browse folder", MaterialIcons.Folder);
+                browseFolder.Click += async (s, e) => {
+                    try {
+                        await BrowseForManualFolderAsync();
+                    }
+                    catch (Exception ex) {
+                        AppLogger.Critical("Manual folder browse flow failed.", ex);
+                    }
+                };
+
+                MaterialButton browseArchive = PrimaryButton("Browse archive", MaterialIcons.Document);
+                browseArchive.Click += async (s, e) => {
+                    try {
+                        await BrowseForManualArchiveAsync();
+                    }
+                    catch (Exception ex) {
+                        AppLogger.Critical("Manual archive browse flow failed.", ex);
+                    }
+                };
+
+                SetIslandActions(back, browseFolder, browseArchive);
+                return;
+            }
 
             string name = ModTypes.ToDisplayName(_selectedBuild.ModType);
             MaterialButton install = PrimaryButton($"Install {name}", MaterialIcons.Download);
@@ -186,10 +242,13 @@ namespace YSMInstaller {
 
         private static (string description, bool recommended) DescribeBuild(string modType) {
             if (modType == ModTypes.YsmWif) {
-                return ("Combined version of  Yokaiste's Sandbox Mod and A World in Flames.", false);
+                return ("Combined version of Yokaiste's Sandbox Mod and A World in Flames.", false);
             }
             if (modType == ModTypes.Wto) {
                 return ("WARNO Tactical Overhaul — Freedom Decks, Realistic LOS, Unit Speed, 2x Scale.", false);
+            }
+            if (modType == ModTypes.Manual) {
+                return ("Install from a local folder or .zip you already have.", false);
             }
             return ("Yokaiste's Sandbox Mod — an advanced open-source project for unlimited experience.", false);
         }
@@ -200,14 +259,27 @@ namespace YSMInstaller {
                 return;
             }
 
-            // Mod was selected via the "latest compatible" fallback (game build is newer than the mod
-            // target). Show the mismatch step before installing so the user can switch Warno versions.
+            // Catalog mismatch (game build > catalog target) AND manual mismatch (ModGenVersion in the
+            // user's Config.ini doesn't match the running WARNO) share the same warning step — user
+            // gets the chance to proceed knowing the mod may not load cleanly.
             if (version != metadata.GameVersion) {
                 RenderVersionMismatch(metadata, version);
                 return;
             }
 
             await ProceedWithInstallAsync(metadata, version);
+        }
+
+        private static string GetEffectiveDisplayName(ModMetadata metadata) {
+            return !string.IsNullOrWhiteSpace(metadata.DisplayNameOverride)
+                ? metadata.DisplayNameOverride!
+                : ModTypes.ToDisplayName(metadata.ModType);
+        }
+
+        private static string[] SelectInstallSteps(ModMetadata metadata) {
+            if (!string.IsNullOrEmpty(metadata.LocalSourceFolder)) return ManualFolderInstallSteps;
+            if (!string.IsNullOrEmpty(metadata.LocalSourceArchive)) return ManualArchiveInstallSteps;
+            return AutoInstallSteps;
         }
 
         private async Task ProceedWithInstallAsync(ModMetadata metadata, int version) {
@@ -223,7 +295,8 @@ namespace YSMInstaller {
             _lastInstallMetadata = metadata;
             _lastInstallVersion = version;
             _installCts = new CancellationTokenSource();
-            string name = ModTypes.ToDisplayName(metadata.ModType);
+            _currentInstallSteps = SelectInstallSteps(metadata);
+            string name = GetEffectiveDisplayName(metadata);
             RenderInstalling(name, _selectedEntry?.GamePath ?? string.Empty);
             _installStartUtc = DateTime.UtcNow;
 
@@ -259,6 +332,168 @@ namespace YSMInstaller {
                 default:
                     RenderFailed();
                     break;
+            }
+        }
+
+        private async Task BrowseForManualFolderAsync() {
+            string? folder = PickManualFolder();
+            if (folder == null) {
+                return;
+            }
+
+            (string? configPath, string? error) = LocateConfigInFolder(folder);
+            if (error != null) {
+                UserMessages.ShowError(this, "Invalid mod folder", error);
+                return;
+            }
+
+            Dictionary<string, string> config;
+            try {
+                config = IniFile.ReadValues(configPath!);
+            }
+            catch (Exception exception) {
+                UserMessages.ShowError(this, "Invalid mod folder", $"Could not read Config.ini: {exception.Message}");
+                return;
+            }
+
+            if (!HasRequiredConfigKeys(config, out string? keyError)) {
+                UserMessages.ShowError(this, "Invalid mod folder", keyError!);
+                return;
+            }
+
+            string modRoot = Path.GetDirectoryName(configPath!) ?? folder;
+            await StartManualInstallAsync(modRoot, archive: null, config);
+        }
+
+        private async Task BrowseForManualArchiveAsync() {
+            string? archivePath = PickManualArchive();
+            if (archivePath == null) {
+                return;
+            }
+
+            // Peek into the zip without full extraction — find Config.ini, parse it for ModGenVersion +
+            // Name so we can show version-mismatch / display name before the actual install starts.
+            Dictionary<string, string> config;
+            try {
+                config = ReadConfigFromArchive(archivePath, out string? peekError);
+                if (peekError != null) {
+                    UserMessages.ShowError(this, "Invalid mod archive", peekError);
+                    return;
+                }
+            }
+            catch (Exception exception) {
+                UserMessages.ShowError(this, "Invalid mod archive", $"Could not read the archive: {exception.Message}");
+                return;
+            }
+
+            if (!HasRequiredConfigKeys(config, out string? keyError)) {
+                UserMessages.ShowError(this, "Invalid mod archive", keyError!);
+                return;
+            }
+
+            await StartManualInstallAsync(folder: null, archive: archivePath, config);
+        }
+
+        private async Task StartManualInstallAsync(string? folder, string? archive, Dictionary<string, string> config) {
+            int modGenVersion = TryParseInt(config, "ModGenVersion") ?? _chooseVersion;
+            string? displayName = config.TryGetValue("Name", out string name) && !string.IsNullOrWhiteSpace(name)
+                ? name
+                : null;
+
+            var manualMetadata = new ModMetadata {
+                ModType = ModTypes.Manual,
+                GameVersion = modGenVersion,
+                LocalSourceFolder = folder,
+                LocalSourceArchive = archive,
+                DisplayNameOverride = displayName,
+            };
+            await StartInstallAsync(manualMetadata, _chooseVersion);
+        }
+
+        // Walks the folder for Config.ini — accepts both "user picked the mod root" and "user picked
+        // a parent that holds the mod folder" cases. Ambiguous matches (multiple Config.ini's) bail
+        // out so the user fixes the selection instead of us guessing.
+        private static (string? path, string? error) LocateConfigInFolder(string folder) {
+            if (!Directory.Exists(folder)) {
+                return (null, $"Folder does not exist:\n{folder}");
+            }
+            string[] matches;
+            try {
+                matches = Directory.GetFiles(folder, "Config.ini", SearchOption.AllDirectories);
+            }
+            catch (Exception exception) {
+                return (null, $"Could not scan the folder: {exception.Message}");
+            }
+            if (matches.Length == 0) {
+                return (null, "No Config.ini found inside the selected folder.");
+            }
+            if (matches.Length > 1) {
+                return (null, "Multiple Config.ini files found — pick a folder that contains exactly one mod.");
+            }
+            return (matches[0], null);
+        }
+
+        // Read Config.ini directly from the zip — single-pass, no full extraction yet. Returns the
+        // parsed values; error is set if the archive shape is wrong (0 or multiple Config.ini).
+        private static Dictionary<string, string> ReadConfigFromArchive(string archivePath, out string? error) {
+            using (var archive = System.IO.Compression.ZipFile.OpenRead(archivePath)) {
+                var configEntries = archive.Entries
+                    .Where(e => string.Equals(e.Name, "Config.ini", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (configEntries.Count == 0) {
+                    error = "Archive does not contain a Config.ini file.";
+                    return new Dictionary<string, string>();
+                }
+                if (configEntries.Count > 1) {
+                    error = "Archive contains multiple Config.ini files — only single-mod archives are supported.";
+                    return new Dictionary<string, string>();
+                }
+
+                error = null;
+                using (var stream = configEntries[0].Open())
+                using (var reader = new StreamReader(stream)) {
+                    return IniFile.ReadValues(reader);
+                }
+            }
+        }
+
+        private static bool HasRequiredConfigKeys(Dictionary<string, string> config, out string? error) {
+            if (!config.ContainsKey("DeckFormatVersion") || !config.ContainsKey("Name")) {
+                error = "Config.ini is missing required keys (DeckFormatVersion, Name).";
+                return false;
+            }
+            error = null;
+            return true;
+        }
+
+        private static int? TryParseInt(Dictionary<string, string> values, string key) {
+            return values.TryGetValue(key, out string raw)
+                && int.TryParse(raw.Trim(), out int parsed)
+                ? parsed
+                : (int?)null;
+        }
+
+        private string? PickManualFolder() {
+            using (var dialog = new FolderBrowserDialog()) {
+                dialog.Description = "Select the mod folder (or any parent that contains it).";
+                dialog.ShowNewFolderButton = false;
+                if (dialog.ShowDialog(this) != DialogResult.OK) {
+                    return null;
+                }
+                return dialog.SelectedPath;
+            }
+        }
+
+        private string? PickManualArchive() {
+            using (var dialog = new OpenFileDialog()) {
+                dialog.Title = "Select the mod archive";
+                dialog.Filter = "Mod archive (*.zip)|*.zip";
+                dialog.CheckFileExists = true;
+                dialog.Multiselect = false;
+                if (dialog.ShowDialog(this) != DialogResult.OK) {
+                    return null;
+                }
+                return dialog.FileName;
             }
         }
 
@@ -322,23 +557,56 @@ namespace YSMInstaller {
                 if (_stepChecklist != null) {
                     _stepChecklist.ActiveIndex = index;
                 }
+                // For installs without numeric progress (manual folder / archive) the bar lives off
+                // step completion instead. Monotonic guard prevents backsliding if a real bytes-based
+                // percent already pushed the bar higher (e.g. download just landed at 100).
+                int stepBasedPercent = _currentInstallSteps.Length > 0
+                    ? (int)Math.Round(index * 100.0 / _currentInstallSteps.Length)
+                    : 0;
+                if (_progressBar != null && _progressBar.Value < stepBasedPercent) {
+                    _progressBar.Value = stepBasedPercent;
+                    if (_percentLabel != null) {
+                        _percentLabel.Text = $"{stepBasedPercent}%";
+                    }
+                    UpdateEta(stepBasedPercent);
+                }
             }
             if (stage.StartsWith("Finalizing", StringComparison.Ordinal)) {
-                _currentStepIndex = InstallSteps.Length;
+                _currentStepIndex = _currentInstallSteps.Length;
                 _stepChecklist?.Complete();
+                if (_progressBar != null) {
+                    _progressBar.Value = 100;
+                    if (_percentLabel != null) {
+                        _percentLabel.Text = "100%";
+                    }
+                }
             }
         }
 
-        private static int StageToStepIndex(string stage) {
-            if (stage.StartsWith("Preparing", StringComparison.Ordinal)) return 0;
-            if (stage.StartsWith("Closing", StringComparison.Ordinal)) return 1;
-            if (stage.StartsWith("Downloading", StringComparison.Ordinal)) return 2;
-            if (stage.StartsWith("Extracting", StringComparison.Ordinal)) return 3;
-            if (stage.StartsWith("Reading", StringComparison.Ordinal)) return 4;
-            if (stage.StartsWith("Backing up", StringComparison.Ordinal)) return 5;
-            if (stage.StartsWith("Installing", StringComparison.Ordinal)) return 6;
-            if (stage.StartsWith("Finalizing", StringComparison.Ordinal)) return 7;
+        private int StageToStepIndex(string stage) {
+            string? prefix = MatchStagePrefix(stage);
+            if (prefix == null) {
+                return -1;
+            }
+            for (int i = 0; i < _currentInstallSteps.Length; i++) {
+                if (_currentInstallSteps[i].StartsWith(prefix, StringComparison.Ordinal)) {
+                    return i;
+                }
+            }
             return -1;
+        }
+
+        private static string? MatchStagePrefix(string stage) {
+            if (stage.StartsWith("Preparing", StringComparison.Ordinal)) return "Preparing";
+            if (stage.StartsWith("Closing", StringComparison.Ordinal)) return "Closing";
+            if (stage.StartsWith("Downloading", StringComparison.Ordinal)) return "Downloading";
+            if (stage.StartsWith("Copying", StringComparison.Ordinal)) return "Copying";
+            if (stage.StartsWith("Extracting", StringComparison.Ordinal)) return "Extracting";
+            if (stage.StartsWith("Reading", StringComparison.Ordinal)) return "Reading";
+            if (stage.StartsWith("Backing up", StringComparison.Ordinal)) return "Backing up";
+            if (stage.StartsWith("Installing", StringComparison.Ordinal)) return "Installing";
+            if (stage.StartsWith("Finalizing", StringComparison.Ordinal)) return "Finalizing";
+            return null;
         }
 
         private void UpdateEta(int percent) {
@@ -362,7 +630,7 @@ namespace YSMInstaller {
             _state = AppState.VersionMismatch;
             _lastInstallMetadata = metadata;
             _lastInstallVersion = selectedGameVersion;
-            string name = ModTypes.ToDisplayName(metadata.ModType);
+            string name = GetEffectiveDisplayName(metadata);
             SetHeader("Version mismatch", "Mod targets a different Warno build");
 
             TableLayoutPanel stack = NewStack();
@@ -397,12 +665,7 @@ namespace YSMInstaller {
             cancel.Click += async (s, e) => {
                 try {
                     List<ModMetadata> variants = GetVariantsForVersion(selectedGameVersion);
-                    if (variants.Count > 1) {
-                        await RenderChooseBuild(variants);
-                    }
-                    else {
-                        RenderInstallsFound();
-                    }
+                    await RenderChooseBuild(variants);
                 }
                 catch (Exception ex) {
                     AppLogger.Critical("Cancel/back from version mismatch failed.", ex);
@@ -539,7 +802,7 @@ namespace YSMInstaller {
                 Margin = new Padding(0, 12, 0, 0),
                 Width = 320,
             };
-            _stepChecklist.SetSteps(InstallSteps);
+            _stepChecklist.SetSteps(_currentInstallSteps);
             _stepChecklist.ActiveIndex = 0;
             _currentStepIndex = 0;
 
@@ -637,7 +900,10 @@ namespace YSMInstaller {
             };
             stack.Controls.Add(subtitle);
 
-            string modsPath = entry?.ModsPath ?? string.Empty;
+            // Where the installer actually places the mod — Saved Games, not the Steam install dir.
+            // entry.ModsPath (which points to {GamePath}\Mods) is only used by the scanner as a probe
+            // for a valid Steam install; it's the Workshop mirror, not where WARNO loads mods from.
+            string modsPath = WarnoPaths.ModFolder;
             var folderCard = new MaterialCard(Sizes.RadiusSmall) {
                 Anchor = AnchorStyles.None,
                 BackColor = MaterialPalette.SurfaceContainerHigh,
@@ -701,8 +967,8 @@ namespace YSMInstaller {
                 Padding = new Padding(16),
             };
             var failChecklist = new StepChecklist { Dock = DockStyle.Top, Width = 320 };
-            failChecklist.SetSteps(InstallSteps);
-            int failIdx = Math.Min(Math.Max(0, _currentStepIndex), InstallSteps.Length - 1);
+            failChecklist.SetSteps(_currentInstallSteps);
+            int failIdx = Math.Min(Math.Max(0, _currentStepIndex), _currentInstallSteps.Length - 1);
             failChecklist.ActiveIndex = failIdx;
             failChecklist.SetError(failIdx);
             stepsCard.Controls.Add(failChecklist);

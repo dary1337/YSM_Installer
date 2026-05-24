@@ -18,6 +18,7 @@ namespace YSMInstaller {
         private readonly string _description;
         private readonly bool _recommended;
         private readonly Image? _customIcon;
+        private readonly string? _fallbackGlyph;
         private string _sizeText = string.Empty;
         private bool _selected;
         private bool _hovered;
@@ -30,12 +31,13 @@ namespace YSMInstaller {
 
         public object? Tag2 { get; set; }
 
-        public MaterialOptionCard(string title, string description, bool recommended, Image? customIcon = null)
+        public MaterialOptionCard(string title, string description, bool recommended, Image? customIcon = null, string? fallbackGlyph = null)
             : base(Sizes.RadiusMedium) {
             _title = title;
             _description = description;
             _recommended = recommended;
             _customIcon = customIcon;
+            _fallbackGlyph = fallbackGlyph;
 
             BackColor = MaterialPalette.SurfaceContainer;
             MinimumSize = new Size(0, 68);
@@ -130,8 +132,19 @@ namespace YSMInstaller {
                     using (var brush = new SolidBrush(_selected ? MaterialPalette.PrimaryContainer : MaterialPalette.SurfaceContainerHighest)) {
                         g.FillPath(brush, path);
                     }
-                    var logoRect = new Rectangle(iconRect.X + 6, iconRect.Y + 6, iconRect.Width - 12, iconRect.Height - 12);
-                    g.DrawImage(LogoImage, logoRect);
+                    if (_fallbackGlyph != null) {
+                        const int glyphPx = 22;
+                        Bitmap glyph = MaterialIconRenderer.Get(_fallbackGlyph, glyphPx, MaterialPalette.OnSurfaceVariant);
+                        g.DrawImageUnscaled(
+                            glyph,
+                            iconRect.X + (iconRect.Width - glyphPx) / 2,
+                            iconRect.Y + (iconRect.Height - glyphPx) / 2
+                        );
+                    }
+                    else {
+                        var logoRect = new Rectangle(iconRect.X + 6, iconRect.Y + 6, iconRect.Width - 12, iconRect.Height - 12);
+                        g.DrawImage(LogoImage, logoRect);
+                    }
                 }
             }
 
