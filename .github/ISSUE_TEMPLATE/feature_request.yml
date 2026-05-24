@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest a new capability or UX improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pitch the problem first, the solution second. "I want X" is harder to evaluate than
+        "I currently can't do Y because Z".
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that isn't possible / is painful today?
+      placeholder: |
+        I'm on a 256 GB laptop SSD and the WiF mod warning forces me to free 9 GB just
+        to fit a 3 GB extraction…
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you think the installer should do. Rough is fine.
+      placeholder: |
+        Stream-extract the archive while downloading so peak disk usage stays close to
+        the extracted size, not compressed + extracted simultaneously.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about and why they're worse.
+      placeholder: |
+        Free disk manually each time — works but tedious; would need to delete other
+        WARNO mods.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Mockups, links to similar tools, edge cases, etc.
+    validations:
+      required: false

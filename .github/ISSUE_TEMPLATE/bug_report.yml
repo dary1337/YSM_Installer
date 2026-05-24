@@ -1,0 +1,108 @@
+name: Bug report
+description: Something broke while using the installer
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please fill in the fields below — the log path and the
+        WARNO/installer versions are the most useful things to attach.
+
+        **Log location**: `%TEMP%\ysm_installer_log.txt` (paste `%TEMP%` into Explorer to open
+        the folder). The first few lines of the log include the installer + OS version.
+
+  - type: input
+    id: installer-version
+    attributes:
+      label: Installer version
+      description: Top of the log file, or About panel in Settings.
+      placeholder: e.g. 1.1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: warno-version
+    attributes:
+      label: WARNO build version
+      description: The integer build number the installer detected (e.g. 189668). Shown on the build select screen.
+      placeholder: e.g. 189668
+    validations:
+      required: true
+
+  - type: dropdown
+    id: warno-source
+    attributes:
+      label: WARNO source
+      options:
+        - Steam
+        - Non-Steam / portable
+        - Manually selected exe
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mod-type
+    attributes:
+      label: Mod you tried to install
+      options:
+        - YSM
+        - YSM x WiF
+        - YSM x WiF x WTO
+        - WTO
+        - Manual install (folder or archive)
+        - N/A — bug happened before install
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you did, click by click.
+      placeholder: |
+        1. Opened installer
+        2. Selected WARNO at D:\SteamLibrary\...
+        3. Clicked Continue → picked YSM x WiF
+        4. Clicked Install
+        5. Got error "..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      placeholder: Install should complete and the mod should appear in WARNO's mod list.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      placeholder: |
+        Got "Installation failed" with the message:
+        "..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: |
+        Open `%TEMP%\ysm_installer_log.txt` and paste the relevant lines (ideally everything
+        from the most recent "Starting mod installation" line down).
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, network conditions (slow / mobile / VPN), disk free space, antivirus, etc.
+    validations:
+      required: false

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: YSM Community on Discord
+    url: https://discord.gg/XmbhaSRqfZ
+    about: Quick questions, install help, mod chat — start here before opening an issue.
+  - name: YSM mod (Steam Workshop)
+    url: https://steamcommunity.com/sharedfiles/filedetails/?id=3296415395
+    about: Subscribe to the mod itself / read its description and discussions.
