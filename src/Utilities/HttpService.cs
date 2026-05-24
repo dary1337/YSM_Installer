@@ -32,15 +32,21 @@ namespace YSMInstaller {
             }
         }
 
-        public static async Task<long?> TryGetRemoteFileSizeAsync(string url) {
+        public static async Task<long?> TryGetRemoteFileSizeAsync(
+            string url,
+            CancellationToken cancellationToken = default
+        ) {
             url = GoogleDriveLinks.Normalize(url);
             try {
                 using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
-                using (var headResponse = await Client.SendAsync(headRequest)) {
+                using (var headResponse = await Client.SendAsync(headRequest, cancellationToken)) {
                     if (headResponse.IsSuccessStatusCode) {
                         return headResponse.Content.Headers.ContentLength;
                     }
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             }
             catch {
                 // Ignore and fallback to GET headers probe.
@@ -50,7 +56,8 @@ namespace YSMInstaller {
                 using (
                     var response = await Client.GetAsync(
                         url,
-                        HttpCompletionOption.ResponseHeadersRead
+                        HttpCompletionOption.ResponseHeadersRead,
+                        cancellationToken
                     )
                 ) {
                     if (!response.IsSuccessStatusCode) {
@@ -59,6 +66,9 @@ namespace YSMInstaller {
 
                     return response.Content.Headers.ContentLength;
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             }
             catch {
                 return null;
