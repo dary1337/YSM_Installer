@@ -158,13 +158,13 @@
     {
         "mod_type": "ysm_wto",
         "game_version": 189668,
-        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v189668wto/ysm_wto_189668.zip",
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v189668wto/wto_189668.zip",
         "known_issues_url": null
     },
     {
         "mod_type": "wto",
         "game_version": 189668,
-        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v189668wto/ysm_wto_189668.zip",
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v189668wto/wto_189668.zip",
         "known_issues_url": null
     }
 ]
