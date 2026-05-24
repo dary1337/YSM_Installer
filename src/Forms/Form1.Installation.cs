@@ -253,7 +253,7 @@ namespace YSMInstaller {
                 return ("WARNO Tactical Overhaul — Freedom Decks, Realistic LOS, Unit Speed, 2x Scale.", false);
             }
             if (modType == ModTypes.Manual) {
-                return ("Install from a local folder or .zip you already have.", false);
+                return ("Install from a local folder or archive (.zip, .7z, .rar, .tar) you already have.", false);
             }
             return ("Yokaiste's Sandbox Mod — an advanced open-source project for unlimited experience.", false);
         }
@@ -508,24 +508,24 @@ namespace YSMInstaller {
         }
 
         private static Dictionary<string, string> ReadConfigFromArchive(string archivePath, out string? error) {
-            using (var archive = System.IO.Compression.ZipFile.OpenRead(archivePath)) {
-                var configEntries = archive.Entries
-                    .Where(e => string.Equals(e.Name, "Config.ini", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (configEntries.Count == 0) {
-                    error = "Archive does not contain a Config.ini file.";
-                    return new Dictionary<string, string>();
-                }
-                if (configEntries.Count > 1) {
-                    error = "Archive contains multiple Config.ini files — only single-mod archives are supported.";
-                    return new Dictionary<string, string>();
-                }
+            byte[]? bytes;
+            try {
+                bytes = SafeArchiveExtractor.ReadEntryBytes(archivePath, "Config.ini");
+            }
+            catch (MultipleArchiveEntriesException) {
+                error = "Archive contains multiple Config.ini files — only single-mod archives are supported.";
+                return new Dictionary<string, string>();
+            }
 
-                error = null;
-                using (var stream = configEntries[0].Open())
-                using (var reader = new StreamReader(stream)) {
-                    return IniFile.ReadValues(reader);
-                }
+            if (bytes == null) {
+                error = "Archive does not contain a Config.ini file.";
+                return new Dictionary<string, string>();
+            }
+
+            error = null;
+            using (var stream = new MemoryStream(bytes))
+            using (var reader = new StreamReader(stream)) {
+                return IniFile.ReadValues(reader);
             }
         }
 
@@ -570,7 +570,7 @@ namespace YSMInstaller {
         private string? PickManualArchive() {
             using (var dialog = new OpenFileDialog()) {
                 dialog.Title = "Select the mod archive";
-                dialog.Filter = "Mod archive (*.zip)|*.zip";
+                dialog.Filter = "Mod archive|*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tgz;*.tar.bz2;*.tbz2";
                 dialog.CheckFileExists = true;
                 dialog.Multiselect = false;
                 if (dialog.ShowDialog(this) != DialogResult.OK) {
@@ -622,6 +622,12 @@ namespace YSMInstaller {
             if (_progressBar == null) {
                 return;
             }
+            // Bytes-based progress arrives from multiple phases (download, then extraction);
+            // each phase starts at 0%, so without this guard the bar would drop back to 0 when
+            // extraction kicks in after a finished download.
+            if (percent < _progressBar.Value) {
+                return;
+            }
             _progressBar.Value = percent;
             if (_percentLabel != null) {
                 _percentLabel.Text = $"{percent}%";
@@ -640,28 +646,12 @@ namespace YSMInstaller {
                 if (_stepChecklist != null) {
                     _stepChecklist.ActiveIndex = index;
                 }
-                // Manual flows have no bytes-based progress, so the bar advances per step. Monotonic
-                // guard prevents backsliding when a real bytes-based percent was already higher.
-                int stepBasedPercent = _currentInstallSteps.Length > 0
-                    ? (int)Math.Round(index * 100.0 / _currentInstallSteps.Length)
-                    : 0;
-                if (_progressBar != null && _progressBar.Value < stepBasedPercent) {
-                    _progressBar.Value = stepBasedPercent;
-                    if (_percentLabel != null) {
-                        _percentLabel.Text = $"{stepBasedPercent}%";
-                    }
-                    UpdateEta(stepBasedPercent);
-                }
             }
+            // Bar/percent/ETA are owned by WarnoInstaller's overall-progress channel now —
+            // stages only drive the checklist.
             if (stage.StartsWith("Finalizing", StringComparison.Ordinal)) {
                 _currentStepIndex = _currentInstallSteps.Length;
                 _stepChecklist?.Complete();
-                if (_progressBar != null) {
-                    _progressBar.Value = 100;
-                    if (_percentLabel != null) {
-                        _percentLabel.Text = "100%";
-                    }
-                }
             }
         }
 
@@ -902,7 +892,7 @@ namespace YSMInstaller {
                 Anchor = AnchorStyles.Right,
                 Dock = DockStyle.Top,
                 Height = Sizes.ButtonHeight,
-                Margin = new Padding(0, Tokens.Space6, 0, 0),
+                Margin = new Padding(0, Tokens.Space8, 0, 0),
             };
             cancel.SetAccent(MaterialPalette.Error, MaterialPalette.OnError);
             cancel.Click += (s, e) => {

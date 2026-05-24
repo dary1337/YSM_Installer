@@ -87,6 +87,18 @@
       <HintPath>$(NuGetPackageRoot)system.runtime.compilerservices.unsafe\6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="SharpCompress">
+      <HintPath>$(NuGetPackageRoot)sharpcompress\1.0.0\lib\netstandard2.0\SharpCompress.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces">
+      <HintPath>$(NuGetPackageRoot)microsoft.bcl.asyncinterfaces\10.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Text.Encoding.CodePages">
+      <HintPath>$(NuGetPackageRoot)system.text.encoding.codepages\10.0.0\lib\net462\System.Text.Encoding.CodePages.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -181,7 +193,7 @@
     <Compile Include="Utilities\DevService.cs" />
     <Compile Include="Utilities\HttpService.cs" />
     <Compile Include="Utilities\IniFile.cs" />
-    <Compile Include="Utilities\SafeZipExtractor.cs" />
+    <Compile Include="Utilities\SafeArchiveExtractor.cs" />
     <Compile Include="Utilities\SystemCursors.cs" />
     <Compile Include="Utilities\UpdateService.cs" />
     <Compile Include="Models\ModMetadata.cs" />
@@ -311,9 +323,12 @@
     <PackageReference Include="Newtonsoft.Json">
       <Version>13.0.3</Version>
     </PackageReference>
+    <PackageReference Include="SharpCompress" Version="1.0.0" />
     <PackageReference Include="Svg" Version="3.4.7" />
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Resources.Extensions" Version="10.0.7" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

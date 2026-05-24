@@ -31,6 +31,7 @@ namespace YSMInstaller {
         private bool _includeSystemFolders;
         private bool _isScanning;
         private bool _isInstalling;
+        private bool _isAutoUpdating;
         private bool _hasFoundWarnoExe;
         private bool _showAllEntries;
 
@@ -56,11 +57,65 @@ namespace YSMInstaller {
         }
 
         async void Form1_Load(object sender, EventArgs e) {
-            bool updateStarted =
-                !DevWarnoMocks.IsEnabled && await UpdateService.CheckForUpdatesAsync(this);
+            bool updateStarted;
+            _isAutoUpdating = !DevWarnoMocks.IsEnabled;
+            try {
+                updateStarted = _isAutoUpdating && await UpdateService.CheckForUpdatesAsync(this);
+            }
+            finally {
+                _isAutoUpdating = false;
+            }
 
             if (!updateStarted && !IsDisposed) {
                 await ScanAsync();
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e) {
+            // Forced close (Windows shutdown, task manager) — can't safely prompt; skip warning.
+            if (!e.Cancel && e.CloseReason == CloseReason.UserClosing) {
+                if (_isInstalling) {
+                    if (!ConfirmCloseDuringInstall()) {
+                        e.Cancel = true;
+                    }
+                    else {
+                        // Best-effort rollback before the app dies; nothing we can await here.
+                        _installCts?.Cancel();
+                    }
+                }
+                else if (_isAutoUpdating) {
+                    if (!ConfirmCloseDuringAutoUpdate()) {
+                        e.Cancel = true;
+                    }
+                }
+            }
+
+            base.OnFormClosing(e);
+        }
+
+        private bool ConfirmCloseDuringInstall() {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialPalette.Warning;
+                dialog.TitleText = "Installation in progress";
+                dialog.BodyText =
+                    "Quitting now will cancel the install and roll back any partial changes. Continue?";
+                dialog.AddAction("Keep installing", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Cancel & quit", DialogResult.OK, MaterialButtonVariant.Filled);
+                return dialog.ShowDialog(this) == DialogResult.OK;
+            }
+        }
+
+        private bool ConfirmCloseDuringAutoUpdate() {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialPalette.Warning;
+                dialog.TitleText = "Update in progress";
+                dialog.BodyText =
+                    "The auto-update is still running. Quitting now will abort it. Continue?";
+                dialog.AddAction("Keep updating", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Quit anyway", DialogResult.OK, MaterialButtonVariant.Filled);
+                return dialog.ShowDialog(this) == DialogResult.OK;
             }
         }
 
