@@ -65,6 +65,87 @@ namespace YSMInstaller {
                 flow.Controls.Add(button);
             }
 
+            Section("Switches");
+            var mockButton = new MaterialButton {
+                Variant = MaterialButtonVariant.Tonal,
+                Text = $"Mock WARNO paths: {(DevService.IsMockWarnoPathsEnabled ? "ON" : "OFF — real install!")}",
+                AutoSize = false,
+                Width = 330,
+                Height = 32,
+                Margin = new Padding(0, 0, 0, 6),
+            };
+            mockButton.Click += (s, e) => {
+                bool newValue = !DevService.IsMockWarnoPathsEnabled;
+                form.Close();
+                if (!IsHandleCreated || IsDisposed) {
+                    return;
+                }
+                BeginInvoke(new Action(async () => {
+                    DevService.IsMockWarnoPathsEnabled = newValue;
+                    AppLogger.Info($"Dev: MockWarnoPaths set to {newValue}.");
+                    await SafeFireDev(ScanAsync, "Rescan after MockWarnoPaths toggle failed.");
+                }));
+            };
+            flow.Controls.Add(mockButton);
+
+            Section("Catalog override (raw mods-list URL)");
+            var urlBox = new TextBox {
+                Width = 330,
+                Margin = new Padding(0, 0, 0, 6),
+                Font = MaterialType.BodyMedium,
+                BackColor = MaterialPalette.SurfaceContainerHigh,
+                ForeColor = MaterialPalette.OnSurface,
+                BorderStyle = BorderStyle.FixedSingle,
+                Text = DevService.ModListUrlOverride ?? string.Empty,
+            };
+            flow.Controls.Add(urlBox);
+
+            // Apply / Clear use a custom Click handler instead of Add() because we need to
+            // capture TextBox state before form.Close() disposes it.
+            var applyButton = new MaterialButton {
+                Variant = MaterialButtonVariant.Filled,
+                Text = "Apply override & rescan",
+                AutoSize = false,
+                Width = 330,
+                Height = 32,
+                Margin = new Padding(0, 0, 0, 6),
+            };
+            applyButton.Click += (s, e) => {
+                string captured = urlBox.Text;
+                form.Close();
+                if (!IsHandleCreated || IsDisposed) {
+                    return;
+                }
+                BeginInvoke(new Action(async () => {
+                    DevService.ModListUrlOverride =
+                        string.IsNullOrWhiteSpace(captured) ? null : captured.Trim();
+                    AppLogger.Info($"Dev catalog override set to: {DevService.ModListUrlOverride ?? "<none>"}");
+                    await SafeFireDev(ScanAsync, "Rescan after catalog override failed.");
+                }));
+            };
+            flow.Controls.Add(applyButton);
+
+            var clearButton = new MaterialButton {
+                Variant = MaterialButtonVariant.Tonal,
+                Text = "Clear override (use official)",
+                AutoSize = false,
+                Width = 330,
+                Height = 32,
+                Margin = new Padding(0, 0, 0, 6),
+            };
+            clearButton.Click += (s, e) => {
+                form.Close();
+                if (!IsHandleCreated || IsDisposed) {
+                    return;
+                }
+                BeginInvoke(new Action(async () => {
+                    DevService.ModListUrlOverride = null;
+                    AppLogger.Info("Dev catalog override cleared.");
+                    await SafeFireDev(ScanAsync, "Rescan after catalog override clear failed.");
+                }));
+            };
+            flow.Controls.Add(clearButton);
+
             Section("Dialogs");
             Add("Update available", DevShowUpdateDialog);
             Add("WARNO is running", DevShowWarnoRunningDialog);

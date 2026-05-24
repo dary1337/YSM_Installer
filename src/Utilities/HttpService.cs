@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -163,6 +164,123 @@ namespace YSMInstaller {
                         )
                     );
                 }
+            }
+        }
+
+        // Sums HEAD-reported sizes from all parts. Used for the pre-download disk-space estimate
+        // when a mod ships as a split archive. Returns null on the first part with unknown size
+        // so we don't compute a misleading partial total.
+        public static async Task<long?> TryGetTotalSizeAsync(
+            IReadOnlyList<string> urls,
+            CancellationToken cancellationToken = default
+        ) {
+            if (urls == null || urls.Count == 0) {
+                return null;
+            }
+            long total = 0;
+            foreach (string url in urls) {
+                long? part = await TryGetRemoteFileSizeAsync(url, cancellationToken);
+                if (!part.HasValue || part.Value <= 0) {
+                    return null;
+                }
+                total = checked(total + part.Value);
+            }
+            return total;
+        }
+
+        // Streams multiple URLs into a single destination file, byte-concatenated. Works for
+        // archives produced by `7z -v<size>` or `split -b <size>` — the result is a valid
+        // single archive that SharpCompress / ZipFile can open with no awareness of parts.
+        public static async Task DownloadFilePartsAsync(
+            IReadOnlyList<string> urls,
+            string destinationPath,
+            long? knownTotalBytes = null,
+            IProgress<int>? progress = null,
+            IProgress<DownloadProgressInfo>? detailedProgress = null,
+            CancellationToken cancellationToken = default
+        ) {
+            if (urls == null || urls.Count == 0) {
+                throw new ArgumentException("At least one URL is required.", nameof(urls));
+            }
+
+            long totalBytes = knownTotalBytes ?? -1L;
+            bool canReportPercent = totalBytes > 0 && progress != null;
+
+            using (
+                var fileStream = new FileStream(
+                    destinationPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    8192,
+                    true
+                )
+            ) {
+                long writtenSoFar = 0;
+                int lastPercent = -1;
+                long lastReportedBytes = -UnknownSizeProgressStepBytes;
+                var buffer = new byte[8192];
+
+                for (int i = 0; i < urls.Count; i++) {
+                    string url = GoogleDriveLinks.Normalize(urls[i]);
+                    using (
+                        var response = await Client.GetAsync(
+                            url,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            cancellationToken
+                        )
+                    ) {
+                        response.EnsureSuccessStatusCode();
+                        string? mediaType = response.Content.Headers.ContentType?.MediaType;
+                        if (!string.IsNullOrEmpty(mediaType)
+                            && mediaType!.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)) {
+                            throw new IOException(
+                                $"Server returned HTML instead of a file for {url} — the host likely " +
+                                "rate-limited or quota-blocked this download. Try again later, or " +
+                                "ask the mod publisher to refresh the link."
+                            );
+                        }
+
+                        using (var contentStream = await response.Content.ReadAsStreamAsync()) {
+                            int read;
+                            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
+                                await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
+                                writtenSoFar += read;
+
+                                if (
+                                    detailedProgress != null
+                                    && (
+                                        canReportPercent
+                                        || writtenSoFar - lastReportedBytes >= UnknownSizeProgressStepBytes
+                                    )
+                                ) {
+                                    detailedProgress.Report(
+                                        new DownloadProgressInfo(
+                                            writtenSoFar,
+                                            totalBytes > 0 ? totalBytes : (long?)null
+                                        )
+                                    );
+                                    lastReportedBytes = writtenSoFar;
+                                }
+
+                                if (canReportPercent) {
+                                    int percent = (int)((writtenSoFar * 100L) / totalBytes);
+                                    if (percent != lastPercent) {
+                                        progress!.Report(percent);
+                                        lastPercent = percent;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                detailedProgress?.Report(
+                    new DownloadProgressInfo(
+                        writtenSoFar,
+                        totalBytes > 0 ? totalBytes : (long?)null
+                    )
+                );
             }
         }
 

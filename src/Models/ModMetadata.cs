@@ -11,6 +11,13 @@ namespace YSMInstaller {
         [JsonProperty("download_url")]
         public string DownloadUrl { get; set; } = string.Empty;
 
+        // Mutually exclusive with DownloadUrl. Parts are concatenated byte-for-byte into the
+        // final archive (works for `7z -v` / `split -b` output) so consumers don't need to
+        // care about multi-volume formats. Used for archives >2 GB that exceed GitHub's per-
+        // asset limit.
+        [JsonProperty("download_url_parts")]
+        public string[]? DownloadUrlParts { get; set; }
+
         [JsonProperty("known_issues_url")]
         public string? KnownIssuesUrl { get; set; }
 

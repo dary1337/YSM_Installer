@@ -116,10 +116,23 @@ namespace YSMInstaller {
                     continue;
                 }
 
+                if (!HasExactlyOneDownloadSource(mod)) {
+                    AppLogger.Error(
+                        $"Catalog entry is skipped because it has neither or both of download_url / download_url_parts set (mod_type '{mod.ModType}', game version {mod.GameVersion})."
+                    );
+                    continue;
+                }
+
                 validMods.Add(mod);
             }
 
             return validMods;
+        }
+
+        private static bool HasExactlyOneDownloadSource(ModMetadata mod) {
+            bool hasSingle = !string.IsNullOrWhiteSpace(mod.DownloadUrl);
+            bool hasParts = mod.DownloadUrlParts != null && mod.DownloadUrlParts.Length > 0;
+            return hasSingle ^ hasParts;
         }
 
         private static bool IsValidModType(string modType) {

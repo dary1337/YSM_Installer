@@ -180,10 +180,13 @@ namespace YSMInstaller {
                     AppLogger.Info("Downloading mod archive.");
                     ReportStage(stageProgress, "Downloading...");
                     progress?.Report(PercentDownloadStart);
-                    long? remoteSize = await HttpService.TryGetRemoteFileSizeAsync(
-                        modMetadata.DownloadUrl,
-                        cancellationToken
-                    );
+
+                    bool isMultiPart = modMetadata.DownloadUrlParts != null
+                        && modMetadata.DownloadUrlParts.Length > 0;
+                    long? remoteSize = isMultiPart
+                        ? await HttpService.TryGetTotalSizeAsync(modMetadata.DownloadUrlParts!, cancellationToken)
+                        : await HttpService.TryGetRemoteFileSizeAsync(modMetadata.DownloadUrl, cancellationToken);
+
                     if (remoteSize.HasValue) {
                         // Footprint = compressed archive + extracted tree on the same drive at
                         // peak, so checking just remoteSize would let hopeless installs through.
@@ -194,15 +197,31 @@ namespace YSMInstaller {
                             lowDiskSpaceConfirm
                         );
                     }
-                    await HttpService.DownloadFileAsync(
-                        modMetadata.DownloadUrl,
-                        modArchivePath,
-                        RangedProgress(progress, PercentDownloadStart, PercentDownloadEnd),
-                        new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
-                            ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
-                        }),
-                        cancellationToken
-                    );
+
+                    var rangedDownloadProgress = RangedProgress(progress, PercentDownloadStart, PercentDownloadEnd);
+                    var detailedDownloadProgress = new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
+                        ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
+                    });
+
+                    if (isMultiPart) {
+                        await HttpService.DownloadFilePartsAsync(
+                            modMetadata.DownloadUrlParts!,
+                            modArchivePath,
+                            remoteSize,
+                            rangedDownloadProgress,
+                            detailedDownloadProgress,
+                            cancellationToken
+                        );
+                    }
+                    else {
+                        await HttpService.DownloadFileAsync(
+                            modMetadata.DownloadUrl,
+                            modArchivePath,
+                            rangedDownloadProgress,
+                            detailedDownloadProgress,
+                            cancellationToken
+                        );
+                    }
 
                     cancellationToken.ThrowIfCancellationRequested();
                     Directory.CreateDirectory(tempModPath);

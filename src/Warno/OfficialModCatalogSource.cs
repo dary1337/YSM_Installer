@@ -11,10 +11,16 @@ namespace YSMInstaller {
         public string Name => ModCatalogSources.OfficialModsListName;
 
         public async Task<List<ModMetadata>> DownloadAsync() {
-            AppLogger.Info("Downloading official supported mod list.");
-            string json = await HttpService.GetStringAsync(ModListUrl);
+            string url = ResolveModListUrl();
+            AppLogger.Info($"Downloading supported mod list from {url}.");
+            string json = await HttpService.GetStringAsync(url);
             return JsonConvert.DeserializeObject<List<ModMetadata>>(json)
                 ?? new List<ModMetadata>();
+        }
+
+        private static string ResolveModListUrl() {
+            string? @override = DevService.ModListUrlOverride;
+            return string.IsNullOrWhiteSpace(@override) ? ModListUrl : @override!;
         }
     }
 }
