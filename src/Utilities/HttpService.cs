@@ -104,6 +104,11 @@ namespace YSMInstaller {
             CancellationToken cancellationToken = default
         ) {
             url = GoogleDriveLinks.Normalize(url);
+            // Stream into a sibling .tmp first and atomically rename on success — a crash /
+            // cancel / network drop mid-write never leaves a half-written file at destinationPath.
+            string tempPath = destinationPath + ".tmp";
+            bool moved = false;
+            try {
             using (
                 var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             ) {
@@ -128,7 +133,7 @@ namespace YSMInstaller {
                 using (var contentStream = await response.Content.ReadAsStreamAsync())
                 using (
                     var fileStream = new FileStream(
-                        destinationPath,
+                        tempPath,
                         FileMode.Create,
                         FileAccess.Write,
                         FileShare.None,
@@ -182,6 +187,17 @@ namespace YSMInstaller {
                     );
                 }
             }
+            if (File.Exists(destinationPath)) {
+                File.Delete(destinationPath);
+            }
+            File.Move(tempPath, destinationPath);
+            moved = true;
+            }
+            finally {
+                if (!moved) {
+                    TryDeleteFile(tempPath);
+                }
+            }
         }
 
         // Sums HEAD-reported sizes from all parts. Used for the pre-download disk-space estimate
@@ -224,9 +240,14 @@ namespace YSMInstaller {
             long totalBytes = knownTotalBytes ?? -1L;
             bool canReportPercent = totalBytes > 0 && progress != null;
 
+            // Same atomic-rename invariant as the single-URL path — multi-GB concatenations
+            // are even more painful if a mid-stream failure leaves garbage at the final path.
+            string tempPath = destinationPath + ".tmp";
+            bool moved = false;
+            try {
             using (
                 var fileStream = new FileStream(
-                    destinationPath,
+                    tempPath,
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None,
@@ -366,6 +387,29 @@ namespace YSMInstaller {
                     )
                 );
             }
+            if (File.Exists(destinationPath)) {
+                File.Delete(destinationPath);
+            }
+            File.Move(tempPath, destinationPath);
+            moved = true;
+            }
+            finally {
+                if (!moved) {
+                    TryDeleteFile(tempPath);
+                }
+            }
+        }
+
+        // Best-effort cleanup for temp files left behind by failed downloads. Narrow catches so
+        // a programming bug surfaces instead of being silently swallowed.
+        private static void TryDeleteFile(string path) {
+            try {
+                if (File.Exists(path)) {
+                    File.Delete(path);
+                }
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
 
         private static HttpClient CreateClient() {
