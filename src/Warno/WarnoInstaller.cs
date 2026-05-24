@@ -691,34 +691,26 @@ namespace YSMInstaller {
             while (stack.Count > 0) {
                 cancellationToken.ThrowIfCancellationRequested();
                 string current = stack.Pop();
+                // Silently skip per-file/per-dir FS noise (permissions, locked subfolders); the
+                // real copy below hits any structural issue with a clearer error.
                 try {
                     foreach (string file in Directory.GetFiles(current)) {
                         cancellationToken.ThrowIfCancellationRequested();
                         try {
                             total += new FileInfo(file).Length;
                         }
-                        catch (Exception exception) when (
-                            exception is IOException
-                            || exception is UnauthorizedAccessException
-                            || exception is PathTooLongException
-                            || exception is SecurityException
-                        ) {
-                            // Permission glitch on stat — let the real copy below surface the
-                            // actual error if it matters; pre-scan shouldn't bail on noise.
-                        }
+                        // IOException covers PathTooLongException (its subclass) too.
+                        catch (IOException) { }
+                        catch (UnauthorizedAccessException) { }
+                        catch (SecurityException) { }
                     }
                     foreach (string sub in Directory.GetDirectories(current)) {
                         stack.Push(sub);
                     }
                 }
-                catch (Exception exception) when (
-                    exception is IOException
-                    || exception is UnauthorizedAccessException
-                    || exception is PathTooLongException
-                    || exception is SecurityException
-                ) {
-                    // Locked subfolder — skip; the real copy will hit it with a clearer error.
-                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+                catch (SecurityException) { }
             }
             return total;
         }

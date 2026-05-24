@@ -611,16 +611,15 @@ namespace YSMInstaller {
                 return Task.FromResult(false);
             }
             if (InvokeRequired) {
+                // Race: form disposed between the IsDisposed/IsHandleCreated check above and
+                // Invoke firing. Treat as "declined" so InstallDeclinedByUserException routes
+                // through Cancelled instead of bubbling up as a Failed install.
+                // InvalidOperationException covers ObjectDisposedException (its subclass) too —
+                // both fire when Invoke targets a handle that's gone away mid-flight.
                 try {
                     return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
                 }
-                catch (Exception exception) when (
-                    exception is InvalidOperationException
-                    || exception is ObjectDisposedException
-                ) {
-                    // Race: form disposed between the IsDisposed/IsHandleCreated check above and
-                    // Invoke firing. Treat as "declined" so InstallDeclinedByUserException routes
-                    // through Cancelled instead of bubbling up as a Failed install.
+                catch (InvalidOperationException) {
                     return Task.FromResult(false);
                 }
             }
