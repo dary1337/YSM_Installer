@@ -5,6 +5,7 @@ namespace YSMInstaller {
         public const string Ysm = "ysm";
         public const string YsmWif = "ysm_wif";
         public const string Wto = "wto";
+        public const string Manual = "manual";
 
         public static string ToDisplayName(string modType) {
             if (string.Equals(modType, YsmWif, StringComparison.Ordinal)) {
@@ -13,6 +14,10 @@ namespace YSMInstaller {
 
             if (string.Equals(modType, Wto, StringComparison.Ordinal)) {
                 return "WTO";
+            }
+
+            if (string.Equals(modType, Manual, StringComparison.Ordinal)) {
+                return "Manual install";
             }
 
             return "YSM";

@@ -38,11 +38,27 @@ namespace YSMInstaller {
                 // flow it leads to needs _supportedVersions which may have failed to load.
                 AppLogger.Critical("Scan failed.", exception);
                 _hasFoundWarnoExe = false;
-                RenderCatalogUnavailable($"Scan failed unexpectedly: {exception.Message}");
+                // Diagnose actively probes the network so an offline user gets "You appear to be
+                // offline" instead of the wrapper's generic "One or more errors occurred".
+                Exception root = UnwrapException(exception);
+                string reason = await Connectivity.DiagnoseCatalogAsync(root.Message);
+                RenderCatalogUnavailable(reason);
             }
             finally {
                 _isScanning = false;
             }
+        }
+
+        // AggregateException.Message is the useless "One or more errors occurred"; the real cause
+        // lives in InnerExceptions[0] (e.g. HttpRequestException → "No such host is known").
+        private static Exception UnwrapException(Exception exception) {
+            if (exception is AggregateException aggregate) {
+                AggregateException flat = aggregate.Flatten();
+                if (flat.InnerExceptions.Count > 0) {
+                    return flat.InnerExceptions[0];
+                }
+            }
+            return exception.GetBaseException();
         }
 
         // ---- Scanning ----

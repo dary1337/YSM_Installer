@@ -28,16 +28,17 @@ namespace YSMInstaller {
 
             _isInstalling = true;
 
-            string warnoSavedGames = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Saved Games",
-                "EugenSystems",
-                "WARNO"
-            );
-            string modFolder = Path.Combine(warnoSavedGames, "mod");
+            // Manual install has no awaited I/O until late, so without this yield the install screen
+            // wouldn't paint before the sync file work blocks the UI thread.
+            await Task.Yield();
+
+            string warnoSavedGames = WarnoPaths.SavedGamesRoot;
+            string modFolder = WarnoPaths.ModFolder;
             string lockFile = Path.Combine(warnoSavedGames, "EugGame.lock");
             string gameConfig = Path.Combine(modFolder, "Config.ini");
             string modArchivePath = Path.Combine(modFolder, $"YSM_{modMetadata.GameVersion}.zip");
+            // Inside modFolder on purpose: keeps the final Directory.Move a same-volume rename
+            // instead of a cross-volume copy when %TEMP% lives on a different drive.
             string tempModPath = Path.Combine(modFolder, $"YSM_Temp_{Guid.NewGuid():N}");
             string gameConfigBackupPath = Path.Combine(
                 modFolder,
@@ -68,26 +69,70 @@ namespace YSMInstaller {
                 CloseRunningGame();
                 DeleteFileIfExists(lockFile);
 
-                cancellationToken.ThrowIfCancellationRequested();
-                AppLogger.Info("Downloading mod archive.");
-                ReportStage(stageProgress, "Downloading...");
-                await HttpService.DownloadFileAsync(
-                    modMetadata.DownloadUrl,
-                    modArchivePath,
-                    progress,
-                    new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
-                        ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
-                    }),
-                    cancellationToken
-                );
+                bool isManualFolder = !string.IsNullOrEmpty(modMetadata.LocalSourceFolder);
+                bool isManualArchive = !string.IsNullOrEmpty(modMetadata.LocalSourceArchive);
+                string extractedModPath;
+                if (isManualFolder) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    AppLogger.Info($"Manual install: staging from folder {modMetadata.LocalSourceFolder}");
+                    ReportStage(stageProgress, "Copying mod...");
+                    if (!Directory.Exists(modMetadata.LocalSourceFolder)) {
+                        throw new DirectoryNotFoundException(
+                            $"Manual install source folder is missing: {modMetadata.LocalSourceFolder}"
+                        );
+                    }
+                    // Stage into temp so we can rewrite Config.ini without touching the user's folder.
+                    Directory.CreateDirectory(tempModPath);
+                    await Task.Run(
+                        () => CopyDirectoryRecursive(modMetadata.LocalSourceFolder!, tempModPath),
+                        cancellationToken
+                    );
+                    extractedModPath = ResolveExtractedModPath(tempModPath);
+                    AppLogger.Info($"Staged manual mod at: {extractedModPath}");
+                }
+                else if (isManualArchive) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    AppLogger.Info($"Manual install: extracting archive {modMetadata.LocalSourceArchive}");
+                    if (!File.Exists(modMetadata.LocalSourceArchive)) {
+                        throw new FileNotFoundException(
+                            "Manual install archive is missing.",
+                            modMetadata.LocalSourceArchive
+                        );
+                    }
+                    ReportStage(stageProgress, "Extracting...");
+                    Directory.CreateDirectory(tempModPath);
+                    await Task.Run(
+                        () => SafeZipExtractor.ExtractToDirectory(modMetadata.LocalSourceArchive!, tempModPath),
+                        cancellationToken
+                    );
+                    extractedModPath = ResolveExtractedModPath(tempModPath);
+                    AppLogger.Info($"Extracted manual archive to: {extractedModPath}");
+                }
+                else {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    AppLogger.Info("Downloading mod archive.");
+                    ReportStage(stageProgress, "Downloading...");
+                    await HttpService.DownloadFileAsync(
+                        modMetadata.DownloadUrl,
+                        modArchivePath,
+                        progress,
+                        new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
+                            ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
+                        }),
+                        cancellationToken
+                    );
 
-                cancellationToken.ThrowIfCancellationRequested();
-                Directory.CreateDirectory(tempModPath);
-                AppLogger.Info("Extracting mod archive.");
-                ReportStage(stageProgress, "Extracting...");
-                SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath);
-                string extractedModPath = ResolveExtractedModPath(tempModPath);
-                AppLogger.Info($"Resolved extracted mod root: {extractedModPath}");
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Directory.CreateDirectory(tempModPath);
+                    AppLogger.Info("Extracting mod archive.");
+                    ReportStage(stageProgress, "Extracting...");
+                    await Task.Run(
+                        () => SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath),
+                        cancellationToken
+                    );
+                    extractedModPath = ResolveExtractedModPath(tempModPath);
+                    AppLogger.Info($"Resolved extracted mod root: {extractedModPath}");
+                }
 
                 cancellationToken.ThrowIfCancellationRequested();
                 ReportStage(stageProgress, "Reading mod settings...");
@@ -102,8 +147,16 @@ namespace YSMInstaller {
                     "DeckFormatVersion",
                     modConfig
                 );
-                string manualVersion =
-                    $"{ModTypes.ToDisplayName(modMetadata.ModType)} (v{deckFormatVersion}) (Installer)";
+                string rawBaseName = !string.IsNullOrWhiteSpace(modMetadata.DisplayNameOverride)
+                    ? modMetadata.DisplayNameOverride!
+                    : ModTypes.ToDisplayName(modMetadata.ModType);
+                // baseName ends up in a folder path, so strip path-invalid chars (mods named e.g.
+                // "WiF/WTO" would otherwise crash Path.Combine). Fallback if sanitization eats it all.
+                string baseName = SanitizeForFolderName(rawBaseName);
+                if (string.IsNullOrEmpty(baseName)) {
+                    baseName = ModTypes.ToDisplayName(modMetadata.ModType);
+                }
+                string manualVersion = $"{baseName} (v{deckFormatVersion}) (Installer)";
                 finalModPath = Path.Combine(modFolder, manualVersion);
 
                 ysmConfig["ID"] = manualVersion;
@@ -127,11 +180,17 @@ namespace YSMInstaller {
 
                 cancellationToken.ThrowIfCancellationRequested();
                 ReportStage(stageProgress, "Installing...");
-                Directory.Move(extractedModPath, finalModPath);
+                await Task.Run(
+                    () => Directory.Move(extractedModPath, finalModPath),
+                    cancellationToken
+                );
                 finalModCreated = true;
 
                 // Past this point cancel is ignored: a half-written ActivatedMods corrupts game config.
                 ReportStage(stageProgress, "Finalizing...");
+                // Breathing room so fast installs don't flicker past the Finalizing morph. No token —
+                // Finalizing is the no-cancel zone, OCE here would corrupt half-written game config.
+                await Task.Delay(1000);
                 gameConfigData["ActivatedMods"] = $"{manualVersion}|";
                 IniFile.WriteValues(gameConfig, gameConfigData);
 
@@ -424,6 +483,27 @@ namespace YSMInstaller {
         private static void DeleteDirectoryIfExists(string path) {
             if (Directory.Exists(path)) {
                 Directory.Delete(path, true);
+            }
+        }
+
+        private static string SanitizeForFolderName(string value) {
+            char[] invalid = Path.GetInvalidFileNameChars();
+            var sb = new System.Text.StringBuilder(value.Length);
+            foreach (char c in value) {
+                if (Array.IndexOf(invalid, c) < 0) {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString().Trim();
+        }
+
+        private static void CopyDirectoryRecursive(string sourceDir, string destDir) {
+            Directory.CreateDirectory(destDir);
+            foreach (string file in Directory.GetFiles(sourceDir)) {
+                File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite: true);
+            }
+            foreach (string subDir in Directory.GetDirectories(sourceDir)) {
+                CopyDirectoryRecursive(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
             }
         }
 

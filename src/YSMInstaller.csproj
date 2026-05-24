@@ -219,6 +219,7 @@
     <Compile Include="Warno\WarnoFinder.cs" />
     <Compile Include="Warno\WarnoInstaller.cs" />
     <Compile Include="Warno\WarnoInstallWarning.cs" />
+    <Compile Include="Warno\WarnoPaths.cs" />
     <Compile Include="Warno\WarnoScanner.cs" />
     <Compile Include="Warno\YokaisteReleaseCatalogSource.cs" />
     <EmbeddedResource Include="Forms\Form1.resx">

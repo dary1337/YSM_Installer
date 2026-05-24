@@ -133,9 +133,8 @@ namespace YSMInstaller {
                 AddToStack(stack, card, Sizes.ContentGap);
             }
 
-            // Manual install: sentinel ModMetadata (no DownloadUrl) selected when the user wants to
-            // point at their own mod folder. Always appended — even for "not supported" versions where
-            // no compatible standard variants exist.
+            // Manual is always appended — even on "not supported" versions where no standard variants
+            // exist, so the user still has a path forward.
             var manualMetadata = new ModMetadata {
                 ModType = ModTypes.Manual,
                 GameVersion = _chooseVersion,
@@ -157,7 +156,6 @@ namespace YSMInstaller {
 
             SetContent(stack, fill: false);
 
-            // Default: first standard variant if available; otherwise Manual (covers not-supported case).
             MaterialOptionCard def =
                 _buildCards.FirstOrDefault(c => ((ModMetadata)c.Tag2!).ModType == ModTypes.Ysm)
                 ?? _buildCards.FirstOrDefault(c => ((ModMetadata)c.Tag2!).ModType != ModTypes.Manual)
@@ -259,9 +257,8 @@ namespace YSMInstaller {
                 return;
             }
 
-            // Catalog mismatch (game build > catalog target) AND manual mismatch (ModGenVersion in the
-            // user's Config.ini doesn't match the running WARNO) share the same warning step — user
-            // gets the chance to proceed knowing the mod may not load cleanly.
+            // Both catalog mismatch (game > catalog target) and manual mismatch (Config.ini's
+            // ModGenVersion ≠ running WARNO) funnel through the same warning so the user can bail.
             if (version != metadata.GameVersion) {
                 RenderVersionMismatch(metadata, version);
                 return;
@@ -341,6 +338,15 @@ namespace YSMInstaller {
                 return;
             }
 
+            if (IsDriveRoot(folder)) {
+                UserMessages.ShowError(
+                    this,
+                    "Pick a mod folder",
+                    "You selected a drive root. Pick the mod folder itself (the one that contains Config.ini), or a parent folder that holds the mod folder."
+                );
+                return;
+            }
+
             (string? configPath, string? error) = LocateConfigInFolder(folder);
             if (error != null) {
                 UserMessages.ShowError(this, "Invalid mod folder", error);
@@ -371,8 +377,8 @@ namespace YSMInstaller {
                 return;
             }
 
-            // Peek into the zip without full extraction — find Config.ini, parse it for ModGenVersion +
-            // Name so we can show version-mismatch / display name before the actual install starts.
+            // Peek into the zip without full extraction so we can show version-mismatch / display
+            // name before committing to the install.
             Dictionary<string, string> config;
             try {
                 config = ReadConfigFromArchive(archivePath, out string? peekError);
@@ -410,31 +416,69 @@ namespace YSMInstaller {
             await StartInstallAsync(manualMetadata, _chooseVersion);
         }
 
-        // Walks the folder for Config.ini — accepts both "user picked the mod root" and "user picked
-        // a parent that holds the mod folder" cases. Ambiguous matches (multiple Config.ini's) bail
-        // out so the user fixes the selection instead of us guessing.
+        // Capped so a Browse on a near-root folder can't fan out into a multi-minute scan.
+        private const int ManualFolderScanMaxDepth = 4;
+
         private static (string? path, string? error) LocateConfigInFolder(string folder) {
             if (!Directory.Exists(folder)) {
                 return (null, $"Folder does not exist:\n{folder}");
             }
-            string[] matches;
+            List<string> matches;
             try {
-                matches = Directory.GetFiles(folder, "Config.ini", SearchOption.AllDirectories);
+                matches = FindConfigFilesBounded(folder, ManualFolderScanMaxDepth);
             }
             catch (Exception exception) {
                 return (null, $"Could not scan the folder: {exception.Message}");
             }
-            if (matches.Length == 0) {
-                return (null, "No Config.ini found inside the selected folder.");
+            if (matches.Count == 0) {
+                return (null, $"No Config.ini found within {ManualFolderScanMaxDepth} folders of the selected location.");
             }
-            if (matches.Length > 1) {
+            if (matches.Count > 1) {
                 return (null, "Multiple Config.ini files found — pick a folder that contains exactly one mod.");
             }
             return (matches[0], null);
         }
 
-        // Read Config.ini directly from the zip — single-pass, no full extraction yet. Returns the
-        // parsed values; error is set if the archive shape is wrong (0 or multiple Config.ini).
+        // Per-directory IO errors are skipped rather than aborting — a single locked subfolder
+        // shouldn't fail the lookup.
+        private static List<string> FindConfigFilesBounded(string root, int maxDepth) {
+            var results = new List<string>();
+            var queue = new Queue<(string path, int depth)>();
+            queue.Enqueue((root, 0));
+            while (queue.Count > 0) {
+                (string current, int depth) = queue.Dequeue();
+                try {
+                    foreach (string file in Directory.GetFiles(current, "Config.ini")) {
+                        results.Add(file);
+                    }
+                }
+                catch {
+                    // Permission/IO — skip this directory.
+                }
+                if (depth >= maxDepth) {
+                    continue;
+                }
+                try {
+                    foreach (string sub in Directory.GetDirectories(current)) {
+                        queue.Enqueue((sub, depth + 1));
+                    }
+                }
+                catch {
+                    // Permission/IO — skip this branch.
+                }
+            }
+            return results;
+        }
+
+        private static bool IsDriveRoot(string folder) {
+            try {
+                return new DirectoryInfo(folder).Parent == null;
+            }
+            catch {
+                return false;
+            }
+        }
+
         private static Dictionary<string, string> ReadConfigFromArchive(string archivePath, out string? error) {
             using (var archive = System.IO.Compression.ZipFile.OpenRead(archivePath)) {
                 var configEntries = archive.Entries
@@ -468,7 +512,12 @@ namespace YSMInstaller {
 
         private static int? TryParseInt(Dictionary<string, string> values, string key) {
             return values.TryGetValue(key, out string raw)
-                && int.TryParse(raw.Trim(), out int parsed)
+                && int.TryParse(
+                    raw.Trim(),
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out int parsed
+                )
                 ? parsed
                 : (int?)null;
         }
@@ -557,9 +606,8 @@ namespace YSMInstaller {
                 if (_stepChecklist != null) {
                     _stepChecklist.ActiveIndex = index;
                 }
-                // For installs without numeric progress (manual folder / archive) the bar lives off
-                // step completion instead. Monotonic guard prevents backsliding if a real bytes-based
-                // percent already pushed the bar higher (e.g. download just landed at 100).
+                // Manual flows have no bytes-based progress, so the bar advances per step. Monotonic
+                // guard prevents backsliding when a real bytes-based percent was already higher.
                 int stepBasedPercent = _currentInstallSteps.Length > 0
                     ? (int)Math.Round(index * 100.0 / _currentInstallSteps.Length)
                     : 0;
@@ -900,9 +948,8 @@ namespace YSMInstaller {
             };
             stack.Controls.Add(subtitle);
 
-            // Where the installer actually places the mod — Saved Games, not the Steam install dir.
-            // entry.ModsPath (which points to {GamePath}\Mods) is only used by the scanner as a probe
-            // for a valid Steam install; it's the Workshop mirror, not where WARNO loads mods from.
+            // entry.ModsPath ({GamePath}\Mods) is the Steam install probe / Workshop mirror, not
+            // where WARNO loads mods from — the real load path is Saved Games.
             string modsPath = WarnoPaths.ModFolder;
             var folderCard = new MaterialCard(Sizes.RadiusSmall) {
                 Anchor = AnchorStyles.None,

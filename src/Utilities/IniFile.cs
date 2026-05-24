@@ -5,9 +5,16 @@ using System.IO;
 namespace YSMInstaller {
     public static class IniFile {
         public static Dictionary<string, string> ReadValues(string path) {
+            using (var reader = new StreamReader(path)) {
+                return ReadValues(reader);
+            }
+        }
+
+        public static Dictionary<string, string> ReadValues(TextReader reader) {
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var line in File.ReadLines(path)) {
+            string? line;
+            while ((line = reader.ReadLine()) != null) {
                 string trimmed = line.Trim();
                 if (
                     string.IsNullOrEmpty(trimmed)
