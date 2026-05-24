@@ -93,6 +93,14 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(NuGetPackageRoot)newtonsoft.json\13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="Svg">
+      <HintPath>$(NuGetPackageRoot)svg\3.4.7\lib\net472\Svg.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="ExCSS">
+      <HintPath>$(NuGetPackageRoot)excss\4.2.3\lib\netstandard2.0\ExCSS.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Deployment" />
     <Reference Include="System.Drawing" />
@@ -101,33 +109,49 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controls\Material\MaterialButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\MaterialOptionCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\SoftLabel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\MaterialCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\MaterialRadioCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\SkeletonCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\MaterialProgressBar.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\Material\StepChecklist.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="UI\Tokens.cs" />
+    <Compile Include="UI\AppLinks.cs" />
+    <Compile Include="UI\BuildIcons.cs" />
+    <Compile Include="UI\MaterialPalette.cs" />
+    <Compile Include="UI\MaterialType.cs" />
+    <Compile Include="UI\MaterialIcons.cs" />
+    <Compile Include="UI\MaterialIconRenderer.cs" />
+    <Compile Include="UI\WindowChrome.cs" />
+    <Compile Include="Forms\MaterialDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Controls\Rounded\RoundedControls.cs" />
-    <Compile Include="Controls\Rounded\RoundedBorderButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Controls\Rounded\RoundedButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Rounded\RoundedLabel.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Controls\Rounded\RoundedPanel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Controls\Rounded\RoundedPicturebox.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Rounded\RoundedTextBox.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Controls\Ui\DropdownSelect.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Ui\InstallProgressBar.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Ui\UiChrome.cs" />
-    <Compile Include="Controls\WarnoEntryControl.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Forms\Form1.cs">
@@ -145,10 +169,15 @@
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Form1.Dev.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Utilities\AppLogger.cs" />
+    <Compile Include="Utilities\Connectivity.cs" />
     <Compile Include="Utilities\DevService.cs" />
     <Compile Include="Utilities\HttpService.cs" />
     <Compile Include="Utilities\IniFile.cs" />
@@ -175,7 +204,6 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UI\Sizes.cs" />
-    <Compile Include="UI\Theme.cs" />
     <Compile Include="UI\UserMessages.cs" />
     <Compile Include="Warno\DevWarnoMocks.cs" />
     <Compile Include="Warno\IModCatalogSource.cs" />
@@ -191,6 +219,7 @@
     <Compile Include="Warno\WarnoFinder.cs" />
     <Compile Include="Warno\WarnoInstaller.cs" />
     <Compile Include="Warno\WarnoInstallWarning.cs" />
+    <Compile Include="Warno\WarnoPaths.cs" />
     <Compile Include="Warno\WarnoScanner.cs" />
     <Compile Include="Warno\YokaisteReleaseCatalogSource.cs" />
     <EmbeddedResource Include="Forms\Form1.resx">
@@ -219,6 +248,44 @@
     <None Include="Properties\App.config" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resources\icons\arrow_drop_down.svg" />
+    <EmbeddedResource Include="Resources\icons\arrow_forward.svg" />
+    <EmbeddedResource Include="Resources\icons\check.svg" />
+    <EmbeddedResource Include="Resources\icons\check_circle.svg" />
+    <EmbeddedResource Include="Resources\icons\check_circle_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\check_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\close.svg" />
+    <EmbeddedResource Include="Resources\icons\cloud.svg" />
+    <EmbeddedResource Include="Resources\icons\deployed_code.svg" />
+    <EmbeddedResource Include="Resources\icons\download.svg" />
+    <EmbeddedResource Include="Resources\icons\error.svg" />
+    <EmbeddedResource Include="Resources\icons\error_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\expand_more.svg" />
+    <EmbeddedResource Include="Resources\icons\folder.svg" />
+    <EmbeddedResource Include="Resources\icons\folder_open.svg" />
+    <EmbeddedResource Include="Resources\icons\help.svg" />
+    <EmbeddedResource Include="Resources\icons\help_outline.svg" />
+    <EmbeddedResource Include="Resources\icons\info.svg" />
+    <EmbeddedResource Include="Resources\icons\info_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\layers.svg" />
+    <EmbeddedResource Include="Resources\icons\open_in_new.svg" />
+    <EmbeddedResource Include="Resources\icons\play_arrow.svg" />
+    <EmbeddedResource Include="Resources\icons\play_arrow_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\radio_button_checked.svg" />
+    <EmbeddedResource Include="Resources\icons\radio_button_unchecked.svg" />
+    <EmbeddedResource Include="Resources\icons\refresh.svg" />
+    <EmbeddedResource Include="Resources\icons\search_off.svg" />
+    <EmbeddedResource Include="Resources\icons\settings.svg" />
+    <EmbeddedResource Include="Resources\icons\steam.svg" />
+    <EmbeddedResource Include="Resources\icons\tips_and_updates.svg" />
+    <EmbeddedResource Include="Resources\icons\travel_explore.svg" />
+    <EmbeddedResource Include="Resources\icons\videogame_asset.svg" />
+    <EmbeddedResource Include="Resources\icons\warning.svg" />
+    <EmbeddedResource Include="Resources\icons\warning_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\ysm_wif.png" />
+    <EmbeddedResource Include="Resources\icons\wto.png" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="Resources\Screenshot 2025-03-02 182641.png" />
   </ItemGroup>
   <ItemGroup>
@@ -244,6 +311,7 @@
     <PackageReference Include="Newtonsoft.Json">
       <Version>13.0.3</Version>
     </PackageReference>
+    <PackageReference Include="Svg" Version="3.4.7" />
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Resources.Extensions" Version="10.0.7" />
   </ItemGroup>

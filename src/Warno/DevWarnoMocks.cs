@@ -1,12 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace YSMInstaller {
     internal static class DevWarnoMocks {
-        public static bool IsEnabled {
-            get { return DevService.IsMockWarnoPathsEnabled; }
-        }
+        public static bool IsEnabled => DevService.IsMockWarnoPathsEnabled;
+
+        /// <summary>One-shot flag: when set, the next simulated install throws to exercise the failure UI.</summary>
+        public static bool SimulateInstallFailure { get; set; }
 
         public static bool TryCreateScanResult(out ScanResult scanResult) {
             if (!IsEnabled) {
@@ -14,9 +14,7 @@ namespace YSMInstaller {
                 return false;
             }
 
-            var supportedMods = CreateSupportedMods();
-            var entries = CreateEntries(supportedMods);
-            scanResult = new ScanResult(supportedMods, entries.Count, entries);
+            scanResult = new ScanResult(Catalog(), 4, MixedInstalls(), ModCatalogSources.OfficialModsListName);
             AppLogger.Info("Using mocked WARNO scan result for UI development.");
             return true;
         }
@@ -25,82 +23,74 @@ namespace YSMInstaller {
             return new ScanResult(new List<ModMetadata>(), 0, new List<WarnoEntry>());
         }
 
-        private static List<ModMetadata> CreateSupportedMods() {
+        // ---- Catalog ----
+        public static List<ModMetadata> Catalog() {
             return new List<ModMetadata> {
-                new ModMetadata {
-                    ModType = ModTypes.Ysm,
-                    GameVersion = 146198,
-                    DownloadUrl = "https://example.invalid/dev/ysm_146198.zip",
-                    KnownIssuesUrl =
-                        "https://steamcommunity.com/workshop/filedetails/discussion/3296415395/4509876644765422685/",
-                },
-                new ModMetadata {
-                    ModType = ModTypes.Ysm,
-                    GameVersion = 188908,
-                    DownloadUrl = "https://example.invalid/dev/ysm_188908.zip",
-                },
-                new ModMetadata {
-                    ModType = ModTypes.YsmWif,
-                    GameVersion = 188908,
-                    DownloadUrl = "https://example.invalid/dev/ysm_wif_188908.zip",
-                },
-                new ModMetadata {
-                    ModType = ModTypes.YsmWto,
-                    GameVersion = 188908,
-                    DownloadUrl = "https://example.invalid/dev/ysm_wto_188908.zip",
-                },
+                Mod(ModTypes.Ysm, 146198, "https://steamcommunity.com/workshop/filedetails/discussion/3296415395/4509876644765422685/"),
+                Mod(ModTypes.Ysm, 188908),
+                Mod(ModTypes.YsmWif, 188908),
+                Mod(ModTypes.Wto, 188908),
             };
         }
 
-        private static List<WarnoEntry> CreateEntries(List<ModMetadata> supportedMods) {
-            int latestSupportedVersion = supportedMods.Max(mod => mod.GameVersion);
+        private static ModMetadata Mod(string type, int version, string? knownIssues = null) {
+            return new ModMetadata {
+                ModType = type,
+                GameVersion = version,
+                DownloadUrl = $"https://example.invalid/dev/{type}_{version}.zip",
+                KnownIssuesUrl = knownIssues,
+            };
+        }
 
+        // ---- Scenarios (for the dev Test menu) ----
+        public static List<WarnoEntry> MixedInstalls() {
+            var catalog = Catalog();
             return new List<WarnoEntry> {
-                CreateEntry(
-                    @"C:\Games\WARNO\Warno.exe",
-                    188908,
-                    "Mock Steam",
-                    supportedMods,
-                    latestSupportedVersion
-                ),
-                CreateEntry(
-                    @"D:\SteamLibrary\steamapps\common\WARNO\Warno.exe",
-                    200000,
-                    "Mock future version",
-                    supportedMods,
-                    latestSupportedVersion
-                ),
-                CreateEntry(
-                    @"E:\Portable\WARNO\Warno.exe",
-                    146198,
-                    "Mock known issues",
-                    supportedMods,
-                    latestSupportedVersion
-                ),
-                CreateEntry(
-                    @"F:\OldGames\WARNO\Warno.exe",
-                    120000,
-                    "Mock unsupported",
-                    supportedMods,
-                    latestSupportedVersion
-                ),
+                Entry(@"C:\Program Files (x86)\Steam\steamapps\common\WARNO\Warno.exe", 188908, WarnoExecutableSources.Steam, catalog),
+                Entry(@"D:\SteamLibrary\steamapps\common\WARNO\Warno.exe", 200000, WarnoExecutableSources.Steam, catalog),
+                Entry(@"E:\Portable\WARNO\Warno.exe", 146198, WarnoExecutableSources.CommonFolder, catalog),
+                Entry(@"F:\OldGames\WARNO\Warno.exe", 120000, WarnoExecutableSources.Manual, catalog),
             };
         }
 
-        private static WarnoEntry CreateEntry(
-            string exePath,
-            int version,
-            string sourceLabel,
-            List<ModMetadata> supportedMods,
-            int latestSupportedVersion
-        ) {
+        public static List<WarnoEntry> SingleSupported() {
+            var catalog = Catalog();
+            return new List<WarnoEntry> {
+                Entry(@"D:\SteamLibrary\steamapps\common\WARNO\Warno.exe", 188908, WarnoExecutableSources.Steam, catalog),
+            };
+        }
+
+        public static List<WarnoEntry> AllUnsupported() {
+            var catalog = Catalog();
+            return new List<WarnoEntry> {
+                Entry(@"F:\OldGames\WARNO\Warno.exe", 120000, WarnoExecutableSources.CommonFolder, catalog),
+                Entry(@"G:\Legacy\WARNO\Warno.exe", 100000, WarnoExecutableSources.Manual, catalog),
+            };
+        }
+
+        public static List<WarnoEntry> KnownIssues() {
+            var catalog = Catalog();
+            return new List<WarnoEntry> {
+                Entry(@"E:\Portable\WARNO\Warno.exe", 146198, WarnoExecutableSources.CommonFolder, catalog),
+            };
+        }
+
+        public static List<WarnoEntry> FutureVersions() {
+            var catalog = Catalog();
+            return new List<WarnoEntry> {
+                Entry(@"D:\SteamLibrary\steamapps\common\WARNO\Warno.exe", 210000, WarnoExecutableSources.Steam, catalog),
+                Entry(@"C:\Games\WARNO\Warno.exe", 205000, WarnoExecutableSources.Registry, catalog),
+            };
+        }
+
+        private static WarnoEntry Entry(string exePath, int version, string sourceLabel, List<ModMetadata> catalog) {
+            int latestSupported = catalog.Select(m => m.GameVersion).DefaultIfEmpty(0).Max();
             return new WarnoEntry {
                 ExePath = exePath,
                 SourceLabel = sourceLabel,
                 Version = version,
-                VersionMetadata = supportedMods.Find(mod => mod.GameVersion == version),
-                LatestCompatibleModVersion =
-                    version > latestSupportedVersion ? latestSupportedVersion : 0,
+                VersionMetadata = catalog.Find(m => m.GameVersion == version),
+                LatestCompatibleModVersion = version > latestSupported ? latestSupported : 0,
             };
         }
     }

@@ -1,236 +1,304 @@
 using System;
 using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
     public partial class Form1 {
-        private void BuildLayout() {
-            Controls.Remove(label1);
-            Controls.Remove(linkLabel1);
+        private TableLayoutPanel _root = null!;
+        private FlowLayoutPanel _titleStack = null!;
+        private Label _overlineLabel = null!;
+        private Label _subLabel = null!;
+        private MaterialButton _settingsButton = null!;
+        private Panel _contentHost = null!;
+        private Panel _island = null!;
+        private FlowLayoutPanel _islandActions = null!;
 
-            Padding = new Padding(Sizes.FormPadding);
-            MinimumSize = new Size(Sizes.MinimumFormWidth, Sizes.MinimumFormHeight);
+        private void BuildChrome() {
+            Controls.Clear();
+            Padding = new Padding(Sizes.WindowPadding);
 
-            _rootLayout = new TableLayoutPanel {
+            _root = new TableLayoutPanel {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 4,
+                RowCount = 3,
                 BackColor = Color.Transparent,
-                AutoSize = false,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty,
             };
-            _rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            _rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            _rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            _rootLayout.Controls.Add(CreateHeaderLayout(), 0, 0);
-            _rootLayout.Controls.Add(CreateEntriesLayout(), 0, 1);
-            _rootLayout.Controls.Add(CreateInstallButtonsPanel(), 0, 3);
+            _root.Controls.Add(BuildHeader(), 0, 0);
+            _root.Controls.Add(BuildContentHost(), 0, 1);
+            _root.Controls.Add(BuildIsland(), 0, 2);
 
-            Controls.Add(_rootLayout);
+            Controls.Add(_root);
         }
 
-        private Control CreateHeaderLayout() {
-            var headerLayout = new TableLayoutPanel {
+        private Control BuildHeader() {
+            var header = new TableLayoutPanel {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 ColumnCount = 2,
                 Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, Sizes.ContentGap),
+                Padding = Padding.Empty,
+            };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            _titleStack = new FlowLayoutPanel {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = Color.Transparent,
+                FlowDirection = FlowDirection.TopDown,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty,
+                WrapContents = false,
+            };
+
+            _overlineLabel = new SoftLabel {
+                AutoSize = true,
+                Font = MaterialType.Overline,
+                ForeColor = MaterialPalette.OnSurfaceVariant,
+                Margin = new Padding(0, 0, 0, 2),
+                Text = "STARTING…",
+            };
+            _subLabel = new SoftLabel {
+                AutoSize = true,
+                Font = MaterialType.TitleMedium,
+                ForeColor = MaterialPalette.OnSurface,
+                Margin = Padding.Empty,
+                Text = "Preparing installer",
+            };
+            _titleStack.Controls.Add(_overlineLabel);
+            _titleStack.Controls.Add(_subLabel);
+
+            var rightActions = new FlowLayoutPanel {
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = Color.Transparent,
+                FlowDirection = FlowDirection.RightToLeft,
+                Margin = new Padding(0, 2, 0, 0),
+                Padding = Padding.Empty,
+                WrapContents = false,
+            };
+
+            _settingsButton = new MaterialButton {
+                Variant = MaterialButtonVariant.Text,
+                IconGlyph = MaterialIcons.Settings,
+                Text = "Settings",
+                Width = 110,
+                Height = 36,
+                Margin = Padding.Empty,
+            };
+            _settingsButton.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+            _settingsButton.Click += async (sender, args) => await OpenSettingsAsync();
+            rightActions.Controls.Add(_settingsButton);
+
+#if DEBUG
+            var testButton = new MaterialButton {
+                Variant = MaterialButtonVariant.Text,
+                Text = "Test",
+                Width = 70,
+                Height = 36,
+                Margin = new Padding(0, 0, 4, 0),
+            };
+            testButton.SetAccent(MaterialPalette.Tertiary, MaterialPalette.OnTertiaryContainer);
+            testButton.Click += (sender, args) => OpenDevTestMenu();
+            rightActions.Controls.Add(testButton);
+#endif
+
+            header.Controls.Add(_titleStack, 0, 0);
+            header.Controls.Add(rightActions, 1, 0);
+            return header;
+        }
+
+        private Control BuildContentHost() {
+            _contentHost = new Panel {
+                AutoScroll = false, // never show a scrollbar — the window grows to fit instead
+                BackColor = Color.Transparent,
+                Dock = DockStyle.Fill,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty,
             };
-            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-            label1.Margin = Padding.Empty;
-            label1.Dock = DockStyle.Fill;
-            label1.TextAlign = ContentAlignment.MiddleLeft;
-            _settingsButton = CreateSettingsButton();
-
-            headerLayout.Controls.Add(label1, 0, 0);
-            headerLayout.Controls.Add(_settingsButton, 1, 0);
-            return headerLayout;
+            return _contentHost;
         }
 
-        private RoundedButton CreateSettingsButton() {
-            var button = new RoundedButton(14) {
-                AutoSize = true,
-                BackColor = Theme.ButtonBackground,
-                ForeColor = Theme.ButtonForeground,
-                Margin = Padding.Empty,
-                Text = "Settings",
+        private Control BuildIsland() {
+            // No island chrome — just a transparent host that holds the bottom action row.
+            _island = new Panel {
+                BackColor = Color.Transparent,
+                Dock = DockStyle.Top,
+                Height = Sizes.ButtonHeight + 4,
+                Margin = new Padding(0, Sizes.ContentGap, 0, 0),
+                Padding = Padding.Empty,
+                Visible = false,
             };
 
-            button.Click += async (sender, args) => await OpenSettingsAsync();
-            return button;
-        }
-
-        private async Task OpenSettingsAsync() {
-            try {
-                using (var form = new SettingsForm()) {
-                    if (form.ShowDialog(this) == DialogResult.OK && form.SourceChanged) {
-                        await ScanAsync();
-                    }
-                }
-            }
-            catch (Exception ex) {
-                AppLogger.Critical("Settings dialog failed.", ex);
-                MessageBox.Show(
-                    $"{ex.GetType().Name}: {ex.Message}\n\n{(ex.StackTrace ?? string.Empty)}",
-                    "YSM Installer — Settings",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
-                );
-            }
-        }
-
-        private Control CreateEntriesLayout() {
-            _entriesLayout = new TableLayoutPanel {
+            _islandActions = new FlowLayoutPanel {
                 AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = Color.Transparent,
+                FlowDirection = FlowDirection.RightToLeft,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty,
+                WrapContents = false,
+            };
+            _island.Controls.Add(_islandActions);
+            _island.Resize += (s, e) => PositionIslandActions();
+            return _island;
+        }
+
+        private void PositionIslandActions() {
+            // Anchor=Right doesn't pin until the host has a measured width, so place manually on resize.
+            _islandActions.Left = _island.ClientSize.Width - _islandActions.Width;
+            _islandActions.Top = (_island.ClientSize.Height - _islandActions.Height) / 2;
+        }
+
+        // ---- Content helpers ----
+
+        private void SetHeader(string overline, string sub) {
+            _overlineLabel.Text = (overline ?? string.Empty).ToUpperInvariant();
+            bool hasSub = !string.IsNullOrEmpty(sub);
+            _subLabel.Text = sub ?? string.Empty;
+            _subLabel.Visible = hasSub;
+            // Anchor=Left (no Top) lets the TLP cell center the stack vertically, matching the Settings
+            // button row when only the overline shows. With both labels, top-anchor keeps the original look.
+            _titleStack.Anchor = hasSub
+                ? AnchorStyles.Top | AnchorStyles.Left
+                : AnchorStyles.Left;
+        }
+
+        // Window height is fixed (no jumping). Stacked content is top-aligned; only the dedicated
+        // full states (e.g. Complete) center themselves via their own layout (fill = true).
+        private void SetContent(Control container, bool fill) {
+            _contentHost.SuspendLayout();
+            for (int i = _contentHost.Controls.Count - 1; i >= 0; i--) {
+                Control existing = _contentHost.Controls[i];
+                _contentHost.Controls.RemoveAt(i);
+                existing.Dispose();
+            }
+            container.Dock = fill ? DockStyle.Fill : DockStyle.Top;
+            _contentHost.Controls.Add(container);
+            _contentHost.ResumeLayout(true);
+        }
+
+        /// <summary>Vertical full-width stack hosted in an AutoScroll panel.</summary>
+        private static TableLayoutPanel NewStack() {
+            var stack = new TableLayoutPanel {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 BackColor = Color.Transparent,
                 ColumnCount = 1,
                 Dock = DockStyle.Top,
-                Margin = new Padding(0, Sizes.HeaderToEntriesGap, 0, 0),
+                GrowStyle = TableLayoutPanelGrowStyle.AddRows,
+                Margin = Padding.Empty,
                 Padding = Padding.Empty,
             };
-            _entriesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            return _entriesLayout;
+            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            return stack;
         }
 
-        private Control CreateInstallButtonsPanel() {
-            _installIslandPanel = new RoundedPanel(16) {
+        private static void AddToStack(TableLayoutPanel stack, Control control, int bottomGap) {
+            control.Dock = DockStyle.Top;
+            control.Margin = new Padding(0, 0, 0, bottomGap);
+            stack.Controls.Add(control);
+        }
+
+        // ---- Island helpers ----
+
+        private static readonly bool IslandEnabled = true;
+
+        private void HideIsland() {
+            _island.Visible = false;
+        }
+
+        private void SetIslandActions(params Control[] actions) {
+            if (!IslandEnabled) {
+                _island.Visible = false;
+                return;
+            }
+            _islandActions.SuspendLayout();
+            for (int i = _islandActions.Controls.Count - 1; i >= 0; i--) {
+                Control old = _islandActions.Controls[i];
+                _islandActions.Controls.RemoveAt(i);
+                old.Dispose();
+            }
+            // RightToLeft flow puts the first-added control at the far right; iterate in reverse so
+            // the primary (last input) lands rightmost.
+            for (int i = actions.Length - 1; i >= 0; i--) {
+                Control action = actions[i];
+                action.Dock = DockStyle.None;
+                action.AutoSize = true;
+                action.Margin = new Padding(i == 0 ? 0 : Tokens.Space2, 2, 0, 2);
+                _islandActions.Controls.Add(action);
+            }
+            _islandActions.ResumeLayout(true);
+            _island.Visible = actions.Length > 0;
+            PositionIslandActions();
+        }
+
+        private Control BuildButtonRow(params MaterialButton[] buttons) {
+            var grid = new TableLayoutPanel {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Dock = DockStyle.Top,
-                Margin = new Padding(0, Sizes.ButtonGap, 0, 0),
-                Padding = new Padding(6),
-                BackColor = Color.FromArgb(26, 30, 41),
-                Visible = false,
-            };
-            _installIslandPanel.SetOutline(Theme.EntryPanelBorder);
-            _installIslandPanel.SizeChanged += (sender, args) => UpdateInstallButtonsLayout();
-
-            _installProgressBar = new InstallProgressBar {
-                Visible = false,
-            };
-
-            _installControlPanel = new FlowLayoutPanel {
-                AutoSize = false,
                 BackColor = Color.Transparent,
-                Dock = DockStyle.Top,
-                FlowDirection = FlowDirection.LeftToRight,
-                Margin = new Padding(0, 4, 0, 0),
+                ColumnCount = buttons.Length,
+                RowCount = 1,
+                Margin = Padding.Empty,
                 Padding = Padding.Empty,
-                Visible = false,
-                WrapContents = false,
+                Height = Tokens.BtnHeight,
             };
-            _installIslandPanel.Controls.Add(_installControlPanel);
-            _installIslandPanel.Controls.Add(_installProgressBar);
-
-            return _installIslandPanel;
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, Tokens.BtnHeight));
+            for (int i = 0; i < buttons.Length; i++) {
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / buttons.Length));
+                buttons[i].AutoSize = false;
+                buttons[i].Dock = DockStyle.Fill;
+                buttons[i].Height = Tokens.BtnHeight;
+                buttons[i].Margin = new Padding(
+                    i == 0 ? 0 : Tokens.Space1,
+                    0,
+                    i == buttons.Length - 1 ? 0 : Tokens.Space1,
+                    0
+                );
+                grid.Controls.Add(buttons[i], i, 0);
+            }
+            return grid;
         }
 
-        private void ClearDynamicControls() {
-            ClearInstallControls();
-
-            if (_showMoreButton != null) {
-                _entriesLayout.Controls.Remove(_showMoreButton);
-                _showMoreButton.Dispose();
-                _showMoreButton = null;
-            }
-
-            foreach (var panel in _panels) {
-                panel.VersionSelected -= VersionSelected;
-                panel.HowToChangeVersionRequested -= OpenStepsForm;
-                _entriesLayout.Controls.Remove(panel);
-                panel.Dispose();
-            }
-            _panels.Clear();
-
+        private MaterialButton PrimaryButton(string text, string glyph = "") {
+            return new MaterialButton {
+                Variant = MaterialButtonVariant.Filled,
+                Text = text,
+                IconGlyph = glyph,
+                Height = Sizes.ButtonHeight,
+            };
         }
 
-        private void ClearInstallControls() {
-            foreach (Control control in _installButtons) {
-                control.Dispose();
-            }
-            _installButtons.Clear();
-            _lastInstallButtonsLayoutWidth = 0;
-            _lastInstallButtonsCount = 0;
-
-            _installControlPanel.Controls.Clear();
-            _installControlPanel.Visible = false;
-            _installControlPanel.Margin = Padding.Empty;
-            _installProgressBar.Value = 0;
-            _installProgressBar.Visible = false;
-            _installIslandPanel.Visible = false;
+        private MaterialButton TonalButton(string text, string glyph = "") {
+            return new MaterialButton {
+                Variant = MaterialButtonVariant.Tonal,
+                Text = text,
+                IconGlyph = glyph,
+                Height = Sizes.ButtonHeight,
+            };
         }
 
-        private void RelayoutPanels() {
-            _entriesLayout.PerformLayout();
-        }
-
-        private void RelayoutInstallButtons() {
-            bool hasButtons = _installControlPanel.Controls.Count > 0;
-            _installControlPanel.Visible = hasButtons;
-            _installIslandPanel.Visible = hasButtons;
-            UpdateInstallButtonsLayout();
-        }
-
-        private void UpdateInstallButtonsLayout() {
-            if (_installButtons.Count == 0) {
-                return;
-            }
-
-            int availableWidth = _installControlPanel.ClientSize.Width;
-            if (availableWidth <= 0) {
-                return;
-            }
-            if (
-                _lastInstallButtonsLayoutWidth == availableWidth
-                && _lastInstallButtonsCount == _installButtons.Count
-            ) {
-                return;
-            }
-
-            int gap = Sizes.ButtonGap;
-            int buttonCount = _installButtons.Count;
-            int totalGaps = gap * (buttonCount - 1);
-            int targetWidth = Math.Max(80, (availableWidth - totalGaps) / buttonCount);
-            int targetHeight = 0;
-
-            foreach (RoundedButton button in _installButtons) {
-                targetHeight = Math.Max(targetHeight, Math.Max(34, button.PreferredSize.Height));
-            }
-
-            for (int index = 0; index < _installButtons.Count; index++) {
-                RoundedButton button = _installButtons[index];
-                button.AutoSize = false;
-                button.Width = index == _installButtons.Count - 1
-                    ? availableWidth - (targetWidth * (buttonCount - 1)) - totalGaps
-                    : targetWidth;
-                button.Height = targetHeight;
-                button.Margin = index == _installButtons.Count - 1
-                    ? new Padding(0)
-                    : new Padding(0, 0, gap, 0);
-            }
-
-            _installControlPanel.Height = targetHeight;
-            _lastInstallButtonsLayoutWidth = availableWidth;
-            _lastInstallButtonsCount = _installButtons.Count;
-        }
-
-        private void ResizeFormToFitContent() {
-            Width = Math.Max(Sizes.MinimumFormWidth, Width);
-            Height = Math.Max(
-                Sizes.MinimumFormHeight,
-                _rootLayout.PreferredSize.Height + Padding.Vertical + Sizes.ContentBottomPadding
-            );
-            MinimumSize = new Size(Width, Height);
+        private MaterialButton OutlinedButton(string text, string glyph = "") {
+            var button = new MaterialButton {
+                Variant = MaterialButtonVariant.Outlined,
+                Text = text,
+                IconGlyph = glyph,
+                Height = Sizes.ButtonHeight,
+            };
+            button.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+            return button;
         }
     }
 }

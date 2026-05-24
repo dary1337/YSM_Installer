@@ -13,5 +13,15 @@ namespace YSMInstaller {
 
         [JsonProperty("known_issues_url")]
         public string? KnownIssuesUrl { get; set; }
+
+        [JsonIgnore]
+        public string? LocalSourceFolder { get; set; }
+
+        [JsonIgnore]
+        public string? LocalSourceArchive { get; set; }
+
+        // Manual installs use the mod's real Name from Config.ini so the UI doesn't read "Manual install".
+        [JsonIgnore]
+        public string? DisplayNameOverride { get; set; }
     }
 }

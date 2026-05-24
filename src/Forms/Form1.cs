@@ -6,46 +6,53 @@ using System.Windows.Forms;
 
 namespace YSMInstaller {
     public partial class Form1 : Form {
-        private readonly List<RoundedButton> _installButtons = new List<RoundedButton>();
-        private readonly List<WarnoEntryControl> _panels = new List<WarnoEntryControl>();
-        private readonly ScanCoordinator _scanCoordinator = new ScanCoordinator();
-        private List<ModMetadata> _supportedVersions = new List<ModMetadata>();
+        private enum AppState {
+            Scanning,
+            NotFound,
+            CatalogUnavailable,
+            InstallsFound,
+            ChooseBuild,
+            VersionMismatch,
+            Installing,
+            Complete,
+            Failed,
+        }
 
-        private TableLayoutPanel _rootLayout = null!;
-        private TableLayoutPanel _entriesLayout = null!;
-        private RoundedPanel _installIslandPanel = null!;
-        private InstallProgressBar _installProgressBar = null!;
-        private FlowLayoutPanel _installControlPanel = null!;
-        private RoundedButton? _settingsButton;
-        private RoundedButton? _showMoreButton;
+        private readonly ScanCoordinator _scanCoordinator = new ScanCoordinator();
+        private readonly List<MaterialRadioCard> _cards = new List<MaterialRadioCard>();
+        private readonly HashSet<string> _installedKeys = new HashSet<string>();
+
+        private List<ModMetadata> _supportedVersions = new List<ModMetadata>();
+        private List<WarnoEntry> _entries = new List<WarnoEntry>();
+        private WarnoEntry? _selectedEntry;
+        private ScanResult? _lastScanResult;
+
+        private AppState _state = AppState.Scanning;
         private bool _includeSystemFolders;
-        private bool _isInstallButtonBusy;
         private bool _isScanning;
+        private bool _isInstalling;
         private bool _hasFoundWarnoExe;
-        private int _lastInstallButtonsLayoutWidth;
-        private int _lastInstallButtonsCount;
+        private bool _showAllEntries;
 
         public Form1() {
             InitializeComponent();
 
-            label1.Text = "Starting...";
+            Text = "YSM Installer";
             Icon = Properties.Resources.logo;
-            BackColor = Theme.Background;
-            Opacity = 0.98;
+            BackColor = MaterialPalette.Surface;
+            ForeColor = MaterialPalette.OnSurface;
+            Font = MaterialType.BodyMedium;
+            StartPosition = FormStartPosition.CenterScreen;
+            MinimumSize = new Size(Tokens.WindowMinWidth, Tokens.WindowMinHeight);
+            ClientSize = new Size(Tokens.WindowWidth, Tokens.WindowHeight);
+            WindowChrome.ApplyDark(this);
+
             using (Graphics graphics = CreateGraphics()) {
                 AutoScaleDimensions = new SizeF(graphics.DpiX, graphics.DpiY);
             }
-            label1.AutoSize = true;
 
-            linkLabel1.Click += (sender, args) => OpenStepsForm();
             Activated += async (sender, args) => await ScanIfWarnoMissingAsync();
-            BuildLayout();
-        }
-
-        private void OpenStepsForm() {
-            using (var form = new StepsForm()) {
-                form.ShowDialog(this);
-            }
+            BuildChrome();
         }
 
         async void Form1_Load(object sender, EventArgs e) {
@@ -58,11 +65,37 @@ namespace YSMInstaller {
         }
 
         private async Task ScanIfWarnoMissingAsync() {
-            if (_isScanning || _hasFoundWarnoExe || IsDisposed || !Visible) {
+            bool busyState = _state == AppState.ChooseBuild
+                || _state == AppState.VersionMismatch
+                || _state == AppState.Installing
+                || _state == AppState.Complete
+                || _state == AppState.Failed;
+            if (_isScanning || _isInstalling || _hasFoundWarnoExe || busyState || IsDisposed || !Visible) {
                 return;
             }
 
             await ScanAsync();
+        }
+
+        private void OpenStepsForm() {
+            using (var form = new StepsForm()) {
+                form.ShowDialog(this);
+            }
+        }
+
+        private async Task OpenSettingsAsync() {
+            try {
+                using (var form = new SettingsForm()) {
+                    // Rescan during install would replace the live progress UI with disposed controls.
+                    if (form.ShowDialog(this) == DialogResult.OK && form.SourceChanged && !_isInstalling) {
+                        await ScanAsync();
+                    }
+                }
+            }
+            catch (Exception ex) {
+                AppLogger.Critical("Settings dialog failed.", ex);
+                UserMessages.ShowError(this, "Settings error", $"{ex.GetType().Name}: {ex.Message}");
+            }
         }
     }
 }

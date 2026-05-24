@@ -114,7 +114,7 @@ namespace YSMInstaller {
         private static bool IsValidModType(string modType) {
             return string.Equals(modType, ModTypes.Ysm, StringComparison.Ordinal)
                 || string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal)
-                || string.Equals(modType, ModTypes.YsmWto, StringComparison.Ordinal);
+                || string.Equals(modType, ModTypes.Wto, StringComparison.Ordinal);
         }
     }
 }

@@ -1,0 +1,148 @@
+language: en-US
+early_access: false
+enable_free_tier: true
+
+tone_instructions: >
+  Ruthless tech lead. WinForms .NET 4.7.2 installer. Terse, technical, no praise. Quote file:line, name failure mode, demand specific fix. Skip nits. Prioritize: security, correctness, WinForms footguns, resource hygiene, dead code.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  review_status: true
+  poem: false
+  collapse_walkthrough: false
+  sequence_diagrams: false
+  changed_files_summary: true
+  abort_on_close: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: true
+    base_branches:
+      - master
+      - main
+      - release/.*
+    ignore_title_keywords:
+      - WIP
+      - "[skip review]"
+
+  path_filters:
+    - "!**/bin/**"
+    - "!**/obj/**"
+    - "!**/*.designer.cs"
+    - "!**/*.Designer.cs"
+    - "!**/*.resx"
+    - "!**/Resources/**"
+    - "!**/packages/**"
+
+  path_instructions:
+    - path: "src/**/*.cs"
+      instructions: >
+        C# (net472, nullable enabled where annotated, no LangVersion override). Enforce: dispose every IDisposable created locally; use StringComparison.Ordinal for
+        identifiers/paths/keys, CurrentCulture only for user-facing display; never catch System.Exception without rethrow or AppLogger.Critical; never block on async
+        with .Result/.Wait/.GetAwaiter().GetResult() on the UI thread; never use async void outside a true event handler; propagate CancellationToken through every
+        I/O call site; prefer using-declarations or using-blocks over manual try/finally for disposal; reject fields named with underscore-prefix when they are not
+        private mutable instance state; reject `var` only when type cannot be inferred from RHS, otherwise allow.
+
+    - path: "src/Forms/**/*.cs"
+      instructions: >
+        WinForms surface. Demand: no Invoke/BeginInvoke without IsHandleCreated guard; SuspendLayout/ResumeLayout pairs around bulk Control changes; SetContent and
+        similar replacers must Dispose the prior tree (verify); event handlers attached to long-lived publishers are detached on Dispose; AutoSize controls inside
+        AutoSize TableLayoutPanels with Percent columns are flagged as suspect (the BuildMessageCard incident); painting code uses double-buffering style flags or
+        explicit Graphics buffers; Dialogs set DialogResult deterministically (Close without DialogResult is suspect); modal dialogs are ShowDialog with an owner;
+        every async lambda passed to Click/Activated must have a try/catch around its body OR funnel through a helper that logs via AppLogger.
+
+    - path: "src/Controls/**/*.cs"
+      instructions: >
+        Owner-drawn controls. Demand: SetStyle in constructor matches the painting strategy (UserPaint requires OnPaint to cover the full ClientRectangle, including
+        the background, when SupportsTransparentBackColor is set); Graphics/Brush/Pen/Font/Bitmap created in OnPaint are disposed in the same scope; cached Bitmaps
+        returned by MaterialIconRenderer.Get must NOT be disposed by callers (it returns shared cache entries); SizeF/RectangleF rounding is explicit (Ceiling/Round)
+        not implicit cast; AutoSize labels with MaximumSize set are validated against the actual paint metric (TextRenderer GDI vs Graphics.DrawString GDI+); event
+        handlers wired in the constructor must be unwired in Dispose if the subscription target outlives the control.
+
+    - path: "src/Utilities/HttpService.cs"
+      instructions: >
+        Single static HttpClient is the only allowed instance. Forbid: new HttpClient inside method bodies; missing CancellationToken on GetAsync/SendAsync/Stream
+        reads/writes; reading the full response body for size detection (must use HEAD or HttpCompletionOption.ResponseHeadersRead); writing to disk without a temp
+        path + atomic rename; missing EnsureSuccessStatusCode on download paths; UserAgent header must be set; redirects from untrusted hosts must be validated.
+
+    - path: "src/Utilities/UpdateService.cs"
+      instructions: >
+        Auto-update path is privileged. Demand: the downloaded payload is hash/signature-verified before execution; the update launcher is invoked with a controlled
+        ProcessStartInfo (no user input concatenation); failure leaves the current installer intact and logged; the "Later" path persists in a way that does not nag
+        the user every launch unless that is intentional and documented.
+
+    - path: "src/Warno/WarnoInstaller.cs"
+      instructions: >
+        Install flow is the highest-risk surface. Demand: every Directory.Create/File.Move/Copy/Delete operates on paths derived from validated WARNO install roots
+        (no user-supplied path concatenation without validation); archive extraction is path-traversal-safe (reject entries containing "..", absolute paths, or
+        symlinks); the rollback path restores both the mod folder and the WARNO config on ANY failure including OperationCanceledException; CloseRunningGame waits
+        with a hard timeout and is not a fire-and-forget; locks/handles are released before the rename step; all stage progress is reported through stageProgress so
+        Form1 StageToStepIndex does not silently desync.
+
+    - path: "src/Warno/InstallWorkflow.cs"
+      instructions: >
+        Pure orchestration — no dialogs, no UI. Demand: all exceptions either map to a specific InstallWorkflowResult or rethrow OperationCanceledException; the
+        AlreadyRunning path is observable to the caller and does not leak state; CancellationToken flows from Form1 down to HttpService and the mock progress
+        reporter without being dropped.
+
+    - path: "src/Warno/DevWarnoMocks.cs"
+      instructions: >
+        Debug-only test surface. Demand: SimulateInstallFailure is reset deterministically after each use; mock paths never touch the real filesystem; scenarios
+        cover every Form1 AppState; adding a new mod type requires a corresponding ModTypes entry and DescribeBuild branch — flag the absence.
+
+    - path: "src/UI/MaterialIconRenderer.cs"
+      instructions: >
+        Cache invariants: returned Bitmaps are shared, callers must not dispose; cache key must include every parameter that affects rendering (size, color, key);
+        SVG load failures must log and return a non-null fallback Bitmap so OnPaint never NREs; lock(Gate) covers every cache mutation; document the threading
+        contract.
+
+    - path: "src/Properties/Program.cs"
+      instructions: >
+        Entry point. Demand: every exception bucket (ThreadException, UnhandledException, UnobservedTaskException) writes to AppLogger BEFORE any UI; the first-chance
+        dialog suppression is single-shot (Interlocked.Exchange) — verify; SetUnhandledExceptionMode is set; Application.EnableVisualStyles and
+        SetCompatibleTextRenderingDefault(false) ordering must not regress.
+
+    - path: "**/*.csproj"
+      instructions: >
+        Demand: NuGet PackageReference versions are pinned (no floating "*"); every Reference HintPath survives a `dotnet restore`; EmbeddedResource globs are
+        explicit; no <Compile Remove> tricks without justification; assembly version bumps live with the change that warrants them, not stamped silently.
+
+    - path: ".github/workflows/**/*.yml"
+      instructions: >
+        Demand: actions are pinned by SHA or major-version, never @latest; secrets are referenced via secrets.* only; no `pull_request_target` with checkout of PR
+        head; permissions: are scoped to the minimum needed; cache keys include the lockfile hash.
+
+  labeling_instructions:
+    - label: "security"
+      instructions: "Apply when the diff touches Process.Start, HttpClient, archive extraction, update download, or any path concatenation involving user input."
+    - label: "install-flow"
+      instructions: "Apply when WarnoInstaller, InstallWorkflow, or HttpService.DownloadFileAsync are modified."
+    - label: "ui-state"
+      instructions: "Apply when Form1 AppState enum, Render* methods, or the island/buttons surface change."
+    - label: "needs-tests"
+      instructions: "Apply when business logic changes lack any matching dev-mock or scenario coverage."
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  pull_requests:
+    scope: auto
+
+code_generation:
+  docstrings:
+    language: en-US
+    path_instructions:
+      - path: "src/**/*.cs"
+        instructions: >
+          XML doc comments only when the type/member is part of a public API (public class, public method, public property) and the behavior is non-obvious. Skip
+          docs on private members, on overrides where the base documents it, and on auto-properties whose name fully expresses intent. Document the why
+          (constraints, invariants), not the what.

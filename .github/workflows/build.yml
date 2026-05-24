@@ -1,0 +1,79 @@
+name: build
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET Framework SDK
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: dotnet restore src/YSMInstaller.csproj
+
+      - name: Build (Release)
+        run: dotnet build src/YSMInstaller.csproj --configuration Release --no-restore -p:WarningLevel=4
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YSMInstaller-${{ github.sha }}
+          path: src/bin/Release/YSMInstaller.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YSMInstaller-${{ github.sha }}
+          path: ./artifact
+
+      - name: Update rolling draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: Latest build (auto-draft)
+          body: |
+            Rolling draft from the latest merge to `${{ github.ref_name }}`.
+
+            **Commit**: ${{ github.sha }}
+            **Run**: #${{ github.run_number }}
+            **Message**: ${{ github.event.head_commit.message }}
+
+            Smoke-test before promoting to a real versioned release.
+          draft: true
+          prerelease: true
+          files: ./artifact/YSMInstaller.exe

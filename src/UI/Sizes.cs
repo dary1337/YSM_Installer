@@ -1,15 +1,20 @@
 namespace YSMInstaller {
+    /// <summary>Semantic aliases over <see cref="Tokens"/>. Keep names domain-flavored (ButtonHeight,
+    /// RadioCardMinHeight) so callsites read intent instead of raw token names.</summary>
     static class Sizes {
-        public const int FormPadding = 10;
-        public const int PanelHeight = 80;
-        public const int PanelPadding = 10;
-        public const int PanelGap = 10;
-        public const int HeaderToEntriesGap = 24;
-        public const int SingleEntryInstallGap = 70;
-        public const int MultipleEntriesInstallGap = 20;
-        public const int ButtonGap = 10;
-        public const int MinimumFormWidth = 400;
-        public const int MinimumFormHeight = 300;
-        public const int ContentBottomPadding = 120;
+        public const int WindowPadding = Tokens.Space4;
+        public const int ContentGap = Tokens.Space3;
+
+        public const int RadiusExtraSmall = Tokens.ShapeSm;
+        public const int RadiusSmall = Tokens.ShapeMd;
+        public const int RadiusMedium = Tokens.ShapeLg;
+        public const int RadiusLarge = 20;
+        public const int RadiusFull = Tokens.ShapeFull;
+
+        public const int ButtonHeight = Tokens.BtnHeight;
+        public const int RadioCardMinHeight = Tokens.ListItemMinHeight;
+
+        public const int DialogMaxWidth = Tokens.ModalMaxWidth;
+        public const int DialogPadding = Tokens.Space6;
     }
 }

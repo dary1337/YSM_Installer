@@ -20,21 +20,21 @@ namespace YSMInstaller {
         private int _listChromeHeight;
         private bool _layoutSafe;
 
-        private const int HeaderHeight = 40;
+        private static readonly int HeaderHeight = Tokens.DropdownHeight;
 
         public DropdownSelect() {
-            BackColor = Theme.Background;
+            BackColor = MaterialPalette.Surface;
             Margin = new Padding(0, 0, 0, 8);
 
             _header = new RoundedPanel(12) {
-                BackColor = Theme.PanelBackground,
+                BackColor = MaterialPalette.SurfaceContainer,
                 Cursor = SystemCursors.Pointer,
                 Dock = DockStyle.None,
                 Height = HeaderHeight,
                 Padding = new Padding(12, 8, 12, 8),
             };
 
-            _header.SetOutline(Theme.EntryPanelBorder);
+            _header.SetOutline(MaterialPalette.OutlineVariant);
 
             var headerLayout = new Panel {
                 Cursor = SystemCursors.Pointer,
@@ -47,7 +47,7 @@ namespace YSMInstaller {
                 AutoEllipsis = true,
                 AutoSize = false,
                 Cursor = SystemCursors.Pointer,
-                ForeColor = Theme.TextPrimary,
+                ForeColor = MaterialPalette.OnSurface,
                 Text = string.Empty,
                 TextAlign = ContentAlignment.MiddleLeft,
             };
@@ -55,7 +55,7 @@ namespace YSMInstaller {
             _chevronLabel = new Label {
                 AutoSize = false,
                 Cursor = SystemCursors.Pointer,
-                ForeColor = Theme.TextMuted,
+                ForeColor = MaterialPalette.OnSurfaceVariant,
                 Padding = new Padding(0, 2, 0, 0),
                 Text = "▼",
                 TextAlign = ContentAlignment.MiddleRight,
@@ -68,13 +68,13 @@ namespace YSMInstaller {
             _header.Controls.Add(headerLayout);
 
             _listHost = new RoundedPanel(12) {
-                BackColor = Theme.DropdownListBackground,
+                BackColor = MaterialPalette.SurfaceContainerHigh,
                 Dock = DockStyle.None,
                 Padding = new Padding(6, 6, 6, 6),
                 Visible = false,
             };
 
-            _listHost.SetOutline(Theme.EntryPanelBorder);
+            _listHost.SetOutline(MaterialPalette.OutlineVariant);
 
             _listFlow = new FlowLayoutPanel {
                 AutoSize = true,
@@ -132,12 +132,12 @@ namespace YSMInstaller {
             var item = new DropdownItem(displayText, tag);
             _items.Add(item);
 
-            var button = new RoundedButton(10, Theme.DropdownRowHover) {
+            var button = new RoundedButton(10, MaterialPalette.SurfaceContainerHighest) {
                 AutoSize = false,
-                BackColor = Theme.DropdownListBackground,
+                BackColor = MaterialPalette.SurfaceContainerHigh,
                 Cursor = SystemCursors.Pointer,
                 FlatAppearance = { BorderSize = 0 },
-                ForeColor = Theme.TextPrimary,
+                ForeColor = MaterialPalette.OnSurface,
                 Margin = new Padding(0, 2, 0, 2),
                 Padding = new Padding(12, 8, 12, 8),
                 Tag = _items.Count - 1,
@@ -147,11 +147,11 @@ namespace YSMInstaller {
             };
 
             button.MouseEnter += (sender, args) => {
-                button.BackColor = Theme.DropdownRowHover;
+                button.BackColor = MaterialPalette.SurfaceContainerHighest;
             };
 
             button.MouseLeave += (sender, args) => {
-                button.BackColor = Theme.DropdownListBackground;
+                button.BackColor = MaterialPalette.SurfaceContainerHigh;
             };
 
             button.Click += OnOptionClicked;
@@ -332,7 +332,7 @@ namespace YSMInstaller {
             _listFlow.Width = innerWidth;
             foreach (RoundedButton button in _optionButtons) {
                 button.Width = innerWidth;
-                button.Height = 36;
+                button.Height = 42;
             }
 
             _listFlow.ResumeLayout(performLayout: true);

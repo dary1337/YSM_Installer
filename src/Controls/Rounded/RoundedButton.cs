@@ -30,7 +30,7 @@ namespace YSMInstaller {
             _borderColor = borderColor;
 
             if (onHover.A == 0) {
-                onHover = Theme.ButtonBackgroundHover;
+                onHover = MaterialPalette.SurfaceContainerHighest;
             }
 
             ChangeHoverColor(onHover);
