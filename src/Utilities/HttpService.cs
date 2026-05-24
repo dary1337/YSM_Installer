@@ -49,7 +49,7 @@ namespace YSMInstaller {
                 throw;
             }
             catch (Exception exception) {
-                AppLogger.Error($"HEAD size probe failed for {url}; falling back to GET headers.", exception);
+                AppLogger.Critical($"HEAD size probe failed for {url}; falling back to GET headers.", exception);
             }
 
             try {
@@ -71,7 +71,7 @@ namespace YSMInstaller {
                 throw;
             }
             catch (Exception exception) {
-                AppLogger.Error($"Failed to determine remote file size for {url}.", exception);
+                AppLogger.Critical($"Failed to determine remote file size for {url}.", exception);
                 return null;
             }
         }
