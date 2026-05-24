@@ -135,17 +135,8 @@ namespace YSMInstaller {
             // would silently corrupt the cached archive on download.
             bool hasParts = mod.DownloadUrlParts != null
                 && mod.DownloadUrlParts.Length > 0
-                && AllNonBlank(mod.DownloadUrlParts);
+                && Array.TrueForAll(mod.DownloadUrlParts, u => !string.IsNullOrWhiteSpace(u));
             return hasSingle ^ hasParts;
-        }
-
-        private static bool AllNonBlank(string[] values) {
-            for (int i = 0; i < values.Length; i++) {
-                if (string.IsNullOrWhiteSpace(values[i])) {
-                    return false;
-                }
-            }
-            return true;
         }
 
         private static bool IsValidModType(string modType) {
