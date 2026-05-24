@@ -48,8 +48,8 @@ namespace YSMInstaller {
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 throw;
             }
-            catch {
-                // Ignore and fallback to GET headers probe.
+            catch (Exception exception) {
+                AppLogger.Error($"HEAD size probe failed for {url}; falling back to GET headers.", exception);
             }
 
             try {
@@ -70,7 +70,8 @@ namespace YSMInstaller {
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 throw;
             }
-            catch {
+            catch (Exception exception) {
+                AppLogger.Error($"Failed to determine remote file size for {url}.", exception);
                 return null;
             }
         }
