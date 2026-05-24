@@ -600,7 +600,8 @@ namespace YSMInstaller {
                 string ext = Path.GetExtension(path);
                 return string.IsNullOrEmpty(ext) ? ".zip" : ext.ToLowerInvariant();
             }
-            catch {
+            catch (Exception exception) {
+                AppLogger.Critical($"GetArchiveExtension failed for URL: {downloadUrl}", exception);
                 return ".zip";
             }
         }

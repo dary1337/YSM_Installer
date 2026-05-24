@@ -512,8 +512,7 @@ namespace YSMInstaller {
             try {
                 bytes = SafeArchiveExtractor.ReadEntryBytes(archivePath, "Config.ini");
             }
-            catch (InvalidDataException exception)
-                when (exception.Message.IndexOf("multiple", StringComparison.OrdinalIgnoreCase) >= 0) {
+            catch (MultipleArchiveEntriesException) {
                 error = "Archive contains multiple Config.ini files — only single-mod archives are supported.";
                 return new Dictionary<string, string>();
             }

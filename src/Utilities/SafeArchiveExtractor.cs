@@ -17,6 +17,13 @@ namespace YSMInstaller {
         public long? TotalBytes { get; }
     }
 
+    // Thrown when ReadEntryBytes finds more than one matching entry; callers gate on the type,
+    // not on exception message text. Derives from IOException (InvalidDataException is sealed on
+    // .NET Framework 4.7.2) so any existing IOException-level handlers still catch it.
+    public sealed class MultipleArchiveEntriesException : IOException {
+        public MultipleArchiveEntriesException(string message) : base(message) { }
+    }
+
     public static class SafeArchiveExtractor {
         private const int CopyBufferSize = 81920;
         private const long ProgressReportThresholdBytes = 256 * 1024;
@@ -31,7 +38,10 @@ namespace YSMInstaller {
             catch (Exception exception) {
                 // If the codepages assembly is missing entirely, SharpCompress would later crash
                 // with a less obvious encoding error — log here so the root cause is visible.
-                AppLogger.Error("Failed to register code pages encoding provider.", exception);
+                // Not rethrown: this runs in the type initializer, so a throw would convert every
+                // call site into TypeInitializationException and take the app down for what is a
+                // recoverable degradation (ASCII-only filenames still work).
+                AppLogger.Critical("Failed to register code pages encoding provider.", exception);
             }
         }
 
@@ -105,7 +115,7 @@ namespace YSMInstaller {
                     return null;
                 }
                 if (matches.Count > 1) {
-                    throw new InvalidDataException(
+                    throw new MultipleArchiveEntriesException(
                         $"Archive contains multiple '{entryFileName}' entries."
                     );
                 }
@@ -175,7 +185,7 @@ namespace YSMInstaller {
                     return null;
                 }
                 if (matches.Count > 1) {
-                    throw new InvalidDataException(
+                    throw new MultipleArchiveEntriesException(
                         $"Archive contains multiple '{entryFileName}' entries."
                     );
                 }
