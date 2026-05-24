@@ -68,7 +68,7 @@ namespace YSMInstaller {
             }
 
             var ordered = new List<ModMetadata>();
-            foreach (string type in new[] { ModTypes.Ysm, ModTypes.YsmWif, ModTypes.Wto }) {
+            foreach (string type in new[] { ModTypes.Ysm, ModTypes.YsmWif, ModTypes.YsmWifWto, ModTypes.Wto }) {
                 ModMetadata? match = found.FirstOrDefault(mod => mod.ModType == type);
                 if (match != null) {
                     ordered.Add(match);
@@ -239,7 +239,8 @@ namespace YSMInstaller {
                 if (size.HasValue && size.Value > 0) {
                     card.SizeText = $"{size.Value / 1024d / 1024d:0.0} MB";
                 }
-                else if (string.Equals(variant.ModType, ModTypes.YsmWif, StringComparison.Ordinal)) {
+                else if (string.Equals(variant.ModType, ModTypes.YsmWif, StringComparison.Ordinal)
+                    || string.Equals(variant.ModType, ModTypes.YsmWifWto, StringComparison.Ordinal)) {
                     card.SizeText = "> 2 GB";
                 }
             }
@@ -248,6 +249,9 @@ namespace YSMInstaller {
         private static (string description, bool recommended) DescribeBuild(string modType) {
             if (modType == ModTypes.YsmWif) {
                 return ("Combined version of Yokaiste's Sandbox Mod and A World in Flames.", false);
+            }
+            if (modType == ModTypes.YsmWifWto) {
+                return ("YSM combined with both A World in Flames and WARNO Tactical Overhaul.", false);
             }
             if (modType == ModTypes.Wto) {
                 return ("WARNO Tactical Overhaul — Freedom Decks, Realistic LOS, Unit Speed, 2x Scale.", false);

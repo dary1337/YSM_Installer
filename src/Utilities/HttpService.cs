@@ -32,24 +32,32 @@ namespace YSMInstaller {
             }
         }
 
-        public static async Task<long?> TryGetRemoteFileSizeAsync(string url) {
+        public static async Task<long?> TryGetRemoteFileSizeAsync(
+            string url,
+            CancellationToken cancellationToken = default
+        ) {
+            url = GoogleDriveLinks.Normalize(url);
             try {
                 using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
-                using (var headResponse = await Client.SendAsync(headRequest)) {
+                using (var headResponse = await Client.SendAsync(headRequest, cancellationToken)) {
                     if (headResponse.IsSuccessStatusCode) {
                         return headResponse.Content.Headers.ContentLength;
                     }
                 }
             }
-            catch {
-                // Ignore and fallback to GET headers probe.
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
+            }
+            catch (Exception exception) {
+                AppLogger.Critical($"HEAD size probe failed for {url}; falling back to GET headers.", exception);
             }
 
             try {
                 using (
                     var response = await Client.GetAsync(
                         url,
-                        HttpCompletionOption.ResponseHeadersRead
+                        HttpCompletionOption.ResponseHeadersRead,
+                        cancellationToken
                     )
                 ) {
                     if (!response.IsSuccessStatusCode) {
@@ -59,7 +67,11 @@ namespace YSMInstaller {
                     return response.Content.Headers.ContentLength;
                 }
             }
-            catch {
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
+            }
+            catch (Exception exception) {
+                AppLogger.Critical($"Failed to determine remote file size for {url}.", exception);
                 return null;
             }
         }
@@ -71,6 +83,7 @@ namespace YSMInstaller {
             IProgress<DownloadProgressInfo>? detailedProgress = null,
             CancellationToken cancellationToken = default
         ) {
+            url = GoogleDriveLinks.Normalize(url);
             using (
                 var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             ) {

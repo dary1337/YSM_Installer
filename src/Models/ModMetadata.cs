@@ -14,6 +14,11 @@ namespace YSMInstaller {
         [JsonProperty("known_issues_url")]
         public string? KnownIssuesUrl { get; set; }
 
+        // Catalog entries can declare a floor; installers older than this skip the entry rather
+        // than attempt a download they can't handle (e.g. Google Drive URLs added in 1.1.0).
+        [JsonProperty("min_installer_version")]
+        public string? MinInstallerVersion { get; set; }
+
         [JsonIgnore]
         public string? LocalSourceFolder { get; set; }
 
