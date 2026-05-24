@@ -611,7 +611,18 @@ namespace YSMInstaller {
                 return Task.FromResult(false);
             }
             if (InvokeRequired) {
-                return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
+                try {
+                    return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
+                }
+                catch (Exception exception) when (
+                    exception is InvalidOperationException
+                    || exception is ObjectDisposedException
+                ) {
+                    // Race: form disposed between the IsDisposed/IsHandleCreated check above and
+                    // Invoke firing. Treat as "declined" so InstallDeclinedByUserException routes
+                    // through Cancelled instead of bubbling up as a Failed install.
+                    return Task.FromResult(false);
+                }
             }
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;

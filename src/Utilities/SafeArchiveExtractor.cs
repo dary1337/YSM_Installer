@@ -74,7 +74,7 @@ namespace YSMInstaller {
                     foreach (var entry in archive.Entries) {
                         cancellationToken.ThrowIfCancellationRequested();
                         if (!string.IsNullOrEmpty(entry.Name)) {
-                            total += entry.Length;
+                            total = AddOrThrow(total, entry.Length, entry.FullName);
                         }
                     }
                     return total;
@@ -86,10 +86,23 @@ namespace YSMInstaller {
                 foreach (var entry in archive.Entries) {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!entry.IsDirectory) {
-                        total += Math.Max(0, entry.Size);
+                        total = AddOrThrow(total, Math.Max(0, entry.Size), entry.Key ?? "<unknown>");
                     }
                 }
                 return total;
+            }
+        }
+
+        // Checked addition so a malformed/malicious archive declaring huge per-entry sizes
+        // can't overflow to negative and silently bypass the downstream disk-space check.
+        private static long AddOrThrow(long total, long delta, string entryName) {
+            try {
+                return checked(total + delta);
+            }
+            catch (OverflowException) {
+                throw new InvalidDataException(
+                    $"Archive's total uncompressed size overflows int64 — file may be malformed or malicious (entry: {entryName})."
+                );
             }
         }
 
