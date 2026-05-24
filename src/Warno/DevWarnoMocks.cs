@@ -12,18 +12,18 @@ namespace YSMInstaller {
         // Each non-zero value injects a synthetic IOException so the retry path is exercised
         // without real network failures. Always-readable in Release (counter starts at 0 and
         // can only be set from Form1.Dev which is #if DEBUG-gated).
-        private static int _chunkFailuresRemaining;
-        private static string _chunkFailureReason = string.Empty;
+        private static int ChunkFailuresRemaining;
+        private static string ChunkFailureReason = string.Empty;
 
         public static void QueueChunkFailures(int count, string reason) {
-            _chunkFailureReason = reason ?? string.Empty;
-            _chunkFailuresRemaining = count < 0 ? 0 : count;
+            ChunkFailureReason = reason ?? string.Empty;
+            ChunkFailuresRemaining = count < 0 ? 0 : count;
         }
 
         public static bool TryConsumeChunkFailure(out string reason) {
-            if (_chunkFailuresRemaining > 0) {
-                _chunkFailuresRemaining--;
-                reason = _chunkFailureReason;
+            if (ChunkFailuresRemaining > 0) {
+                ChunkFailuresRemaining--;
+                reason = ChunkFailureReason;
                 return true;
             }
             reason = string.Empty;
