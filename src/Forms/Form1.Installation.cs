@@ -315,6 +315,7 @@ namespace YSMInstaller {
                     metadata,
                     new Progress<int>(OnInstallPercent),
                     new Progress<string>(OnInstallStage),
+                    ConfirmLowDiskSpaceAsync,
                     _installCts.Token
                 );
             }
@@ -593,6 +594,25 @@ namespace YSMInstaller {
                 dialog.AddAction("Keep installing", DialogResult.Cancel, MaterialButtonVariant.Text);
                 dialog.AddAction("Cancel install", DialogResult.OK, MaterialButtonVariant.Filled);
                 return dialog.ShowDialog(this) == DialogResult.OK;
+            }
+        }
+
+        // Task-returning so WarnoInstaller can await us from its background extraction thread,
+        // even though the dialog itself is synchronous.
+        private Task<bool> ConfirmLowDiskSpaceAsync(DiskSpaceWarning warning) {
+            if (InvokeRequired) {
+                return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
+            }
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialPalette.Warning;
+                dialog.TitleText = "Low disk space";
+                dialog.BodyText =
+                    $"{warning.Message}\n\nContinue anyway?";
+                dialog.AddAction("Cancel install", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Continue anyway", DialogResult.OK, MaterialButtonVariant.Filled);
+                bool proceed = dialog.ShowDialog(this) == DialogResult.OK;
+                return Task.FromResult(proceed);
             }
         }
 

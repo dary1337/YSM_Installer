@@ -12,6 +12,9 @@ namespace YSMInstaller {
         private Panel _contentHost = null!;
         private Panel _island = null!;
         private FlowLayoutPanel _islandActions = null!;
+        // _subLabel.Text is truncated in place on resize; without the original here we'd lose
+        // characters every time the user grew/shrank the window.
+        private string _headerSubFull = string.Empty;
 
         private void BuildChrome() {
             Controls.Clear();
@@ -165,14 +168,64 @@ namespace YSMInstaller {
 
         private void SetHeader(string overline, string sub) {
             _overlineLabel.Text = (overline ?? string.Empty).ToUpperInvariant();
-            bool hasSub = !string.IsNullOrEmpty(sub);
-            _subLabel.Text = sub ?? string.Empty;
+            _headerSubFull = sub ?? string.Empty;
+            bool hasSub = _headerSubFull.Length > 0;
+            ApplyHeaderSubtitle();
             _subLabel.Visible = hasSub;
             // Anchor=Left (no Top) lets the TLP cell center the stack vertically, matching the Settings
             // button row when only the overline shows. With both labels, top-anchor keeps the original look.
             _titleStack.Anchor = hasSub
                 ? AnchorStyles.Top | AnchorStyles.Left
                 : AnchorStyles.Left;
+        }
+
+        // Manual ellipsis because AutoEllipsis only works with AutoSize=false, and the parent
+        // FlowLayoutPanel needs AutoSize=true — without this the path silently clips off the edge.
+        private void ApplyHeaderSubtitle() {
+            if (_subLabel == null) {
+                return;
+            }
+            int availablePx = GetHeaderSubAvailableWidth();
+            _subLabel.Text = TruncateToWidth(_headerSubFull, _subLabel.Font, availablePx);
+        }
+
+        // Rough subtraction (not column-exact) is intentional — pixel-perfect would require
+        // a layout pass and we just need "show what fits".
+        private int GetHeaderSubAvailableWidth() {
+            int total = ClientSize.Width;
+            int rightReserve = 140; // Settings button (~110) + margins.
+            int padding = Padding.Horizontal + (_root?.Padding.Horizontal ?? 0);
+            return Math.Max(120, total - rightReserve - padding);
+        }
+
+        private static string TruncateToWidth(string text, Font font, int maxPx) {
+            if (string.IsNullOrEmpty(text) || maxPx <= 0) {
+                return text ?? string.Empty;
+            }
+            if (TextRenderer.MeasureText(text, font).Width <= maxPx) {
+                return text;
+            }
+            const string ellipsis = "…";
+            int low = 0;
+            int high = text.Length;
+            while (low < high) {
+                int mid = (low + high + 1) / 2;
+                string candidate = text.Substring(0, mid) + ellipsis;
+                if (TextRenderer.MeasureText(candidate, font).Width <= maxPx) {
+                    low = mid;
+                }
+                else {
+                    high = mid - 1;
+                }
+            }
+            return low > 0 ? text.Substring(0, low) + ellipsis : ellipsis;
+        }
+
+        protected override void OnResize(EventArgs e) {
+            base.OnResize(e);
+            // Other labels are AutoSize or content-bound; only the manually-ellipsized subtitle
+            // needs to be re-fit when the window changes width.
+            ApplyHeaderSubtitle();
         }
 
         // Window height is fixed (no jumping). Stacked content is top-aligned; only the dedicated

@@ -25,8 +25,8 @@ namespace YSMInstaller {
     }
 
     public static class SafeArchiveExtractor {
-        private const int CopyBufferSize = 81920;
-        private const long ProgressReportThresholdBytes = 256 * 1024;
+        private const int CopyBufferSize = 1024 * 1024;
+        private const long ProgressReportThresholdBytes = 1024 * 1024;
 
         static SafeArchiveExtractor() {
             // Older zip/rar/7z entries can carry filenames in legacy code pages (cp866, cp1251)
@@ -58,6 +58,23 @@ namespace YSMInstaller {
             }
             else {
                 ExtractWithSharpCompress(archivePath, fullDestinationPath, progress, detailedProgress, cancellationToken);
+            }
+        }
+
+        // Reads only the archive's central directory / index, not the body — cheap (~10-100 ms
+        // even for multi-GB archives). Used for pre-extraction disk-space checks.
+        public static long MeasureUncompressedSize(string archivePath) {
+            if (IsZip(archivePath)) {
+                using (var archive = ZipFile.OpenRead(archivePath)) {
+                    return archive.Entries
+                        .Where(e => !string.IsNullOrEmpty(e.Name))
+                        .Sum(e => e.Length);
+                }
+            }
+            using (var archive = ArchiveFactory.Open(archivePath)) {
+                return archive.Entries
+                    .Where(e => !e.IsDirectory)
+                    .Sum(e => Math.Max(0, e.Size));
             }
         }
 

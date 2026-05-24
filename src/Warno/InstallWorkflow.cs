@@ -12,6 +12,7 @@ namespace YSMInstaller {
             ModMetadata metadata,
             IProgress<int>? progress = null,
             IProgress<string>? stageProgress = null,
+            Func<DiskSpaceWarning, Task<bool>>? lowDiskSpaceConfirm = null,
             CancellationToken cancellationToken = default
         ) {
             try {
@@ -19,6 +20,7 @@ namespace YSMInstaller {
                     metadata,
                     progress,
                     stageProgress,
+                    lowDiskSpaceConfirm,
                     cancellationToken
                 );
                 return installResult == InstallModResult.AlreadyRunning
@@ -28,6 +30,10 @@ namespace YSMInstaller {
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 // Internal timeout OCEs would otherwise be reported as user cancellation.
                 AppLogger.Info("Mod installation cancelled by user.");
+                return InstallWorkflowResult.Cancelled;
+            }
+            catch (InstallDeclinedByUserException exception) {
+                AppLogger.Info($"Mod installation declined by user: {exception.Message}");
                 return InstallWorkflowResult.Cancelled;
             }
             catch (Exception exception) {
