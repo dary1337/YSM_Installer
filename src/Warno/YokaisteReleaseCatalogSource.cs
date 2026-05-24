@@ -60,24 +60,32 @@ namespace YSMInstaller {
             return gameVersion;
         }
 
+        private static readonly string[] SupportedArchiveExtensions = {
+            ".zip", ".7z", ".rar", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2",
+        };
+
         private static GitHubReleaseAsset SelectArchiveAsset(GitHubRelease release) {
-            List<GitHubReleaseAsset> zipAssets = release
-                .Assets.Where(asset => IsSafeZipAsset(asset.BrowserDownloadUrl))
+            List<GitHubReleaseAsset> archiveAssets = release
+                .Assets.Where(asset => IsSafeArchiveAsset(asset.BrowserDownloadUrl))
                 .ToList();
 
-            if (zipAssets.Count != 1) {
+            if (archiveAssets.Count != 1) {
                 throw new InvalidDataException(
-                    $"Yokaiste release '{release.TagName}' must contain exactly one HTTPS .zip asset."
+                    $"Yokaiste release '{release.TagName}' must contain exactly one HTTPS archive asset."
                 );
             }
 
-            return zipAssets[0];
+            return archiveAssets[0];
         }
 
-        private static bool IsSafeZipAsset(string value) {
-            return Uri.TryCreate(value, UriKind.Absolute, out Uri uri)
-                && uri.Scheme == Uri.UriSchemeHttps
-                && uri.AbsolutePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        private static bool IsSafeArchiveAsset(string value) {
+            if (!Uri.TryCreate(value, UriKind.Absolute, out Uri uri) || uri.Scheme != Uri.UriSchemeHttps) {
+                return false;
+            }
+            string path = uri.AbsolutePath;
+            return SupportedArchiveExtensions.Any(
+                ext => path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)
+            );
         }
 
         private sealed class GitHubRelease {

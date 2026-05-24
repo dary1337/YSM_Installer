@@ -7,6 +7,23 @@ using System.Threading.Tasks;
 
 namespace YSMInstaller {
     public static class WarnoInstaller {
+        // Single overall progress budget — phases with byte-level reports (download, extract) map
+        // their 0..100 into their slice; phases without (folder copy, post-extract steps) just emit
+        // the slice start at the stage transition so the bar stays monotonic and ETA stays sane.
+        private const int PercentPreparing = 0;
+        private const int PercentClosing = 2;
+        private const int PercentDownloadStart = 5;
+        private const int PercentDownloadEnd = 50;
+        private const int PercentExtractAutoStart = 50;
+        private const int PercentExtractManualStart = 5;
+        private const int PercentExtractEnd = 85;
+        private const int PercentCopyStart = 5;
+        private const int PercentReading = 85;
+        private const int PercentBackingUp = 88;
+        private const int PercentInstalling = 93;
+        private const int PercentFinalizing = 97;
+        private const int PercentDone = 100;
+
         private static bool _isInstalling;
 
         public static async Task<InstallModResult> InstallAsync(
@@ -36,7 +53,10 @@ namespace YSMInstaller {
             string modFolder = WarnoPaths.ModFolder;
             string lockFile = Path.Combine(warnoSavedGames, "EugGame.lock");
             string gameConfig = Path.Combine(modFolder, "Config.ini");
-            string modArchivePath = Path.Combine(modFolder, $"YSM_{modMetadata.GameVersion}.zip");
+            string modArchivePath = Path.Combine(
+                modFolder,
+                $"YSM_{modMetadata.GameVersion}{GetArchiveExtension(modMetadata.DownloadUrl)}"
+            );
             // Inside modFolder on purpose: keeps the final Directory.Move a same-volume rename
             // instead of a cross-volume copy when %TEMP% lives on a different drive.
             string tempModPath = Path.Combine(modFolder, $"YSM_Temp_{Guid.NewGuid():N}");
@@ -52,6 +72,9 @@ namespace YSMInstaller {
             string finalModPath = string.Empty;
             bool finalModCreated = false;
             bool installationSucceeded = false;
+            bool isManualFolder = !string.IsNullOrEmpty(modMetadata.LocalSourceFolder);
+            bool isManualArchive = !string.IsNullOrEmpty(modMetadata.LocalSourceArchive);
+            bool isAutoDownload = !isManualFolder && !isManualArchive;
 
             try {
                 AppLogger.Info(
@@ -61,16 +84,16 @@ namespace YSMInstaller {
                 // so without these a mid-install cancel would silently complete instead of rolling back.
                 cancellationToken.ThrowIfCancellationRequested();
                 ReportStage(stageProgress, "Preparing...");
+                progress?.Report(PercentPreparing);
                 Directory.CreateDirectory(modFolder);
 
                 cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Closing WARNO if running.");
                 ReportStage(stageProgress, "Closing WARNO...");
+                progress?.Report(PercentClosing);
                 CloseRunningGame();
                 DeleteFileIfExists(lockFile);
 
-                bool isManualFolder = !string.IsNullOrEmpty(modMetadata.LocalSourceFolder);
-                bool isManualArchive = !string.IsNullOrEmpty(modMetadata.LocalSourceArchive);
                 if (isManualFolder && isManualArchive) {
                     throw new InvalidOperationException(
                         "Specify either LocalSourceFolder or LocalSourceArchive, not both."
@@ -81,6 +104,7 @@ namespace YSMInstaller {
                     cancellationToken.ThrowIfCancellationRequested();
                     AppLogger.Info($"Manual install: staging from folder {modMetadata.LocalSourceFolder}");
                     ReportStage(stageProgress, "Copying mod...");
+                    progress?.Report(PercentCopyStart);
                     if (!Directory.Exists(modMetadata.LocalSourceFolder)) {
                         throw new DirectoryNotFoundException(
                             $"Manual install source folder is missing: {modMetadata.LocalSourceFolder}"
@@ -105,9 +129,18 @@ namespace YSMInstaller {
                         );
                     }
                     ReportStage(stageProgress, "Extracting...");
+                    progress?.Report(PercentExtractManualStart);
                     Directory.CreateDirectory(tempModPath);
                     await Task.Run(
-                        () => SafeZipExtractor.ExtractToDirectory(modMetadata.LocalSourceArchive!, tempModPath),
+                        () => SafeArchiveExtractor.ExtractToDirectory(
+                            modMetadata.LocalSourceArchive!,
+                            tempModPath,
+                            RangedProgress(progress, PercentExtractManualStart, PercentExtractEnd),
+                            new Progress<ArchiveExtractionProgress>(extractProgress => {
+                                ReportStage(stageProgress, BuildExtractStage(extractProgress));
+                            }),
+                            cancellationToken
+                        ),
                         cancellationToken
                     );
                     extractedModPath = ResolveExtractedModPath(tempModPath);
@@ -117,10 +150,11 @@ namespace YSMInstaller {
                     cancellationToken.ThrowIfCancellationRequested();
                     AppLogger.Info("Downloading mod archive.");
                     ReportStage(stageProgress, "Downloading...");
+                    progress?.Report(PercentDownloadStart);
                     await HttpService.DownloadFileAsync(
                         modMetadata.DownloadUrl,
                         modArchivePath,
-                        progress,
+                        RangedProgress(progress, PercentDownloadStart, PercentDownloadEnd),
                         new Progress<HttpService.DownloadProgressInfo>(downloadProgress => {
                             ReportStage(stageProgress, BuildDownloadStage(downloadProgress));
                         }),
@@ -131,8 +165,17 @@ namespace YSMInstaller {
                     Directory.CreateDirectory(tempModPath);
                     AppLogger.Info("Extracting mod archive.");
                     ReportStage(stageProgress, "Extracting...");
+                    progress?.Report(PercentExtractAutoStart);
                     await Task.Run(
-                        () => SafeZipExtractor.ExtractToDirectory(modArchivePath, tempModPath),
+                        () => SafeArchiveExtractor.ExtractToDirectory(
+                            modArchivePath,
+                            tempModPath,
+                            RangedProgress(progress, PercentExtractAutoStart, PercentExtractEnd),
+                            new Progress<ArchiveExtractionProgress>(extractProgress => {
+                                ReportStage(stageProgress, BuildExtractStage(extractProgress));
+                            }),
+                            cancellationToken
+                        ),
                         cancellationToken
                     );
                     extractedModPath = ResolveExtractedModPath(tempModPath);
@@ -141,6 +184,7 @@ namespace YSMInstaller {
 
                 cancellationToken.ThrowIfCancellationRequested();
                 ReportStage(stageProgress, "Reading mod settings...");
+                progress?.Report(PercentReading);
                 EnsureGameModConfigExists(gameConfig);
 
                 string modConfig = Path.Combine(extractedModPath, "Config.ini");
@@ -186,6 +230,7 @@ namespace YSMInstaller {
                 cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Backing up current WARNO mod configuration.");
                 ReportStage(stageProgress, "Backing up your mods...");
+                progress?.Report(PercentBackingUp);
                 File.Copy(gameConfig, gameConfigBackupPath, true);
 
                 AppLogger.Info("Backing up previously installed YSM mods.");
@@ -200,6 +245,7 @@ namespace YSMInstaller {
 
                 cancellationToken.ThrowIfCancellationRequested();
                 ReportStage(stageProgress, "Installing...");
+                progress?.Report(PercentInstalling);
                 await Task.Run(
                     () => Directory.Move(extractedModPath, finalModPath),
                     cancellationToken
@@ -208,11 +254,13 @@ namespace YSMInstaller {
 
                 // Past this point cancel is ignored: a half-written ActivatedMods corrupts game config.
                 ReportStage(stageProgress, "Finalizing...");
+                progress?.Report(PercentFinalizing);
                 // Breathing room so fast installs don't flicker past the Finalizing morph. No token —
                 // Finalizing is the no-cancel zone, OCE here would corrupt half-written game config.
                 await Task.Delay(1000);
                 gameConfigData["ActivatedMods"] = $"{manualVersion}|";
                 IniFile.WriteValues(gameConfig, gameConfigData);
+                progress?.Report(PercentDone);
 
                 installationSucceeded = true;
                 AppLogger.Info(
@@ -232,7 +280,11 @@ namespace YSMInstaller {
                 throw;
             }
             finally {
-                DeleteFileIfExists(modArchivePath);
+                // Only auto-download writes modArchivePath; for manual flows the file was never
+                // created here, and a same-named file in modFolder belongs to the user.
+                if (isAutoDownload) {
+                    DeleteFileIfExists(modArchivePath);
+                }
                 DeleteDirectoryIfExists(tempModPath);
                 if (installationSucceeded) {
                     DeleteFileIfExists(gameConfigBackupPath);
@@ -262,19 +314,19 @@ namespace YSMInstaller {
                 );
 
                 ReportStage(stageProgress, "Downloading...");
-                await ReportMockProgress(progress, 0, 45, 60, cancellationToken);
+                await ReportMockProgress(progress, PercentDownloadStart, PercentDownloadEnd, 60, cancellationToken);
                 ReportStage(stageProgress, "Extracting...");
-                await ReportMockProgress(progress, 45, 72, 60, cancellationToken);
+                await ReportMockProgress(progress, PercentExtractAutoStart, PercentExtractEnd, 60, cancellationToken);
                 ReportStage(stageProgress, "Backing up your mods...");
-                await ReportMockProgress(progress, 72, 88, 60, cancellationToken);
+                await ReportMockProgress(progress, PercentBackingUp, PercentInstalling, 60, cancellationToken);
                 ReportStage(stageProgress, "Installing...");
-                await ReportMockProgress(progress, 88, 98, 60, cancellationToken);
+                await ReportMockProgress(progress, PercentInstalling, PercentFinalizing, 60, cancellationToken);
                 if (DevWarnoMocks.SimulateInstallFailure) {
                     DevWarnoMocks.SimulateInstallFailure = false;
                     throw new InvalidOperationException("Simulated install failure (dev test).");
                 }
                 ReportStage(stageProgress, "Finalizing...");
-                await ReportMockProgress(progress, 98, 100, 75, cancellationToken);
+                await ReportMockProgress(progress, PercentFinalizing, PercentDone, 75, cancellationToken);
 
                 AppLogger.Info(
                     $"Mock mod installation completed. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
@@ -288,6 +340,28 @@ namespace YSMInstaller {
 
         private static void ReportStage(IProgress<string>? stageProgress, string stage) {
             stageProgress?.Report(stage);
+        }
+
+        // Lets each phase emit its native 0..100 byte-fraction without knowing the overall
+        // percent budget — the wrapper maps it into the phase's slice on the shared channel.
+        private static IProgress<int>? RangedProgress(IProgress<int>? target, int rangeStart, int rangeEnd) {
+            if (target == null) {
+                return null;
+            }
+            int span = rangeEnd - rangeStart;
+            return new Progress<int>(value => {
+                int clamped = value < 0 ? 0 : (value > 100 ? 100 : value);
+                target.Report(rangeStart + (clamped * span) / 100);
+            });
+        }
+
+        private static string BuildExtractStage(ArchiveExtractionProgress progress) {
+            string extracted = ToMegabytesLabel(progress.BytesExtracted);
+            if (progress.TotalBytes.HasValue && progress.TotalBytes.Value > 0) {
+                string total = ToMegabytesLabel(progress.TotalBytes.Value);
+                return $"Extracting... {extracted} / {total}";
+            }
+            return $"Extracting... {extracted}";
         }
 
         private static string BuildDownloadStage(HttpService.DownloadProgressInfo progress) {
@@ -511,6 +585,24 @@ namespace YSMInstaller {
             string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 + Path.DirectorySeparatorChar;
             return fullCandidate.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // The extractor sniffs by magic bytes, so the cached filename's extension is cosmetic —
+        // but matching the URL keeps the file recognizable on disk and avoids confusing leftovers.
+        private static string GetArchiveExtension(string downloadUrl) {
+            if (string.IsNullOrWhiteSpace(downloadUrl)) {
+                return ".zip";
+            }
+            try {
+                string path = new Uri(downloadUrl).AbsolutePath;
+                if (path.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)) return ".tar.gz";
+                if (path.EndsWith(".tar.bz2", StringComparison.OrdinalIgnoreCase)) return ".tar.bz2";
+                string ext = Path.GetExtension(path);
+                return string.IsNullOrEmpty(ext) ? ".zip" : ext.ToLowerInvariant();
+            }
+            catch {
+                return ".zip";
+            }
         }
 
         private static string SanitizeForFolderName(string value) {

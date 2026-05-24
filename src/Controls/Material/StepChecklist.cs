@@ -53,6 +53,12 @@ namespace YSMInstaller {
 
         public void SetError(int index) {
             _errorIndex = index;
+            // Snap any in-flight morphs to completed: when a failure lands fast (e.g. extraction
+            // fails immediately after start), prior steps would otherwise stay frozen mid-arc and
+            // never reach their green-check state because the timer below stops their progress.
+            for (int i = 0; i < Math.Min(index, _completionAnims.Length); i++) {
+                _completionAnims[i] = 1f;
+            }
             _spinner.Stop();
             _morphTimer.Stop();
             Invalidate();
