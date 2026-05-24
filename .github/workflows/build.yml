@@ -3,8 +3,14 @@ name: build
 on:
   push:
     branches: [master, main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/build.yml'
   pull_request:
     branches: [master, main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 permissions:
@@ -40,3 +46,34 @@ jobs:
           path: src/bin/Release/YSMInstaller.exe
           if-no-files-found: error
           retention-days: 14
+
+  draft-release:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: YSMInstaller-${{ github.sha }}
+          path: ./artifact
+
+      - name: Update rolling draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: Latest build (auto-draft)
+          body: |
+            Rolling draft from the latest merge to `${{ github.ref_name }}`.
+
+            **Commit**: ${{ github.sha }}
+            **Run**: #${{ github.run_number }}
+            **Message**: ${{ github.event.head_commit.message }}
+
+            Smoke-test before promoting to a real versioned release.
+          draft: true
+          prerelease: true
+          files: ./artifact/YSMInstaller.exe
