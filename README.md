@@ -8,7 +8,7 @@
 
 ## What it does
 
-One-click installer for **YSM**, **YSM x WiF**, **YSM x WiF x WTO**, and **WTO**. Finds your game, picks the right mod version, installs it safely, and leaves your save/config untouched.
+One-click installer for [**YSM**](https://steamcommunity.com/sharedfiles/filedetails/?id=3296415395), [**YSM x WiF**](https://steamcommunity.com/sharedfiles/filedetails/?id=3518369503), [**YSM x WiF x WTO**](https://steamcommunity.com/sharedfiles/filedetails/?id=3554281691), and [**WTO**](https://steamcommunity.com/sharedfiles/filedetails/?id=3387658237). Finds your game, picks the right mod version, installs it safely, and leaves your save/config untouched.
 
 ## Features
 
