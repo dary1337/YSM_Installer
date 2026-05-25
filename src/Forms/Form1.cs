@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -32,6 +33,7 @@ namespace YSMInstaller {
         private bool _isScanning;
         private bool _isInstalling;
         private bool _isAutoUpdating;
+        private CancellationTokenSource? _autoUpdateCts;
         private bool _hasFoundWarnoExe;
         private bool _showAllEntries;
 
@@ -57,13 +59,20 @@ namespace YSMInstaller {
         }
 
         async void Form1_Load(object sender, EventArgs e) {
-            bool updateStarted;
+            bool updateStarted = false;
             _isAutoUpdating = !DevWarnoMocks.IsEnabled;
+            if (_isAutoUpdating) {
+                _autoUpdateCts = new CancellationTokenSource();
+            }
             try {
-                updateStarted = _isAutoUpdating && await UpdateService.CheckForUpdatesAsync(this);
+                if (_isAutoUpdating) {
+                    updateStarted = await UpdateService.CheckForUpdatesAsync(this, _autoUpdateCts!.Token);
+                }
             }
             finally {
                 _isAutoUpdating = false;
+                _autoUpdateCts?.Dispose();
+                _autoUpdateCts = null;
             }
 
             if (!updateStarted && !IsDisposed) {
@@ -86,6 +95,11 @@ namespace YSMInstaller {
                 else if (_isAutoUpdating) {
                     if (!ConfirmCloseDuringAutoUpdate()) {
                         e.Cancel = true;
+                    }
+                    else {
+                        // Aborts the in-flight HEAD/GET so the runtime actually releases the
+                        // download (otherwise we just hide the UI while the network keeps going).
+                        _autoUpdateCts?.Cancel();
                     }
                 }
             }

@@ -34,13 +34,17 @@ namespace YSMInstaller {
             public long? TotalBytes { get; }
         }
 
-        public static async Task<string> GetStringAsync(string url, string? acceptHeader = null) {
+        public static async Task<string> GetStringAsync(
+            string url,
+            string? acceptHeader = null,
+            CancellationToken cancellationToken = default
+        ) {
             using (var request = new HttpRequestMessage(HttpMethod.Get, url)) {
                 if (!string.IsNullOrWhiteSpace(acceptHeader)) {
                     request.Headers.Accept.ParseAdd(acceptHeader);
                 }
 
-                using (var response = await Client.SendAsync(request)) {
+                using (var response = await Client.SendAsync(request, cancellationToken)) {
                     response.EnsureSuccessStatusCode();
                     return await response.Content.ReadAsStringAsync();
                 }
