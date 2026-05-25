@@ -69,6 +69,14 @@ namespace YSMInstaller {
                     updateStarted = await UpdateService.CheckForUpdatesAsync(this, _autoUpdateCts!.Token);
                 }
             }
+            // async void escapes go straight to the UI thread's unhandled bucket and crash the
+            // process. UpdateService rethrows OCE on cancellation; treat that as a normal close.
+            catch (OperationCanceledException) {
+                AppLogger.Info("Auto-update aborted by form close.");
+            }
+            catch (Exception exception) {
+                AppLogger.Critical("Auto-update path failed.", exception);
+            }
             finally {
                 _isAutoUpdating = false;
                 _autoUpdateCts?.Dispose();
@@ -76,7 +84,12 @@ namespace YSMInstaller {
             }
 
             if (!updateStarted && !IsDisposed) {
-                await ScanAsync();
+                try {
+                    await ScanAsync();
+                }
+                catch (Exception exception) {
+                    AppLogger.Critical("Initial scan failed.", exception);
+                }
             }
         }
 
