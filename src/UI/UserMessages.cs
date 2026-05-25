@@ -37,7 +37,7 @@ namespace YSMInstaller {
 
         public static void ShowSelectedWarnoInvalid(IWin32Window owner) {
             ShowNotice(owner, "Not a WARNO installation",
-                "The selected file does not look like a valid WARNO installation. Pick the Warno.exe inside your WARNO game folder.");
+                "The selected file does not look like a valid WARNO installation. Pick Warno.exe inside your WARNO game folder.");
         }
 
         private static void OpenLog() {

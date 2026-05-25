@@ -17,7 +17,7 @@ namespace YSMInstaller {
         public StepsForm() {
             InitializeComponent();
 
-            Text = "Changing version";
+            Text = "Switch WARNO version";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -35,7 +35,7 @@ namespace YSMInstaller {
                 ("Open properties", Properties.Resources.Screenshot_2025_03_02_182641),
                 ("Click Betas", Properties.Resources.Screenshot_2025_03_02_182659),
                 ("Choose version", Properties.Resources.Screenshot_2025_03_02_182718),
-                ("Wait for Warno to load", Properties.Resources.Screenshot_2025_03_02_182724),
+                ("Wait for WARNO to load", Properties.Resources.Screenshot_2025_03_02_182724),
             };
 
             BuildLayout();

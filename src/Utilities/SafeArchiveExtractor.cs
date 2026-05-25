@@ -101,7 +101,7 @@ namespace YSMInstaller {
             }
             catch (OverflowException) {
                 throw new InvalidDataException(
-                    $"Archive's total uncompressed size overflows int64 — file may be malformed or malicious (entry: {entryName})."
+                    $"Archive reports an impossibly large total size — file may be malformed or malicious (entry: {entryName})."
                 );
             }
         }

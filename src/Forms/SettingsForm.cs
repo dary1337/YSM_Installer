@@ -31,7 +31,7 @@ namespace YSMInstaller {
                 Font = MaterialType.Overline,
                 ForeColor = MaterialPalette.OnSurfaceVariant,
                 Location = new Point(margin, margin),
-                Text = "MOD CATALOG",
+                Text = "MOD LIST",
             };
             Controls.Add(overline);
 
@@ -75,7 +75,7 @@ namespace YSMInstaller {
                 ForeColor = MaterialPalette.OnSurfaceMuted,
                 Location = new Point(margin + 22, noteTop - 1),
                 Size = new Size(innerWidth - 22, 40),
-                Text = "Loads releases straight from the GitHub repo. Falls back to the official list if unreachable.",
+                Text = "Loads releases straight from the GitHub repo. Falls back to the official mod list if unreachable.",
             };
             Controls.Add(note);
 

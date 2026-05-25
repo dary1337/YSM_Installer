@@ -18,7 +18,7 @@ namespace YSMInstaller {
         public string Message =>
             $"Low disk space on {Drive} for {Action}: " +
             $"{FormatGb(AvailableBytes)} free, {FormatGb(RequiredBytes)} estimated. " +
-            "Installation may fail mid-way if other apps consume the remaining space.";
+            "Installation may fail midway if other apps consume the remaining space.";
 
         private static string FormatGb(long bytes) => $"{bytes / 1024d / 1024d / 1024d:0.00} GB";
     }
