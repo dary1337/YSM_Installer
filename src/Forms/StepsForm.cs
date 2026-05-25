@@ -165,6 +165,7 @@ namespace YSMInstaller {
             _overlineLabel.Text = $"STEP {_index + 1} OF {_steps.Count}";
             _titleLabel.Text = step.title;
             _screenshot.Image = step.image;
+            _screenshotHost.ScrollToTop();
 
             _backButton.Enabled = _index > 0;
             _nextButton.Text = _index >= _steps.Count - 1 ? "Done" : "Next";

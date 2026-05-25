@@ -153,15 +153,14 @@ namespace YSMInstaller {
             }
 
             if (!string.IsNullOrEmpty(_bodyText)) {
-                // Measure at narrow width first so the cap decision accounts for the scrollbar
-                // gutter we'd add. If the body fits without scroll, fall back to the full inner
-                // width (which wraps less and looks tighter).
-                int scrollGutter = 12;
-                int narrowWidth = Math.Max(40, innerWidth - scrollGutter);
-                int bodyHeight = MeasureBodyHeight(_bodyText, narrowWidth);
+                // Measure at the narrow width first because that's what the body will use if
+                // it ends up wrapped in a scroll panel. If the narrow-width height already fits
+                // under the cap, use the full inner width (less wrap = tighter look).
+                int narrowWidth = Math.Max(40, innerWidth - MaterialScrollPanel.TrackWidth);
+                int narrowHeight = MeasureBodyHeight(_bodyText, narrowWidth);
                 int bodyCap = ComputeMaxBodyHeight();
 
-                if (bodyHeight <= bodyCap) {
+                if (narrowHeight <= bodyCap) {
                     int simpleHeight = MeasureBodyHeight(_bodyText, innerWidth);
                     var body = new SoftLabel {
                         AutoSize = false,
@@ -191,7 +190,7 @@ namespace YSMInstaller {
                         Text = _bodyText,
                         Location = Point.Empty,
                         Width = narrowWidth,
-                        Height = bodyHeight,
+                        Height = narrowHeight,
                         BackColor = Color.Transparent,
                     };
                     scroll.ContentPanel.Controls.Add(body);

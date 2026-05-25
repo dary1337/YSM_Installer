@@ -5,17 +5,18 @@ using System.Windows.Forms;
 
 namespace YSMInstaller {
     /// <summary>
-    /// Material You overlay scrollbar host. Users put content into <see cref="ContentPanel"/>
-    /// (auto-sized); when its height exceeds the viewport, a thin pill-shaped thumb fades in over
-    /// the right edge. Track is invisible; thumb expands on hover and auto-hides ~1.5 s after the
-    /// last scroll. Replaces <c>Panel.AutoScroll = true</c>, which renders a native gray scrollbar
+    /// Material You overlay scrollbar host. Users put content into <see cref="ContentPanel"/>;
+    /// when its height exceeds the viewport, a thin pill-shaped thumb fades in over the right
+    /// edge. Track is invisible; thumb expands on hover and auto-hides ~1.5 s after the last
+    /// scroll. Replaces <c>Panel.AutoScroll = true</c>, which renders a native gray scrollbar
     /// in the non-client area that .NET Framework can't restyle.
     /// </summary>
     public sealed class MaterialScrollPanel : Panel {
         public Panel ContentPanel { get; }
 
-        // Sized for finger-grabbable hit area; visible thumb sits inside this band.
-        private const int TrackWidth = 12;
+        // Public so dialog/host layouts can reserve the same gutter when pre-measuring content.
+        public const int TrackWidth = 12;
+
         private const int ThumbInset = 2;
         private const int ThumbIdleWidth = 4;
         private const int ThumbHoverWidth = 8;
@@ -32,6 +33,11 @@ namespace YSMInstaller {
         private bool _thumbDragging;
         private int _dragStartMouseY;
         private int _dragStartOffset;
+
+        // True when content overflows and the right-side gutter is reserved for the track.
+        // Releasing the gutter when content fits avoids a permanent empty strip on the right.
+        private bool _trackReserved;
+        private bool _inRelayout;
 
         // 0 = hidden, 1 = fully visible; driven by _fadeTimer toward _targetOpacity.
         private float _thumbOpacity;
@@ -55,14 +61,13 @@ namespace YSMInstaller {
 
             // Manual sizing instead of AutoSize: AutoSize'd parents don't compose with Dock=Top
             // children (chicken/egg — child wants parent width, parent wants child preferred size).
-            // We set Width = our ClientSize − track on resize and compute Height from children.
+            // We set Width on relayout and compute Height from children.
             ContentPanel = new Panel {
                 BackColor = Color.Transparent,
                 Location = Point.Empty,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty,
             };
-            ContentPanel.SizeChanged += (_, __) => RecomputeScroll();
             ContentPanel.ControlAdded += OnContentChildAdded;
             ContentPanel.ControlRemoved += OnContentChildRemoved;
             base.Controls.Add(ContentPanel);
@@ -81,61 +86,83 @@ namespace YSMInstaller {
             Application.AddMessageFilter(_wheelFilter);
         }
 
-        protected override void OnHandleDestroyed(EventArgs e) {
-            Application.RemoveMessageFilter(_wheelFilter);
-            base.OnHandleDestroyed(e);
-        }
-
         protected override void OnResize(EventArgs e) {
             base.OnResize(e);
-            int newWidth = Math.Max(0, ClientSize.Width - TrackWidth);
-            if (ContentPanel.Width != newWidth) {
-                ContentPanel.Width = newWidth;
-                // Dock=Top children re-flow on their own; their SizeChanged below will refresh
-                // ContentPanel.Height through RecomputeContentHeight.
-            }
-            RecomputeScroll();
-            Invalidate();
+            Relayout();
         }
 
         private void OnContentChildAdded(object? sender, ControlEventArgs e) {
             e.Control.SizeChanged += OnContentChildLayoutChanged;
             e.Control.LocationChanged += OnContentChildLayoutChanged;
-            RecomputeContentHeight();
+            Relayout();
         }
 
         private void OnContentChildRemoved(object? sender, ControlEventArgs e) {
             e.Control.SizeChanged -= OnContentChildLayoutChanged;
             e.Control.LocationChanged -= OnContentChildLayoutChanged;
-            RecomputeContentHeight();
+            Relayout();
         }
 
         private void OnContentChildLayoutChanged(object? sender, EventArgs e) {
-            RecomputeContentHeight();
+            Relayout();
         }
 
-        // Height tracks the bottom-most child so scroll math sees the real footprint.
-        private void RecomputeContentHeight() {
-            int max = 0;
-            foreach (Control c in ContentPanel.Controls) {
-                if (c.Bottom > max) {
-                    max = c.Bottom;
+        /// <summary>Reset scroll to the top — useful when host swaps content (e.g. step navigation).</summary>
+        public void ScrollToTop() {
+            if (_scrollOffset == 0) {
+                return;
+            }
+            _scrollOffset = 0;
+            ContentPanel.Top = 0;
+            Invalidate();
+        }
+
+        // Resizes ContentPanel and decides whether to reserve the track gutter. At most one
+        // direction flip per call: a wider layout can only become equal-or-shorter (less wrap),
+        // and a narrower layout can only become equal-or-taller — so two passes are enough to
+        // converge with no oscillation. Re-entry is guarded because setting Width/Height triggers
+        // child SizeChanged events that would otherwise re-enter this method.
+        private void Relayout() {
+            if (_inRelayout) {
+                return;
+            }
+            _inRelayout = true;
+            try {
+                for (int pass = 0; pass < 2; pass++) {
+                    int targetWidth = Math.Max(0, ClientSize.Width - (_trackReserved ? TrackWidth : 0));
+                    if (ContentPanel.Width != targetWidth) {
+                        ContentPanel.Width = targetWidth;
+                    }
+
+                    int maxBottom = 0;
+                    foreach (Control c in ContentPanel.Controls) {
+                        if (c.Bottom > maxBottom) {
+                            maxBottom = c.Bottom;
+                        }
+                    }
+                    if (ContentPanel.Height != maxBottom) {
+                        ContentPanel.Height = maxBottom;
+                    }
+
+                    bool needsTrack = maxBottom > ClientSize.Height;
+                    if (needsTrack == _trackReserved) {
+                        break;
+                    }
+                    _trackReserved = needsTrack;
                 }
-            }
-            if (ContentPanel.Height != max) {
-                ContentPanel.Height = max;
-            }
-        }
 
-        private void RecomputeScroll() {
-            int viewport = ClientSize.Height;
-            int content = ContentPanel.Height;
-            int maxOffset = Math.Max(0, content - viewport);
-            int clamped = Math.Min(Math.Max(0, _scrollOffset), maxOffset);
-            if (clamped != _scrollOffset) {
-                _scrollOffset = clamped;
+                int viewport = ClientSize.Height;
+                int maxOffset = Math.Max(0, ContentPanel.Height - viewport);
+                int clamped = Math.Min(Math.Max(0, _scrollOffset), maxOffset);
+                if (clamped != _scrollOffset) {
+                    _scrollOffset = clamped;
+                }
+                ContentPanel.Top = -_scrollOffset;
             }
-            ContentPanel.Top = -_scrollOffset;
+            finally {
+                _inRelayout = false;
+            }
+            Invalidate();
         }
 
         private bool HasOverflow => ContentPanel.Height > ClientSize.Height;
@@ -160,6 +187,11 @@ namespace YSMInstaller {
         // Wheel-message-filter calls this when the cursor is over the panel; raw delta arrives
         // here so the touchpad accumulator lives in one place.
         internal void HandleWheel(int delta) {
+            // Reset accumulator on direction change so a reverse scroll doesn't have to "undo"
+            // residual notches from the previous direction.
+            if (Math.Sign(delta) != Math.Sign(_wheelAccumulator)) {
+                _wheelAccumulator = 0;
+            }
             _wheelAccumulator += delta;
             int notches = _wheelAccumulator / 120;
             if (notches == 0) {
@@ -208,8 +240,6 @@ namespace YSMInstaller {
                 _fadeTimer.Stop();
             }
         }
-
-        // ---- Mouse plumbing ----
 
         protected override void OnMouseMove(MouseEventArgs e) {
             base.OnMouseMove(e);
@@ -297,8 +327,6 @@ namespace YSMInstaller {
             }
         }
 
-        // ---- Layout math ----
-
         private Rectangle GetTrackRect() {
             return new Rectangle(
                 ClientSize.Width - TrackWidth,
@@ -326,13 +354,12 @@ namespace YSMInstaller {
             int maxOffset = content - viewport;
             int thumbTop = ThumbInset + (maxOffset <= 0 ? 0 : (int)Math.Round((double)_scrollOffset / maxOffset * travel));
 
-            // Visible width animates between idle and hover; hit area stays at TrackWidth.
+            // Visible width animates between idle and hover — the same rect is also the hit area;
+            // the track-hover state expands opacity so the thumb is easy to find before grabbing.
             int visibleWidth = _thumbHovered || _thumbDragging ? ThumbHoverWidth : ThumbIdleWidth;
             int visibleLeft = ClientSize.Width - ThumbInset - visibleWidth;
             return new Rectangle(visibleLeft, thumbTop, visibleWidth, thumbLen);
         }
-
-        // ---- Paint ----
 
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
@@ -390,8 +417,6 @@ namespace YSMInstaller {
             base.Dispose(disposing);
         }
 
-        // ---- Wheel forwarder ----
-
         // WinForms routes WM_MOUSEWHEEL to the focused control, not the one under the cursor.
         // A message filter watches every wheel message, hit-tests against our screen rectangle,
         // and forwards it so the panel scrolls regardless of where focus sits.
@@ -405,6 +430,12 @@ namespace YSMInstaller {
 
             public bool PreFilterMessage(ref Message m) {
                 if (m.Msg != WM_MOUSEWHEEL || !_owner.IsHandleCreated || !_owner.Visible) {
+                    return false;
+                }
+                // Skip when our top-level form isn't active — otherwise we'd steal wheel input
+                // from whichever app is foreground if the cursor happens to overlap our rect.
+                Form? top = _owner.FindForm();
+                if (top == null || Form.ActiveForm != top) {
                     return false;
                 }
                 Point screenPoint = new Point(

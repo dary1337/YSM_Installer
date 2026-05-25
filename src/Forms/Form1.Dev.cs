@@ -208,7 +208,6 @@ namespace YSMInstaller {
             }
         }
 
-        // Stresses the MaterialDialog body scroll path with a release-note-sized changelog.
         private void DevShowLongUpdateDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Info;
@@ -216,10 +215,10 @@ namespace YSMInstaller {
                 dialog.TitleText = "Update available";
                 dialog.BodyText =
                     "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
-                    + string.Join("\n", System.Linq.Enumerable.Range(1, 40).Select(i =>
+                    + string.Join("\n", Enumerable.Range(1, 40).Select(i =>
                         $"• Bullet point {i} — describes a non-trivial change with enough text to wrap onto a second line in the dialog body, which is the whole point of stressing the scrollbar here. Lorem ipsum dolor sit amet."))
                     + "\n\nBreaking changes:\n"
-                    + string.Join("\n", System.Linq.Enumerable.Range(1, 15).Select(i =>
+                    + string.Join("\n", Enumerable.Range(1, 15).Select(i =>
                         $"  – BC{i:00}: catalog schema field renamed; behavior described in the migration notes."))
                     + "\n\nKnown issues:\n"
                     + "• None at release time.\n"
