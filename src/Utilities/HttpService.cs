@@ -375,7 +375,7 @@ namespace YSMInstaller {
                         int backoffIndex = Math.Min(attemptNo - 1, ChunkRetryBackoff.Length - 1);
                         TimeSpan delay = ChunkRetryBackoff[backoffIndex];
                         retryStatus?.Report(
-                            $"Downloading... retrying part {partNo}/{partTotal} (attempt {attemptNo + 1}) in {delay.TotalSeconds:0}s"
+                            $"Downloading… retrying part {partNo}/{partTotal} (attempt {attemptNo + 1}) in {delay.TotalSeconds:0} s"
                         );
                         fileStream.SetLength(chunkStartPosition);
                         fileStream.Position = chunkStartPosition;

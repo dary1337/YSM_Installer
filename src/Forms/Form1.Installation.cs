@@ -122,7 +122,7 @@ namespace YSMInstaller {
                 (string description, bool recommended) = DescribeBuild(variant.ModType);
                 string title = ModTypes.ToDisplayName(variant.ModType);
                 if (_chooseVersion > variant.GameVersion) {
-                    title += $"  (latest v{variant.GameVersion})";
+                    title += $" (latest v{variant.GameVersion})";
                 }
                 var card = new MaterialOptionCard(title, description, recommended, BuildIcons.ForBuild(variant.ModType)) {
                     Height = 70,
@@ -255,18 +255,18 @@ namespace YSMInstaller {
 
         private static (string description, bool recommended) DescribeBuild(string modType) {
             if (modType == ModTypes.YsmWif) {
-                return ("Combined version of Yokaiste's Sandbox Mod and A World in Flames.", false);
+                return ("Yokaiste's Sandbox Mod combined with A World in Flames.", false);
             }
             if (modType == ModTypes.YsmWifWto) {
-                return ("YSM combined with both A World in Flames and WARNO Tactical Overhaul.", false);
+                return ("Yokaiste's Sandbox Mod combined with A World in Flames and WARNO Tactical Overhaul.", false);
             }
             if (modType == ModTypes.Wto) {
                 return ("WARNO Tactical Overhaul — Freedom Decks, Realistic LOS, Unit Speed, 2x Scale.", false);
             }
             if (modType == ModTypes.Manual) {
-                return ("Install from a local folder or archive (.zip, .7z, .rar, .tar) you already have.", false);
+                return ("Install from a local folder or an archive you already have.", false);
             }
-            return ("Yokaiste's Sandbox Mod — an advanced open-source project for unlimited experience.", false);
+            return ("Yokaiste's Sandbox Mod — an open-source overhaul with deep customization.", false);
         }
 
         // ---- Install flow ----
@@ -341,7 +341,7 @@ namespace YSMInstaller {
                     RenderInstallsFound();
                     break;
                 case InstallWorkflowResult.AlreadyRunning:
-                    UserMessages.ShowError(this, "Installer busy",
+                    UserMessages.ShowError(this, "Installation in progress",
                         "Another installation is already running. Please wait for it to finish.");
                     RenderInstallsFound();
                     break;
@@ -361,7 +361,7 @@ namespace YSMInstaller {
                 UserMessages.ShowError(
                     this,
                     "Pick a mod folder",
-                    "You selected a drive root. Pick the mod folder itself (the one that contains Config.ini), or a parent folder that holds the mod folder."
+                    "You selected a drive root. Pick the mod folder (the one containing Config.ini) or a parent folder that holds it."
                 );
                 return;
             }
@@ -648,7 +648,7 @@ namespace YSMInstaller {
                 dialog.IconGlyph = MaterialIcons.Warning;
                 dialog.IconColor = MaterialPalette.Warning;
                 dialog.TitleText = "WARNO is running";
-                dialog.BodyText = "WARNO will be closed to install the mod. All other mods are disabled for compatibility.";
+                dialog.BodyText = "WARNO will be closed and all other mods will be disabled for compatibility.";
                 dialog.AddAction("Cancel", DialogResult.Cancel, MaterialButtonVariant.Text);
                 dialog.AddAction("Close & install", DialogResult.OK, MaterialButtonVariant.Filled);
                 return dialog.ShowDialog(this) == DialogResult.OK;
@@ -750,7 +750,7 @@ namespace YSMInstaller {
             _lastInstallMetadata = metadata;
             _lastInstallVersion = selectedGameVersion;
             string name = GetEffectiveDisplayName(metadata);
-            SetHeader("Version mismatch", "Mod targets a different Warno build");
+            SetHeader("Version mismatch", "Mod targets a different WARNO build");
 
             TableLayoutPanel stack = NewStack();
 
@@ -764,15 +764,15 @@ namespace YSMInstaller {
                 MaterialIcons.Warning,
                 MaterialPalette.OnWarningContainer,
                 MaterialPalette.WarningContainer,
-                $"{name} targets Warno v{metadata.GameVersion}",
+                $"{name} targets WARNO v{metadata.GameVersion}",
                 $"You have v{selectedGameVersion}. The mod may load but is not guaranteed to work."
             );
             AddToStack(stack, warn, isSteamEntry ? Sizes.ContentGap : 0);
 
             if (isSteamEntry) {
                 MaterialCard guide = BuildGuideCard(
-                    "How to switch Warno versions",
-                    "Steam → right-click Warno → Betas",
+                    "How to switch WARNO versions",
+                    "Steam → right-click WARNO → Betas",
                     OpenStepsForm
                 );
                 AddToStack(stack, guide, 0);
@@ -780,14 +780,14 @@ namespace YSMInstaller {
 
             SetContent(stack, fill: false);
 
-            MaterialButton cancel = TonalButton("Cancel");
-            cancel.Click += async (s, e) => {
+            MaterialButton back = TonalButton("Back");
+            back.Click += async (s, e) => {
                 try {
                     List<ModMetadata> variants = GetVariantsForVersion(selectedGameVersion);
                     await RenderChooseBuild(variants);
                 }
                 catch (Exception ex) {
-                    AppLogger.Critical("Cancel/back from version mismatch failed.", ex);
+                    AppLogger.Critical("Back from version mismatch failed.", ex);
                 }
             };
             MaterialButton install = PrimaryButton("Install anyway", MaterialIcons.Download);
@@ -799,7 +799,7 @@ namespace YSMInstaller {
                     AppLogger.Critical("Install-anyway (version mismatch) failed.", ex);
                 }
             };
-            SetIslandActions(cancel, install);
+            SetIslandActions(back, install);
         }
 
         private MaterialCard BuildGuideCard(string title, string subtitle, Action onGuide) {
@@ -1066,7 +1066,7 @@ namespace YSMInstaller {
 
             MaterialButton again = TonalButton("Install something else", MaterialIcons.Refresh);
             again.Click += (s, e) => RenderInstallsFound();
-            MaterialButton launch = PrimaryButton("Launch Warno", MaterialIcons.Play);
+            MaterialButton launch = PrimaryButton("Launch WARNO", MaterialIcons.Play);
             launch.Click += (s, e) => LaunchWarno(entry);
             SetIslandActions(again, launch);
         }

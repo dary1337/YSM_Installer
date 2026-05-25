@@ -64,7 +64,7 @@ namespace YSMInstaller {
         // ---- Scanning ----
         private void RenderScanning() {
             _state = AppState.Scanning;
-            SetHeader("Searching for Warno.exe…", "Scanning Steam libraries, registry, common folders");
+            SetHeader("Searching for WARNO…", "Scanning Steam libraries, registry, common folders");
             HideIsland();
 
             TableLayoutPanel stack = NewStack();
@@ -79,8 +79,8 @@ namespace YSMInstaller {
             bool fullScanDone = _includeSystemFolders;
 
             SetHeader(
-                fullScanDone ? "Warno.exe not found" : "No game found",
-                fullScanDone ? "Could not detect a WARNO installation" : "Warno.exe was not detected"
+                fullScanDone ? "WARNO not found" : "No game found",
+                fullScanDone ? "Could not detect a WARNO installation" : "WARNO was not detected"
             );
             HideIsland();
 
@@ -90,10 +90,10 @@ namespace YSMInstaller {
                 MaterialIcons.Search,
                 MaterialPalette.OnErrorContainer,
                 MaterialPalette.ErrorContainer,
-                fullScanDone ? "No Warno installations detected" : "Warno installation not detected",
+                fullScanDone ? "No WARNO installations detected" : "WARNO installation not detected",
                 fullScanDone
                     ? "Steam libraries, registry, and common folders were scanned."
-                    : "Make sure Warno is installed via Steam, or locate the .exe manually."
+                    : "Make sure WARNO is installed via Steam, or locate Warno.exe manually."
             );
             AddToStack(stack, card, Sizes.ContentGap);
 
@@ -165,7 +165,7 @@ namespace YSMInstaller {
         // ---- Catalog unavailable / offline ----
         private void RenderCatalogUnavailable(string reason) {
             _state = AppState.CatalogUnavailable;
-            SetHeader("Catalog unavailable", "Couldn't load the mod list");
+            SetHeader("Mod list unavailable", "Could not load the mod list");
             HideIsland();
 
             TableLayoutPanel stack = NewStack();
@@ -232,7 +232,7 @@ namespace YSMInstaller {
             int count = _entries.Count;
 
             SetHeader(
-                count > 1 ? "Multiple installs found" : "Warno install found",
+                count > 1 ? "Multiple installs found" : "WARNO install found",
                 BuildScanSummary(count)
             );
 

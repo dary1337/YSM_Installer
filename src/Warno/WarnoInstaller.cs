@@ -85,13 +85,13 @@ namespace YSMInstaller {
                 // Manual cancel checkpoints — Directory.Move/File.Copy don't honor CancellationToken,
                 // so without these a mid-install cancel would silently complete instead of rolling back.
                 cancellationToken.ThrowIfCancellationRequested();
-                ReportStage(stageProgress, "Preparing...");
+                ReportStage(stageProgress, "Preparing…");
                 progress?.Report(PercentPreparing);
                 Directory.CreateDirectory(modFolder);
 
                 cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Closing WARNO if running.");
-                ReportStage(stageProgress, "Closing WARNO...");
+                ReportStage(stageProgress, "Closing WARNO…");
                 progress?.Report(PercentClosing);
                 CloseRunningGame();
                 DeleteFileIfExists(lockFile);
@@ -105,7 +105,7 @@ namespace YSMInstaller {
                 if (isManualFolder) {
                     cancellationToken.ThrowIfCancellationRequested();
                     AppLogger.Info($"Manual install: staging from folder {modMetadata.LocalSourceFolder}");
-                    ReportStage(stageProgress, "Copying mod...");
+                    ReportStage(stageProgress, "Copying mod…");
                     progress?.Report(PercentCopyStart);
                     if (!Directory.Exists(modMetadata.LocalSourceFolder)) {
                         throw new DirectoryNotFoundException(
@@ -142,7 +142,7 @@ namespace YSMInstaller {
                             modMetadata.LocalSourceArchive
                         );
                     }
-                    ReportStage(stageProgress, "Extracting...");
+                    ReportStage(stageProgress, "Extracting…");
                     progress?.Report(PercentExtractManualStart);
                     // No pre-download estimate covered this flow — archive lives on the user's
                     // disk already; check destination drive against the real uncompressed size.
@@ -178,7 +178,7 @@ namespace YSMInstaller {
                 else {
                     cancellationToken.ThrowIfCancellationRequested();
                     AppLogger.Info("Downloading mod archive.");
-                    ReportStage(stageProgress, "Downloading...");
+                    ReportStage(stageProgress, "Downloading…");
                     progress?.Report(PercentDownloadStart);
 
                     bool isMultiPart = modMetadata.DownloadUrlParts != null
@@ -227,7 +227,7 @@ namespace YSMInstaller {
                     cancellationToken.ThrowIfCancellationRequested();
                     Directory.CreateDirectory(tempModPath);
                     AppLogger.Info("Extracting mod archive.");
-                    ReportStage(stageProgress, "Extracting...");
+                    ReportStage(stageProgress, "Extracting…");
                     progress?.Report(PercentExtractAutoStart);
                     await Task.Run(
                         () => SafeArchiveExtractor.ExtractToDirectory(
@@ -246,7 +246,7 @@ namespace YSMInstaller {
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
-                ReportStage(stageProgress, "Reading mod settings...");
+                ReportStage(stageProgress, "Reading mod settings…");
                 progress?.Report(PercentReading);
                 EnsureGameModConfigExists(gameConfig);
 
@@ -292,7 +292,7 @@ namespace YSMInstaller {
 
                 cancellationToken.ThrowIfCancellationRequested();
                 AppLogger.Info("Backing up current WARNO mod configuration.");
-                ReportStage(stageProgress, "Backing up your mods...");
+                ReportStage(stageProgress, "Backing up your mods…");
                 progress?.Report(PercentBackingUp);
                 File.Copy(gameConfig, gameConfigBackupPath, true);
 
@@ -307,7 +307,7 @@ namespace YSMInstaller {
                 );
 
                 cancellationToken.ThrowIfCancellationRequested();
-                ReportStage(stageProgress, "Installing...");
+                ReportStage(stageProgress, "Installing…");
                 progress?.Report(PercentInstalling);
                 await Task.Run(
                     () => Directory.Move(extractedModPath, finalModPath),
@@ -316,7 +316,7 @@ namespace YSMInstaller {
                 finalModCreated = true;
 
                 // Past this point cancel is ignored: a half-written ActivatedMods corrupts game config.
-                ReportStage(stageProgress, "Finalizing...");
+                ReportStage(stageProgress, "Finalizing…");
                 progress?.Report(PercentFinalizing);
                 // Breathing room so fast installs don't flicker past the Finalizing morph. No token —
                 // Finalizing is the no-cancel zone, OCE here would corrupt half-written game config.
@@ -376,19 +376,19 @@ namespace YSMInstaller {
                     $"Starting mock mod installation. Type: {modMetadata.ModType}, game version: {modMetadata.GameVersion}."
                 );
 
-                ReportStage(stageProgress, "Downloading...");
+                ReportStage(stageProgress, "Downloading…");
                 await ReportMockProgress(progress, PercentDownloadStart, PercentDownloadEnd, 60, cancellationToken);
-                ReportStage(stageProgress, "Extracting...");
+                ReportStage(stageProgress, "Extracting…");
                 await ReportMockProgress(progress, PercentExtractAutoStart, PercentExtractEnd, 60, cancellationToken);
-                ReportStage(stageProgress, "Backing up your mods...");
+                ReportStage(stageProgress, "Backing up your mods…");
                 await ReportMockProgress(progress, PercentBackingUp, PercentInstalling, 60, cancellationToken);
-                ReportStage(stageProgress, "Installing...");
+                ReportStage(stageProgress, "Installing…");
                 await ReportMockProgress(progress, PercentInstalling, PercentFinalizing, 60, cancellationToken);
                 if (DevWarnoMocks.SimulateInstallFailure) {
                     DevWarnoMocks.SimulateInstallFailure = false;
                     throw new InvalidOperationException("Simulated install failure (dev test).");
                 }
-                ReportStage(stageProgress, "Finalizing...");
+                ReportStage(stageProgress, "Finalizing…");
                 await ReportMockProgress(progress, PercentFinalizing, PercentDone, 75, cancellationToken);
 
                 AppLogger.Info(
@@ -444,19 +444,19 @@ namespace YSMInstaller {
             string extracted = ToMegabytesLabel(progress.BytesExtracted);
             if (progress.TotalBytes.HasValue && progress.TotalBytes.Value > 0) {
                 string total = ToMegabytesLabel(progress.TotalBytes.Value);
-                return $"Extracting... {extracted} / {total}";
+                return $"Extracting… {extracted} / {total}";
             }
-            return $"Extracting... {extracted}";
+            return $"Extracting… {extracted}";
         }
 
         private static string BuildDownloadStage(HttpService.DownloadProgressInfo progress) {
             string downloaded = ToMegabytesLabel(progress.BytesReceived);
             if (progress.TotalBytes.HasValue && progress.TotalBytes.Value > 0) {
                 string total = ToMegabytesLabel(progress.TotalBytes.Value);
-                return $"Downloading... {downloaded} / {total}";
+                return $"Downloading… {downloaded} / {total}";
             }
 
-            return $"Downloading... {downloaded}";
+            return $"Downloading… {downloaded}";
         }
 
         private static string ToMegabytesLabel(long bytes) {
@@ -524,7 +524,7 @@ namespace YSMInstaller {
 
             if (configMatches.Length > 1) {
                 throw new InvalidOperationException(
-                    "Extracted archive contains multiple Config.ini files and cannot determine mod root."
+                    "Extracted archive contains multiple Config.ini files — could not determine which folder is the mod root."
                 );
             }
 

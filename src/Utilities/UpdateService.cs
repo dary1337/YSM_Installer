@@ -105,14 +105,14 @@ namespace YSMInstaller {
 
         private static string BuildUpdateMessage(UpdateInfo updateInfo) {
             string message =
-                $"A new YSM Installer version is available ({updateInfo.Version}).";
+                $"YSM Installer {updateInfo.Version} is available.";
 
             if (string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes)) {
                 return message;
             }
 
             return message
-                + "\n\nWhat is new:\n"
+                + "\n\nWhat's new:\n"
                 + TrimReleaseNotes(updateInfo.ReleaseNotes);
         }
 
@@ -122,7 +122,7 @@ namespace YSMInstaller {
                 return normalized;
             }
 
-            return normalized.Substring(0, MaxReleaseNotesLength).TrimEnd() + "\n...";
+            return normalized.Substring(0, MaxReleaseNotesLength).TrimEnd() + "\n…";
         }
 
         private static Version ParseTagVersion(string tagName) {
