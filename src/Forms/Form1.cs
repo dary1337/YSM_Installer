@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -32,6 +33,7 @@ namespace YSMInstaller {
         private bool _isScanning;
         private bool _isInstalling;
         private bool _isAutoUpdating;
+        private CancellationTokenSource? _autoUpdateCts;
         private bool _hasFoundWarnoExe;
         private bool _showAllEntries;
 
@@ -57,17 +59,47 @@ namespace YSMInstaller {
         }
 
         async void Form1_Load(object sender, EventArgs e) {
-            bool updateStarted;
+            bool updateStarted = false;
+            bool autoUpdateCancelled = false;
             _isAutoUpdating = !DevWarnoMocks.IsEnabled;
+            if (_isAutoUpdating) {
+                _autoUpdateCts = new CancellationTokenSource();
+            }
             try {
-                updateStarted = _isAutoUpdating && await UpdateService.CheckForUpdatesAsync(this);
+                if (_isAutoUpdating) {
+                    updateStarted = await UpdateService.CheckForUpdatesAsync(this, _autoUpdateCts!.Token);
+                }
+            }
+            // async void escapes go straight to the UI thread's unhandled bucket and crash the
+            // process. UpdateService rethrows OCE on cancellation; treat that as a normal close.
+            catch (OperationCanceledException) {
+                autoUpdateCancelled = true;
+                AppLogger.Info("Auto-update aborted by form close.");
+            }
+            catch (Exception exception) {
+                AppLogger.Critical("Auto-update path failed.", exception);
             }
             finally {
                 _isAutoUpdating = false;
+                // UpdateService doesn't always throw on cancel — its download leg swallows
+                // OCE and returns false. Pick up token state here so the scan guard below
+                // sees a close-triggered cancel either way.
+                autoUpdateCancelled = autoUpdateCancelled
+                    || (_autoUpdateCts?.IsCancellationRequested ?? false);
+                _autoUpdateCts?.Dispose();
+                _autoUpdateCts = null;
             }
 
-            if (!updateStarted && !IsDisposed) {
-                await ScanAsync();
+            // OnFormClosing-triggered cancel leaves IsDisposed==false until after this event
+            // returns, so check the local flag + Disposing to avoid kicking off ScanAsync into
+            // a form that's about to tear down.
+            if (!updateStarted && !autoUpdateCancelled && !IsDisposed && !Disposing) {
+                try {
+                    await ScanAsync();
+                }
+                catch (Exception exception) {
+                    AppLogger.Critical("Initial scan failed.", exception);
+                }
             }
         }
 
@@ -86,6 +118,11 @@ namespace YSMInstaller {
                 else if (_isAutoUpdating) {
                     if (!ConfirmCloseDuringAutoUpdate()) {
                         e.Cancel = true;
+                    }
+                    else {
+                        // Aborts the in-flight HEAD/GET so the runtime actually releases the
+                        // download (otherwise we just hide the UI while the network keeps going).
+                        _autoUpdateCts?.Cancel();
                     }
                 }
             }

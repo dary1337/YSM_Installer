@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
@@ -17,12 +18,18 @@ namespace YSMInstaller {
         private const string InstallerAssetName = "YSMInstaller.exe";
         private const int MaxReleaseNotesLength = 1200;
 
-        public static async Task<bool> CheckForUpdatesAsync(IWin32Window owner) {
+        public static async Task<bool> CheckForUpdatesAsync(
+            IWin32Window owner,
+            CancellationToken cancellationToken = default
+        ) {
             UpdateInfo updateInfo;
 
             try {
                 AppLogger.Info("Checking for application updates.");
-                updateInfo = await FetchLatestReleaseAsync();
+                updateInfo = await FetchLatestReleaseAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                throw;
             }
             catch (Exception exception) {
                 AppLogger.Error("Failed to check for application updates.", exception);
@@ -58,8 +65,12 @@ namespace YSMInstaller {
 
             try {
                 AppLogger.Info($"Downloading application update {updateInfo.Version}.");
-                await DownloadAndRestartAsync(updateInfo.DownloadUrl);
+                await DownloadAndRestartAsync(updateInfo.DownloadUrl, cancellationToken);
                 return true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                AppLogger.Info("Auto-update cancelled by user.");
+                return false;
             }
             catch (Exception exception) {
                 AppLogger.Critical("Auto-update failed.", exception);
@@ -72,8 +83,8 @@ namespace YSMInstaller {
             }
         }
 
-        private static async Task<UpdateInfo> FetchLatestReleaseAsync() {
-            var json = await HttpService.GetStringAsync(LatestReleaseUrl, GitHubApiAcceptHeader);
+        private static async Task<UpdateInfo> FetchLatestReleaseAsync(CancellationToken cancellationToken) {
+            var json = await HttpService.GetStringAsync(LatestReleaseUrl, GitHubApiAcceptHeader, cancellationToken);
             var release =
                 JsonConvert.DeserializeObject<GitHubRelease>(json)
                 ?? throw new InvalidDataException("GitHub release response is empty.");
@@ -134,7 +145,7 @@ namespace YSMInstaller {
                 && uri.Scheme == Uri.UriSchemeHttps;
         }
 
-        private static async Task DownloadAndRestartAsync(string downloadUrl) {
+        private static async Task DownloadAndRestartAsync(string downloadUrl, CancellationToken cancellationToken) {
             var currentExePath = Application.ExecutablePath;
             var tempExePath = Path.Combine(
                 Path.GetTempPath(),
@@ -145,7 +156,11 @@ namespace YSMInstaller {
                 $"YSMInstaller_Update_{Guid.NewGuid():N}.cmd"
             );
 
-            await HttpService.DownloadFileAsync(downloadUrl, tempExePath);
+            await HttpService.DownloadFileAsync(
+                downloadUrl,
+                tempExePath,
+                cancellationToken: cancellationToken
+            );
 
             var script = BuildUpdaterScript(currentExePath, tempExePath, updaterPath);
             File.WriteAllText(updaterPath, script, Encoding.ASCII);

@@ -1000,6 +1000,9 @@ namespace YSMInstaller {
                 Size = new Size(64, 64),
                 SizeMode = PictureBoxSizeMode.Normal,
             };
+            // PictureBox doesn't own its Image — without this each Complete render leaks a
+            // fresh 64x64 Bitmap (and its GDI handle) until the process exits.
+            check.Disposed += (s, e) => check.Image?.Dispose();
             stack.Controls.Add(check);
 
             var title = new Label {
