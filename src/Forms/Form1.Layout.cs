@@ -264,8 +264,26 @@ namespace YSMInstaller {
                 _contentHost.Controls.RemoveAt(i);
                 existing.Dispose();
             }
-            container.Dock = fill ? DockStyle.Fill : DockStyle.Top;
-            _contentHost.Controls.Add(container);
+            if (fill) {
+                // Filled layouts (e.g. centered Complete state) own their own internal sizing
+                // and don't benefit from a scrollbar — content is bounded by viewport.
+                container.Dock = DockStyle.Fill;
+                _contentHost.Controls.Add(container);
+            }
+            else {
+                // Stacked / Dock=Top layouts can overflow vertically (long lists, many build
+                // cards, version-mismatch + guide stack). Wrap them in a scroll panel so
+                // overflow becomes scroll instead of clipping.
+                var scroll = new MaterialScrollPanel {
+                    BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill,
+                    Margin = Padding.Empty,
+                    Padding = Padding.Empty,
+                };
+                container.Dock = DockStyle.Top;
+                scroll.ContentPanel.Controls.Add(container);
+                _contentHost.Controls.Add(scroll);
+            }
             _contentHost.ResumeLayout(true);
         }
 

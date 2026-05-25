@@ -158,6 +158,7 @@ namespace YSMInstaller {
 
             Section("Dialogs");
             Add("Update available", DevShowUpdateDialog);
+            Add("Update available (huge changelog)", DevShowLongUpdateDialog);
             Add("WARNO is running", DevShowWarnoRunningDialog);
             Add("Generic error", () => UserMessages.ShowError(this, "Something went wrong",
                 $"A sample error message with details written to:\n{AppLogger.LogPath}"));
@@ -199,8 +200,30 @@ namespace YSMInstaller {
                 dialog.IconColor = MaterialPalette.Primary;
                 dialog.TitleText = "Update available";
                 dialog.BodyText =
-                    "A new YSM Installer version is available (1.2.0).\n\nWhat is new:\n"
+                    "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
                     + "• Catalog now supports YSM x WiF\n• Faster Steam library scan\n• Fixed rollback when WARNO crashes";
+                dialog.AddAction("Later", DialogResult.No, MaterialButtonVariant.Text);
+                dialog.AddAction("Install update", DialogResult.Yes, MaterialButtonVariant.Filled);
+                dialog.ShowDialog(this);
+            }
+        }
+
+        private void DevShowLongUpdateDialog() {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Info;
+                dialog.IconColor = MaterialPalette.Primary;
+                dialog.TitleText = "Update available";
+                dialog.BodyText =
+                    "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
+                    + string.Join("\n", Enumerable.Range(1, 40).Select(i =>
+                        $"• Bullet point {i} — describes a non-trivial change with enough text to wrap onto a second line in the dialog body, which is the whole point of stressing the scrollbar here. Lorem ipsum dolor sit amet."))
+                    + "\n\nBreaking changes:\n"
+                    + string.Join("\n", Enumerable.Range(1, 15).Select(i =>
+                        $"  – BC{i:00}: catalog schema field renamed; behavior described in the migration notes."))
+                    + "\n\nKnown issues:\n"
+                    + "• None at release time.\n"
+                    + "• Edge case: extremely fast networks (>500 MB/s) may briefly flash the progress text — cosmetic only.\n"
+                    + "\n\nThank you to all the contributors listed in the GitHub release page. Full diff: see release notes link.";
                 dialog.AddAction("Later", DialogResult.No, MaterialButtonVariant.Text);
                 dialog.AddAction("Install update", DialogResult.Yes, MaterialButtonVariant.Filled);
                 dialog.ShowDialog(this);
