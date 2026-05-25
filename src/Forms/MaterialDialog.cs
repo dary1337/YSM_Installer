@@ -254,10 +254,12 @@ namespace YSMInstaller {
         }
 
         // Caps the body region so a huge GitHub changelog doesn't push the dialog taller than
-        // the screen. Scrollbar takes over when content exceeds this; user can still read every
-        // word by scrolling.
-        private static int ComputeMaxBodyHeight() {
-            int screenH = Screen.PrimaryScreen?.WorkingArea.Height ?? 800;
+        // the screen. Scrollbar takes over when content exceeds this. Resolves the screen via
+        // FromControl so multi-monitor setups (dialog on secondary display) cap to the actual
+        // host screen's working area rather than always to PrimaryScreen.
+        private int ComputeMaxBodyHeight() {
+            Screen? screen = Screen.FromControl(this) ?? Screen.PrimaryScreen;
+            int screenH = screen?.WorkingArea.Height ?? 800;
             const int reservedForChrome = 300;
             return Math.Max(200, Math.Min(600, screenH - reservedForChrome));
         }

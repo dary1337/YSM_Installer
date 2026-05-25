@@ -86,6 +86,14 @@ namespace YSMInstaller {
             Application.AddMessageFilter(_wheelFilter);
         }
 
+        protected override void OnHandleDestroyed(EventArgs e) {
+            // Pair with OnHandleCreated so handle-recreation cycles (reparenting, style flips)
+            // don't accumulate duplicate filter registrations. Dispose still removes as a safety
+            // net for paths where the handle was never created.
+            Application.RemoveMessageFilter(_wheelFilter);
+            base.OnHandleDestroyed(e);
+        }
+
         protected override void OnResize(EventArgs e) {
             base.OnResize(e);
             Relayout();
