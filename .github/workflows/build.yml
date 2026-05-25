@@ -61,19 +61,42 @@ jobs:
           name: YSMInstaller-${{ github.sha }}
           path: ./artifact
 
-      - name: Update rolling draft
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-build
-          name: Latest build (auto-draft)
-          body: |
-            Rolling draft from the latest merge to `${{ github.ref_name }}`.
+      # Delete-then-recreate instead of upserting via softprops because softprops leaves
+      # the `latest-build` tag pinned to the first commit it ever pointed at, and the
+      # release body/title don't reliably refresh on a draft-state release. Recreating
+      # the release with --target HEAD makes the tag, body, and assets all reflect the
+      # commit that just merged.
+      - name: Recreate rolling draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -eu
+          gh release delete latest-build --yes --cleanup-tag --repo "$REPO" 2>/dev/null || true
 
-            **Commit**: ${{ github.sha }}
-            **Run**: #${{ github.run_number }}
-            **Message**: ${{ github.event.head_commit.message }}
+          HEAD_FIRST_LINE="$(printf '%s\n' "$HEAD_COMMIT_MESSAGE" | head -n 1)"
 
-            Smoke-test before promoting to a real versioned release.
-          draft: true
-          prerelease: true
-          files: ./artifact/YSMInstaller.exe
+          # printf with %s treats every variable strictly as data, so a commit message
+          # containing backticks or $() can't trigger command substitution on the runner
+          # (which holds contents:write). Quoted heredoc <<'EOF' would also work but then
+          # we'd have to interpolate via sed/envsubst.
+          {
+            printf 'Rolling draft from the latest merge to `%s`.\n\n' "$REF_NAME"
+            printf '**Commit**: %s\n' "$COMMIT_SHA"
+            printf '**Run**: #%s\n' "$RUN_NUMBER"
+            printf '**Message**: %s\n\n' "$HEAD_FIRST_LINE"
+            printf 'Smoke-test before promoting to a real versioned release.\n'
+          } > release_notes.md
+
+          gh release create latest-build ./artifact/YSMInstaller.exe \
+            --repo "$REPO" \
+            --title "Latest build (auto-draft)" \
+            --target "$COMMIT_SHA" \
+            --draft \
+            --prerelease \
+            --notes-file release_notes.md
