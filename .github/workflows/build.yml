@@ -81,15 +81,17 @@ jobs:
 
           HEAD_FIRST_LINE="$(printf '%s\n' "$HEAD_COMMIT_MESSAGE" | head -n 1)"
 
-          cat > release_notes.md <<EOF
-          Rolling draft from the latest merge to \`$REF_NAME\`.
-
-          **Commit**: $COMMIT_SHA
-          **Run**: #$RUN_NUMBER
-          **Message**: $HEAD_FIRST_LINE
-
-          Smoke-test before promoting to a real versioned release.
-          EOF
+          # printf with %s treats every variable strictly as data, so a commit message
+          # containing backticks or $() can't trigger command substitution on the runner
+          # (which holds contents:write). Quoted heredoc <<'EOF' would also work but then
+          # we'd have to interpolate via sed/envsubst.
+          {
+            printf 'Rolling draft from the latest merge to `%s`.\n\n' "$REF_NAME"
+            printf '**Commit**: %s\n' "$COMMIT_SHA"
+            printf '**Run**: #%s\n' "$RUN_NUMBER"
+            printf '**Message**: %s\n\n' "$HEAD_FIRST_LINE"
+            printf 'Smoke-test before promoting to a real versioned release.\n'
+          } > release_notes.md
 
           gh release create latest-build ./artifact/YSMInstaller.exe \
             --repo "$REPO" \
