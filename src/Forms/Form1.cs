@@ -60,6 +60,7 @@ namespace YSMInstaller {
 
         async void Form1_Load(object sender, EventArgs e) {
             bool updateStarted = false;
+            bool autoUpdateCancelled = false;
             _isAutoUpdating = !DevWarnoMocks.IsEnabled;
             if (_isAutoUpdating) {
                 _autoUpdateCts = new CancellationTokenSource();
@@ -72,6 +73,7 @@ namespace YSMInstaller {
             // async void escapes go straight to the UI thread's unhandled bucket and crash the
             // process. UpdateService rethrows OCE on cancellation; treat that as a normal close.
             catch (OperationCanceledException) {
+                autoUpdateCancelled = true;
                 AppLogger.Info("Auto-update aborted by form close.");
             }
             catch (Exception exception) {
@@ -83,7 +85,10 @@ namespace YSMInstaller {
                 _autoUpdateCts = null;
             }
 
-            if (!updateStarted && !IsDisposed) {
+            // OnFormClosing-triggered cancel leaves IsDisposed==false until after this event
+            // returns, so check the local flag + Disposing to avoid kicking off ScanAsync into
+            // a form that's about to tear down.
+            if (!updateStarted && !autoUpdateCancelled && !IsDisposed && !Disposing) {
                 try {
                     await ScanAsync();
                 }
