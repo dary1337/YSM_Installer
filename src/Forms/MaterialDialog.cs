@@ -153,19 +153,51 @@ namespace YSMInstaller {
             }
 
             if (!string.IsNullOrEmpty(_bodyText)) {
-                int bodyHeight = MeasureBodyHeight(_bodyText, innerWidth);
-                var body = new SoftLabel {
-                    AutoSize = false,
-                    Font = MaterialType.BodyMedium,
-                    ForeColor = MaterialPalette.OnSurfaceVariant,
-                    Text = _bodyText,
-                    Location = new Point(Pad, y),
-                    Width = innerWidth,
-                    Height = bodyHeight,
-                    BackColor = Color.Transparent,
-                };
-                Controls.Add(body);
-                y += bodyHeight + Pad;
+                // Measure at narrow width first so the cap decision accounts for the scrollbar
+                // gutter we'd add. If the body fits without scroll, fall back to the full inner
+                // width (which wraps less and looks tighter).
+                int scrollGutter = 12;
+                int narrowWidth = Math.Max(40, innerWidth - scrollGutter);
+                int bodyHeight = MeasureBodyHeight(_bodyText, narrowWidth);
+                int bodyCap = ComputeMaxBodyHeight();
+
+                if (bodyHeight <= bodyCap) {
+                    int simpleHeight = MeasureBodyHeight(_bodyText, innerWidth);
+                    var body = new SoftLabel {
+                        AutoSize = false,
+                        Font = MaterialType.BodyMedium,
+                        ForeColor = MaterialPalette.OnSurfaceVariant,
+                        Text = _bodyText,
+                        Location = new Point(Pad, y),
+                        Width = innerWidth,
+                        Height = simpleHeight,
+                        BackColor = Color.Transparent,
+                    };
+                    Controls.Add(body);
+                    y += simpleHeight + Pad;
+                }
+                else {
+                    var scroll = new MaterialScrollPanel {
+                        BackColor = Color.Transparent,
+                        Location = new Point(Pad, y),
+                        Size = new Size(innerWidth, bodyCap),
+                        Margin = Padding.Empty,
+                        Padding = Padding.Empty,
+                    };
+                    var body = new SoftLabel {
+                        AutoSize = false,
+                        Font = MaterialType.BodyMedium,
+                        ForeColor = MaterialPalette.OnSurfaceVariant,
+                        Text = _bodyText,
+                        Location = Point.Empty,
+                        Width = narrowWidth,
+                        Height = bodyHeight,
+                        BackColor = Color.Transparent,
+                    };
+                    scroll.ContentPanel.Controls.Add(body);
+                    Controls.Add(scroll);
+                    y += bodyCap + Pad;
+                }
             }
             else {
                 y += Pad;
@@ -220,6 +252,15 @@ namespace YSMInstaller {
                 SizeF size = g.MeasureString(text, MaterialType.BodyMedium, width);
                 return (int)Math.Ceiling(size.Height) + 4;
             }
+        }
+
+        // Caps the body region so a huge GitHub changelog doesn't push the dialog taller than
+        // the screen. Scrollbar takes over when content exceeds this; user can still read every
+        // word by scrolling.
+        private static int ComputeMaxBodyHeight() {
+            int screenH = Screen.PrimaryScreen?.WorkingArea.Height ?? 800;
+            const int reservedForChrome = 300;
+            return Math.Max(200, Math.Min(600, screenH - reservedForChrome));
         }
 
         private void ApplyRoundedRegion() {

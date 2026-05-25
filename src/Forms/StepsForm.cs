@@ -9,7 +9,7 @@ namespace YSMInstaller {
 
         private Label _overlineLabel = null!;
         private Label _titleLabel = null!;
-        private Panel _screenshotHost = null!;
+        private MaterialScrollPanel _screenshotHost = null!;
         private PictureBox _screenshot = null!;
         private MaterialButton _backButton = null!;
         private MaterialButton _nextButton = null!;
@@ -83,8 +83,7 @@ namespace YSMInstaller {
             header.Controls.Add(_overlineLabel);
             header.Controls.Add(_titleLabel);
 
-            _screenshotHost = new Panel {
-                AutoScroll = true,
+            _screenshotHost = new MaterialScrollPanel {
                 BackColor = Color.Transparent,
                 Dock = DockStyle.Fill,
                 Margin = Padding.Empty,
@@ -95,7 +94,7 @@ namespace YSMInstaller {
                 Location = new Point(0, 0),
                 SizeMode = PictureBoxSizeMode.AutoSize,
             };
-            _screenshotHost.Controls.Add(_screenshot);
+            _screenshotHost.ContentPanel.Controls.Add(_screenshot);
 
             var buttonRow = new TableLayoutPanel {
                 AutoSize = true,
@@ -166,7 +165,6 @@ namespace YSMInstaller {
             _overlineLabel.Text = $"STEP {_index + 1} OF {_steps.Count}";
             _titleLabel.Text = step.title;
             _screenshot.Image = step.image;
-            _screenshotHost.AutoScrollPosition = new Point(0, 0);
 
             _backButton.Enabled = _index > 0;
             _nextButton.Text = _index >= _steps.Count - 1 ? "Done" : "Next";

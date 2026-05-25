@@ -145,6 +145,9 @@
     <Compile Include="Controls\Material\StepChecklist.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Controls\Material\MaterialScrollPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="UI\Tokens.cs" />
     <Compile Include="UI\AppLinks.cs" />
     <Compile Include="UI\BuildIcons.cs" />
