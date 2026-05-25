@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import
-    Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
-    Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"
-  />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -18,17 +15,19 @@
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
-    <NuGetPackageImportStamp></NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -148,14 +147,22 @@
     <Compile Include="Controls\Material\MaterialScrollPanel.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Controls\Material\MaterialTitleBar.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="UI\Tokens.cs" />
     <Compile Include="UI\AppLinks.cs" />
     <Compile Include="UI\BuildIcons.cs" />
+    <Compile Include="UI\FormDragAnywhere.cs" />
+    <Compile Include="UI\FormAnimation.cs" />
     <Compile Include="UI\MaterialPalette.cs" />
     <Compile Include="UI\MaterialType.cs" />
     <Compile Include="UI\MaterialIcons.cs" />
     <Compile Include="UI\MaterialIconRenderer.cs" />
     <Compile Include="UI\WindowChrome.cs" />
+    <Compile Include="Forms\BorderlessForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\MaterialDialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -287,6 +294,7 @@
     <EmbeddedResource Include="Resources\icons\info.svg" />
     <EmbeddedResource Include="Resources\icons\info_filled.svg" />
     <EmbeddedResource Include="Resources\icons\layers.svg" />
+    <EmbeddedResource Include="Resources\icons\minimize.svg" />
     <EmbeddedResource Include="Resources\icons\open_in_new.svg" />
     <EmbeddedResource Include="Resources\icons\play_arrow.svg" />
     <EmbeddedResource Include="Resources\icons\play_arrow_filled.svg" />

@@ -20,7 +20,14 @@ namespace YSMInstaller {
 
         private void BuildChrome() {
             Controls.Clear();
-            Padding = new Padding(Sizes.WindowPadding);
+            // Padding lives on the inner content wrapper instead of the form so the titlebar
+            // can run edge-to-edge along the top.
+            Padding = Padding.Empty;
+
+            var titleBar = new MaterialTitleBar {
+                TitleText = "YSM Installer",
+                AppIcon = Properties.Resources.logo.ToBitmap(),
+            };
 
             _root = new TableLayoutPanel {
                 Dock = DockStyle.Fill,
@@ -39,7 +46,20 @@ namespace YSMInstaller {
             _root.Controls.Add(BuildContentHost(), 0, 1);
             _root.Controls.Add(BuildIsland(), 0, 2);
 
-            Controls.Add(_root);
+            // HitTestForwardingPanel returns HTTRANSPARENT in form-owned zones (edges +
+            // titlebar) so Windows cascades WM_NCHITTEST up to the form, whose DefWindowProc
+            // handles native resize/drag via WS_THICKFRAME.
+            var contentWrap = new BorderlessForm.HitTestForwardingPanel {
+                BackColor = MaterialPalette.Surface,
+                Dock = DockStyle.Fill,
+                Margin = Padding.Empty,
+                Padding = new Padding(Sizes.WindowPadding),
+            };
+            contentWrap.Controls.Add(_root);
+
+            // Dock ordering: controls dock in reverse Z-order (last-added docks first).
+            Controls.Add(contentWrap);
+            Controls.Add(titleBar);
         }
 
         private Control BuildHeader() {

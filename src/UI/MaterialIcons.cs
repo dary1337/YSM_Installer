@@ -17,6 +17,7 @@ namespace YSMInstaller {
         public const string OpenInNew = "open_in_new";
         public const string Cancel = "close";
         public const string Close = "close";
+        public const string Minimize = "minimize";
         public const string Info = "info";
         public const string Warning = "warning_filled";
         public const string Game = "videogame_asset";

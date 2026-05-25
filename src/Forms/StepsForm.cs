@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
-    public partial class StepsForm : Form {
+    public partial class StepsForm : BorderlessForm {
         private readonly List<(string title, Image image)> _steps;
         private int _index;
 
@@ -18,7 +18,10 @@ namespace YSMInstaller {
             InitializeComponent();
 
             Text = "Switch WARNO version";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            // Fixed-size secondary window — no edge resize; drag from anywhere on the body.
+            // Uses native Windows open/close animation.
+            EnableEdgeResize = false;
+            EnableDragAnywhere = true;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
@@ -28,8 +31,7 @@ namespace YSMInstaller {
             ForeColor = MaterialPalette.OnSurface;
             Font = MaterialType.BodyMedium;
             ClientSize = new Size(720, 560);
-            Padding = new Padding(Sizes.WindowPadding);
-            WindowChrome.ApplyDark(this);
+            Padding = Padding.Empty;
 
             _steps = new List<(string, Image)> {
                 ("Open properties", Properties.Resources.Screenshot_2025_03_02_182641),
@@ -137,7 +139,21 @@ namespace YSMInstaller {
             root.Controls.Add(_screenshotHost, 0, 1);
             root.Controls.Add(buttonRow, 0, 2);
 
-            Controls.Add(root);
+            var titleBar = new MaterialTitleBar {
+                TitleText = "Switch WARNO version",
+                AppIcon = Properties.Resources.logo.ToBitmap(),
+                ShowMinimize = false,
+            };
+            var contentWrap = new Panel {
+                BackColor = MaterialPalette.Surface,
+                Dock = DockStyle.Fill,
+                Margin = Padding.Empty,
+                Padding = new Padding(Sizes.WindowPadding),
+            };
+            contentWrap.Controls.Add(root);
+
+            Controls.Add(contentWrap);
+            Controls.Add(titleBar);
 
             AcceptButton = _nextButton;
         }

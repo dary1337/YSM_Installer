@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
-    public partial class Form1 : Form {
+    public partial class Form1 : BorderlessForm {
         private enum AppState {
             Scanning,
             NotFound,
@@ -48,7 +48,6 @@ namespace YSMInstaller {
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(Tokens.WindowMinWidth, Tokens.WindowMinHeight);
             ClientSize = new Size(Tokens.WindowWidth, Tokens.WindowHeight);
-            WindowChrome.ApplyDark(this);
 
             using (Graphics graphics = CreateGraphics()) {
                 AutoScaleDimensions = new SizeF(graphics.DpiX, graphics.DpiY);

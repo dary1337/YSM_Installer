@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
@@ -21,6 +22,9 @@ namespace YSMInstaller {
 
         private const int Pad = Sizes.DialogPadding;
         private const int Width420 = Sizes.DialogMaxWidth;
+        // Expanded width for huge bodies (e.g. GitHub-sized release notes). Modest bump — wide
+        // enough to relieve wrapping density, narrow enough to still read as a modal.
+        private const int WidthExpanded = 560;
 
         public MaterialDialog() {
             FormBorderStyle = FormBorderStyle.None;
@@ -32,7 +36,14 @@ namespace YSMInstaller {
             Width = Width420;
             DoubleBuffered = true;
             KeyPreview = true;
+            // Start invisible so the Material fade-in (in OnLoad) drives the open animation
+            // instead of Windows' native fade. FormBorderStyle.None popups don't get a great
+            // native animation anyway, so the M3 ease-out feels noticeably better here.
+            Opacity = 0d;
             SetStyle(ControlStyles.ResizeRedraw, true);
+            // Modal dialogs grab-anywhere — user can lift the dialog by clicking on the body
+            // text, the icon, or any empty space (skips buttons / links via the helper).
+            FormDragAnywhere.Enable(this);
         }
 
         protected override CreateParams CreateParams {
@@ -101,13 +112,77 @@ namespace YSMInstaller {
             }
         }
 
-        protected override void OnShown(EventArgs e) {
-            base.OnShown(e);
+        protected override void OnLoad(EventArgs e) {
+            // Resize + layout BEFORE Show so CenterParent positions the dialog using its
+            // final dimensions — no visible jump from CenterParent then post-show recenter.
+            AdjustWidthForBody();
             BuildLayout();
             ApplyRoundedRegion();
+            // If width changed past CenterParent's calc, re-center against owner so the
+            // open animation starts from the right anchor point.
+            RecenterOnOwner();
+            base.OnLoad(e);
+            _ = FormAnimation.OpenAsync(this);
+        }
+
+        private void RecenterOnOwner() {
+            Rectangle anchor = Owner != null
+                ? Owner.Bounds
+                : (Screen.FromControl(this) ?? Screen.PrimaryScreen)!.WorkingArea;
+            Location = new Point(
+                anchor.X + (anchor.Width - Width) / 2,
+                anchor.Y + (anchor.Height - Height) / 2
+            );
+        }
+
+        protected override void OnShown(EventArgs e) {
+            base.OnShown(e);
             if (_defaultButton != null) {
                 AcceptButton = _defaultButton;
                 _defaultButton.Focus();
+            }
+        }
+
+        private bool _animatingClose;
+        private DialogResult _pendingDialogResult;
+
+        protected override void OnFormClosing(FormClosingEventArgs e) {
+            base.OnFormClosing(e);
+            if (e.Cancel || _animatingClose) {
+                return;
+            }
+            if (e.CloseReason != CloseReason.UserClosing) {
+                return;
+            }
+            // WinForms resets DialogResult to None when a Close() is cancelled (e.Cancel = true)
+            // mid-flight, which would lose the button's result (Yes/OK/Cancel) across the fade
+            // animation. Snapshot it now and restore before the real close.
+            _pendingDialogResult = DialogResult;
+            _animatingClose = true;
+            e.Cancel = true;
+            _ = FadeOutThenCloseAsync();
+        }
+
+        private async Task FadeOutThenCloseAsync() {
+            await FormAnimation.CloseAsync(this);
+            if (!IsDisposed) {
+                DialogResult = _pendingDialogResult;
+                Close();
+            }
+        }
+
+        // For wall-of-text bodies (release notes), widen the dialog modestly so the column
+        // isn't 372 px narrow and the text doesn't read like a tall ribbon. Heuristic: if the
+        // body at narrow width would scroll more than ~1.5× the height cap, expand width.
+        private void AdjustWidthForBody() {
+            if (string.IsNullOrEmpty(_bodyText)) {
+                return;
+            }
+            int narrowInner = Width420 - Pad * 2 - MaterialScrollPanel.TrackWidth;
+            int narrowHeight = MeasureBodyHeight(_bodyText, narrowInner);
+            int cap = ComputeMaxBodyHeight();
+            if (narrowHeight > cap * 3 / 2) {
+                Width = WidthExpanded;
             }
         }
 
@@ -253,15 +328,15 @@ namespace YSMInstaller {
             }
         }
 
-        // Caps the body region so a huge GitHub changelog doesn't push the dialog taller than
-        // the screen. Scrollbar takes over when content exceeds this. Resolves the screen via
-        // FromControl so multi-monitor setups (dialog on secondary display) cap to the actual
-        // host screen's working area rather than always to PrimaryScreen.
+        // Caps the body region so a huge changelog doesn't push the dialog taller than the
+        // screen. Scrollbar takes over when content exceeds this. No fixed upper bound — on
+        // a 4K monitor a tall dialog is fine; we let the body grow up to (screen - chrome),
+        // where chrome accounts for icon + title + actions + top/bottom screen margin.
         private int ComputeMaxBodyHeight() {
             Screen? screen = Screen.FromControl(this) ?? Screen.PrimaryScreen;
             int screenH = screen?.WorkingArea.Height ?? 800;
-            const int reservedForChrome = 300;
-            return Math.Max(200, Math.Min(600, screenH - reservedForChrome));
+            const int reservedForChrome = 240;
+            return Math.Max(200, screenH - reservedForChrome);
         }
 
         private void ApplyRoundedRegion() {
