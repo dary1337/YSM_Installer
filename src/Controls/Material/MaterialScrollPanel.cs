@@ -438,16 +438,20 @@ namespace YSMInstaller {
                 if (top == null || Form.ActiveForm != top) {
                     return false;
                 }
+                // ToInt64 (not ToInt32) — on 64-bit Windows the high half of WParam/LParam can
+                // exceed Int32 range (large screen coords on a right-monitor setup), and
+                // ToInt32 is checked and throws OverflowException for any such message.
+                long lParam = m.LParam.ToInt64();
                 Point screenPoint = new Point(
-                    (short)(m.LParam.ToInt32() & 0xFFFF),
-                    (short)((m.LParam.ToInt32() >> 16) & 0xFFFF)
+                    (short)(lParam & 0xFFFF),
+                    (short)((lParam >> 16) & 0xFFFF)
                 );
                 Rectangle screenBounds = _owner.RectangleToScreen(_owner.ClientRectangle);
                 if (!screenBounds.Contains(screenPoint)) {
                     return false;
                 }
                 // High word of wParam carries the wheel delta (signed short).
-                int delta = (short)((m.WParam.ToInt32() >> 16) & 0xFFFF);
+                int delta = (short)((m.WParam.ToInt64() >> 16) & 0xFFFF);
                 _owner.HandleWheel(delta);
                 return true; // Eat the message so the focused control doesn't also scroll.
             }
