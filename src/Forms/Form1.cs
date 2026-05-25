@@ -81,6 +81,11 @@ namespace YSMInstaller {
             }
             finally {
                 _isAutoUpdating = false;
+                // UpdateService doesn't always throw on cancel — its download leg swallows
+                // OCE and returns false. Pick up token state here so the scan guard below
+                // sees a close-triggered cancel either way.
+                autoUpdateCancelled = autoUpdateCancelled
+                    || (_autoUpdateCts?.IsCancellationRequested ?? false);
                 _autoUpdateCts?.Dispose();
                 _autoUpdateCts = null;
             }
