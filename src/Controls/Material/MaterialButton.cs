@@ -22,9 +22,15 @@ namespace YSMInstaller {
         private string _iconGlyph = string.Empty;
         private Color _accent = MaterialPalette.Primary;
         private Color _onAccent = MaterialPalette.OnPrimary;
+        private Color? _outlineColor;
         private bool _hovered;
         private bool _pressed;
         private int _cornerRadius = Sizes.RadiusFull;
+
+        // Re-used off-screen buffer. Allocating a fresh Bitmap on every OnPaint shows up as a
+        // bottleneck during window resize where many buttons repaint per frame (GC pressure
+        // + GDI+ surface creation cost). Reallocated only when the button's size changes.
+        private Bitmap? _buffer;
 
         public MaterialButton() {
             SetStyle(
@@ -76,6 +82,12 @@ namespace YSMInstaller {
             set { _cornerRadius = value; Invalidate(); }
         }
 
+        /// <summary>Override the outlined-variant border color. Null falls back to <see cref="MaterialPalette.Outline"/>.</summary>
+        public Color? OutlineColor {
+            get => _outlineColor;
+            set { _outlineColor = value; Invalidate(); }
+        }
+
         private Color FillColor {
             get {
                 switch (_variant) {
@@ -106,17 +118,23 @@ namespace YSMInstaller {
         protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _pressed = false; Invalidate(); }
         protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
 
+        protected override void OnSizeChanged(EventArgs e) {
+            base.OnSizeChanged(e);
+            _buffer?.Dispose();
+            _buffer = Width > 0 && Height > 0
+                ? new Bitmap(Width, Height, PixelFormat.Format32bppArgb)
+                : null;
+        }
+
         private int EffectiveRadius => Math.Max(0, Math.Min(_cornerRadius, Math.Min(Width, Height) / 2));
 
         protected override void OnPaint(PaintEventArgs e) {
-            if (Width <= 0 || Height <= 0) {
+            // _buffer is allocated in OnSizeChanged; null only when the control has zero size.
+            if (_buffer == null) {
                 return;
             }
 
-            // Render off-screen onto a buffer pre-cleared with the parent color, so FillPath's AA edges
-            // blend the pill against the actual parent color (smooth, no ring artifact, no white corners).
-            using (var buffer = new Bitmap(Width, Height, PixelFormat.Format32bppArgb))
-            using (Graphics g = Graphics.FromImage(buffer)) {
+            using (Graphics g = Graphics.FromImage(_buffer)) {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
@@ -160,8 +178,11 @@ namespace YSMInstaller {
                             Math.Max(0, Width - 2),
                             Math.Max(0, Height - 2)
                         );
+                        Color outline = Enabled
+                            ? (_outlineColor ?? MaterialPalette.Outline)
+                            : MaterialPalette.OutlineVariant;
                         using (GraphicsPath outlinePath = RoundedControlRenderer.GetFigurePath(outlineRect, Math.Max(0, radius - 1)))
-                        using (var pen = new Pen(Enabled ? MaterialPalette.Outline : MaterialPalette.OutlineVariant, 1f)) {
+                        using (var pen = new Pen(outline, 1f)) {
                             g.DrawPath(pen, outlinePath);
                         }
                         g.Restore(saved);
@@ -169,9 +190,16 @@ namespace YSMInstaller {
                 }
 
                 DrawContent(g, ClientRectangle);
-
-                e.Graphics.DrawImageUnscaled(buffer, 0, 0);
             }
+            e.Graphics.DrawImageUnscaled(_buffer, 0, 0);
+        }
+
+        protected override void Dispose(bool disposing) {
+            if (disposing) {
+                _buffer?.Dispose();
+                _buffer = null;
+            }
+            base.Dispose(disposing);
         }
 
         private void DrawContent(Graphics g, Rectangle rect) {

@@ -1064,7 +1064,7 @@ namespace YSMInstaller {
             center.Controls.Add(stack, 0, 1);
             SetContent(center, fill: true);
 
-            MaterialButton again = TonalButton("Install something else", MaterialIcons.Refresh);
+            MaterialButton again = TonalButton("Switch build", MaterialIcons.Refresh);
             again.Click += (s, e) => RenderInstallsFound();
             MaterialButton launch = PrimaryButton("Launch WARNO", MaterialIcons.Play);
             launch.Click += (s, e) => LaunchWarno(entry);

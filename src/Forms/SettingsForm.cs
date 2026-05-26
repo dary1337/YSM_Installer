@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
-    public sealed class SettingsForm : Form {
+    public sealed class SettingsForm : BorderlessForm {
         private readonly DropdownSelect _sourceDropdown;
         private readonly ModCatalogSourceKind _initialSource;
 
@@ -11,26 +11,32 @@ namespace YSMInstaller {
             _initialSource = ModCatalogSettings.SelectedSource;
 
             Text = "Settings";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            // Fixed-size secondary window — no edge resize; drag from anywhere on the body.
+            // Uses native Windows open/close animation (Material 3 fade reserved for actual
+            // dialog modals — MaterialDialog).
+            EnableEdgeResize = false;
+            EnableDragAnywhere = true;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(420, 300);
+            // Total height = original content (300) + titlebar (40) so the visible body matches
+            // the previous SettingsForm layout exactly.
+            ClientSize = new Size(420, 300 + Tokens.TitleBarHeight);
             BackColor = MaterialPalette.Surface;
             ForeColor = MaterialPalette.OnSurface;
             Font = MaterialType.BodyMedium;
             Icon = Properties.Resources.logo;
-            WindowChrome.ApplyDark(this);
 
             const int margin = 24;
             int innerWidth = ClientSize.Width - margin * 2;
+            int top = Tokens.TitleBarHeight + margin;
 
             var overline = new SoftLabel {
                 AutoSize = true,
                 Font = MaterialType.Overline,
                 ForeColor = MaterialPalette.OnSurfaceVariant,
-                Location = new Point(margin, margin),
+                Location = new Point(margin, top),
                 Text = "MOD LIST",
             };
             Controls.Add(overline);
@@ -39,13 +45,13 @@ namespace YSMInstaller {
                 AutoSize = true,
                 Font = MaterialType.BodySmall,
                 ForeColor = MaterialPalette.OnSurfaceVariant,
-                Location = new Point(margin, margin + 26),
+                Location = new Point(margin, top + 26),
                 Text = "Source",
             };
             Controls.Add(fieldLabel);
 
             _sourceDropdown = new DropdownSelect {
-                Location = new Point(margin, margin + 46),
+                Location = new Point(margin, top + 46),
                 Width = innerWidth,
             };
             _sourceDropdown.AddItem(
@@ -59,7 +65,7 @@ namespace YSMInstaller {
             _sourceDropdown.SelectByTag(_initialSource);
             Controls.Add(_sourceDropdown);
 
-            int noteTop = margin + 46 + Tokens.DropdownHeight + Tokens.Space4;
+            int noteTop = top + 46 + Tokens.DropdownHeight + Tokens.Space4;
             var noteIcon = new PictureBox {
                 BackColor = Color.Transparent,
                 Image = MaterialIconRenderer.Get(MaterialIcons.Info, Tokens.IconXs, MaterialPalette.OnSurfaceMuted),
@@ -100,6 +106,13 @@ namespace YSMInstaller {
             };
             cancelButton.Click += (sender, args) => { DialogResult = DialogResult.Cancel; Close(); };
             Controls.Add(cancelButton);
+
+            var titleBar = new MaterialTitleBar {
+                TitleText = "Settings",
+                AppIcon = Properties.Resources.logo.ToBitmap(),
+                ShowMinimize = false,
+            };
+            Controls.Add(titleBar);
 
             AcceptButton = saveButton;
             CancelButton = cancelButton;
