@@ -118,20 +118,22 @@ namespace YSMInstaller {
         protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _pressed = false; Invalidate(); }
         protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
 
+        protected override void OnSizeChanged(EventArgs e) {
+            base.OnSizeChanged(e);
+            _buffer?.Dispose();
+            _buffer = Width > 0 && Height > 0
+                ? new Bitmap(Width, Height, PixelFormat.Format32bppArgb)
+                : null;
+        }
+
         private int EffectiveRadius => Math.Max(0, Math.Min(_cornerRadius, Math.Min(Width, Height) / 2));
 
         protected override void OnPaint(PaintEventArgs e) {
-            if (Width <= 0 || Height <= 0) {
+            // _buffer is allocated in OnSizeChanged; null only when the control has zero size.
+            if (_buffer == null) {
                 return;
             }
 
-            // Render off-screen onto a buffer pre-cleared with the parent color, so FillPath's AA edges
-            // blend the pill against the actual parent color (smooth, no ring artifact, no white corners).
-            // Buffer is reused across paints; only recreated when the control's size changes.
-            if (_buffer == null || _buffer.Width != Width || _buffer.Height != Height) {
-                _buffer?.Dispose();
-                _buffer = new Bitmap(Width, Height, PixelFormat.Format32bppArgb);
-            }
             using (Graphics g = Graphics.FromImage(_buffer)) {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;

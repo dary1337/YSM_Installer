@@ -53,7 +53,14 @@ namespace YSMInstaller {
                 AutoScaleDimensions = new SizeF(graphics.DpiX, graphics.DpiY);
             }
 
-            Activated += async (sender, args) => await ScanIfWarnoMissingAsync();
+            Activated += async (sender, args) => {
+                try {
+                    await ScanIfWarnoMissingAsync();
+                }
+                catch (Exception exception) {
+                    AppLogger.Critical("Unhandled exception during activation scan.", exception);
+                }
+            };
             BuildChrome();
         }
 

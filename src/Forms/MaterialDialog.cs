@@ -166,7 +166,11 @@ namespace YSMInstaller {
         private async Task FadeOutThenCloseAsync() {
             await FormAnimation.CloseAsync(this);
             if (!IsDisposed) {
-                DialogResult = _pendingDialogResult;
+                // Non-button closes (Alt+F4 / external Close()) leave DialogResult == None;
+                // normalize to Cancel so ShowDialog callers get deterministic dismiss semantics.
+                DialogResult = _pendingDialogResult == DialogResult.None
+                    ? DialogResult.Cancel
+                    : _pendingDialogResult;
                 Close();
             }
         }

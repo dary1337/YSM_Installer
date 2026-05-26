@@ -16,8 +16,14 @@ namespace YSMInstaller {
                 return;
             }
             var filter = new DragFilter(form);
-            Application.AddMessageFilter(filter);
+            // Subscribe to both HandleCreated and HandleDestroyed so the filter survives any
+            // handle-recreation cycle (style changes, ShowInTaskbar toggles, etc.) — without
+            // the pair, HandleDestroyed would remove the filter and it would never come back.
+            form.HandleCreated += (s, e) => Application.AddMessageFilter(filter);
             form.HandleDestroyed += (s, e) => Application.RemoveMessageFilter(filter);
+            if (form.IsHandleCreated) {
+                Application.AddMessageFilter(filter);
+            }
         }
 
         private sealed class DragFilter : IMessageFilter {

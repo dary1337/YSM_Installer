@@ -37,9 +37,21 @@ namespace YSMInstaller {
             set { _titleText = value ?? string.Empty; Invalidate(); }
         }
 
+        /// <summary>
+        /// Takes ownership of the supplied Bitmap — the previous icon (and the icon set here)
+        /// is disposed by the title bar. Callers can pass <c>Properties.Resources.logo.ToBitmap()</c>
+        /// inline without tracking the Bitmap for disposal themselves.
+        /// </summary>
         public Bitmap? AppIcon {
             get => _appIcon;
-            set { _appIcon = value; Invalidate(); }
+            set {
+                if (ReferenceEquals(_appIcon, value)) {
+                    return;
+                }
+                _appIcon?.Dispose();
+                _appIcon = value;
+                Invalidate();
+            }
         }
 
         /// <summary>Modal dialogs set this false — they can't be minimized while parent is up.</summary>
@@ -173,6 +185,14 @@ namespace YSMInstaller {
                 return;
             }
             base.WndProc(ref m);
+        }
+
+        protected override void Dispose(bool disposing) {
+            if (disposing) {
+                _appIcon?.Dispose();
+                _appIcon = null;
+            }
+            base.Dispose(disposing);
         }
     }
 }
