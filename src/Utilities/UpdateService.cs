@@ -17,6 +17,8 @@ namespace YSMInstaller {
         private const string GitHubApiAcceptHeader = "application/vnd.github+json";
         private const string InstallerAssetName = "YSMInstaller.exe";
         private const int MaxReleaseNotesLength = 1200;
+        private const string CacheKey = "update:latest";
+        private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
         public static async Task<bool> CheckForUpdatesAsync(
             IWin32Window owner,
@@ -84,6 +86,10 @@ namespace YSMInstaller {
         }
 
         private static async Task<UpdateInfo> FetchLatestReleaseAsync(CancellationToken cancellationToken) {
+            if (MemoryCache.TryGet(CacheKey, out UpdateInfo cached)) {
+                AppLogger.Info("Reusing cached latest-release metadata.");
+                return cached;
+            }
             var json = await HttpService.GetStringAsync(LatestReleaseUrl, GitHubApiAcceptHeader, cancellationToken);
             var release =
                 JsonConvert.DeserializeObject<GitHubRelease>(json)
@@ -100,7 +106,9 @@ namespace YSMInstaller {
                 );
             }
 
-            return new UpdateInfo(version, installerAsset.BrowserDownloadUrl, release.Body);
+            var info = new UpdateInfo(version, installerAsset.BrowserDownloadUrl, release.Body);
+            MemoryCache.Set(CacheKey, info, CacheTtl);
+            return info;
         }
 
         private static string BuildUpdateMessage(UpdateInfo updateInfo) {
