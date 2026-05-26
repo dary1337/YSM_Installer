@@ -204,6 +204,7 @@
     <Compile Include="Utilities\DevService.cs" />
     <Compile Include="Utilities\GoogleDriveLinks.cs" />
     <Compile Include="Utilities\HttpService.cs" />
+    <Compile Include="Utilities\MemoryCache.cs" />
     <Compile Include="Utilities\RemoteHtmlResponseException.cs" />
     <Compile Include="Utilities\IniFile.cs" />
     <Compile Include="Utilities\SafeArchiveExtractor.cs" />

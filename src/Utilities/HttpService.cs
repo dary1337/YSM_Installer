@@ -24,6 +24,10 @@ namespace YSMInstaller {
         // always reported once after the loop, so the visible MB count lands on the true total.
         private static readonly TimeSpan DetailedReportMinInterval = TimeSpan.FromMilliseconds(200);
 
+        // Cached so repeated ChooseBuild renders don't HEAD GitHub once per card per scan.
+        // Content-Length on static archive URLs is stable for hours; failures stay uncached.
+        private static readonly TimeSpan FileSizeCacheTtl = TimeSpan.FromMinutes(60);
+
         public readonly struct DownloadProgressInfo {
             public DownloadProgressInfo(long bytesReceived, long? totalBytes) {
                 BytesReceived = bytesReceived;
@@ -61,11 +65,20 @@ namespace YSMInstaller {
                 return null;
             }
             url = GoogleDriveLinks.Normalize(url);
+            string cacheKey = "size:" + url;
+            if (MemoryCache.TryGet(cacheKey, out long cachedSize)) {
+                return cachedSize;
+            }
+
             try {
                 using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
                 using (var headResponse = await Client.SendAsync(headRequest, cancellationToken)) {
                     if (headResponse.IsSuccessStatusCode) {
-                        return headResponse.Content.Headers.ContentLength;
+                        long? len = headResponse.Content.Headers.ContentLength;
+                        if (len.HasValue && len.Value > 0) {
+                            MemoryCache.Set(cacheKey, len.Value, FileSizeCacheTtl);
+                        }
+                        return len;
                     }
                 }
             }
@@ -88,7 +101,11 @@ namespace YSMInstaller {
                         return null;
                     }
 
-                    return response.Content.Headers.ContentLength;
+                    long? len = response.Content.Headers.ContentLength;
+                    if (len.HasValue && len.Value > 0) {
+                        MemoryCache.Set(cacheKey, len.Value, FileSizeCacheTtl);
+                    }
+                    return len;
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
