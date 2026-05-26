@@ -9,11 +9,18 @@ namespace YSMInstaller {
         private const string ModListUrl =
             "https://raw.githubusercontent.com/dary1337/YSM_Installer/master/mods-list.json";
 
+        private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
+
         public ModCatalogSourceKind Kind => ModCatalogSourceKind.OfficialModsList;
         public string Name => ModCatalogSources.OfficialModsListName;
 
         public async Task<List<ModMetadata>> DownloadAsync() {
             string url = ResolveModListUrl();
+            string cacheKey = $"catalog:Official:{url}";
+            if (MemoryCache.TryGet(cacheKey, out List<ModMetadata> cached)) {
+                AppLogger.Info($"Reusing cached mod list from {url}.");
+                return new List<ModMetadata>(cached);
+            }
             AppLogger.Info($"Downloading supported mod list from {url}.");
             string json = await HttpService.GetStringAsync(url);
             // Newtonsoft's first-character error on HTML is cryptic; pre-check so the dev test
@@ -24,8 +31,14 @@ namespace YSMInstaller {
                     "If you pasted a github.com URL, use the raw.githubusercontent.com form instead."
                 );
             }
-            return JsonConvert.DeserializeObject<List<ModMetadata>>(json)
+            List<ModMetadata> mods = JsonConvert.DeserializeObject<List<ModMetadata>>(json)
                 ?? new List<ModMetadata>();
+            // Don't cache an empty catalog — would lock the user out for the full TTL if a
+            // deploy accidentally publishes empty mods-list.json.
+            if (mods.Count > 0) {
+                MemoryCache.Set(cacheKey, new List<ModMetadata>(mods), CacheTtl);
+            }
+            return mods;
         }
 
         private static string ResolveModListUrl() {

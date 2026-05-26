@@ -9,11 +9,17 @@ namespace YSMInstaller {
     internal sealed class YokaisteReleaseCatalogSource : IModCatalogSource {
         private const string ReleasesUrl = "https://api.github.com/repos/Yokaiste/YSM/releases";
         private const string GitHubApiAcceptHeader = "application/vnd.github+json";
+        private static readonly string CacheKey = $"catalog:Yokaiste:{ReleasesUrl}";
+        private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
         public ModCatalogSourceKind Kind => ModCatalogSourceKind.YokaisteGitHubReleases;
         public string Name => ModCatalogSources.YokaisteGitHubReleasesName;
 
         public async Task<List<ModMetadata>> DownloadAsync() {
+            if (MemoryCache.TryGet(CacheKey, out List<ModMetadata> cached)) {
+                AppLogger.Info("Reusing cached Yokaiste GitHub releases mod list.");
+                return new List<ModMetadata>(cached);
+            }
             AppLogger.Info("Downloading Yokaiste GitHub releases mod list.");
             string json = await HttpService.GetStringAsync(ReleasesUrl, GitHubApiAcceptHeader);
             List<GitHubRelease> releases =
@@ -41,6 +47,7 @@ namespace YSMInstaller {
                 );
             }
 
+            MemoryCache.Set(CacheKey, new List<ModMetadata>(mods), CacheTtl);
             return mods;
         }
 
