@@ -22,7 +22,7 @@ namespace YSMInstaller {
         private const int ButtonHeight = Tokens.BtnHeightSm;
         private const int ButtonGap = 4;
         private const int EdgePadding = 6;
-        private const int IconSize = Tokens.IconXs;
+        private const int IconSize = Tokens.IconMd;
         private const int LeftPadding = 12;
         private const int IconTextGap = 8;
 
@@ -148,7 +148,10 @@ namespace YSMInstaller {
 
             int x = LeftPadding;
             if (_appIcon != null) {
-                int iconY = (Height - IconSize) / 2;
+                // +1px optical nudge down: the layered Y glyph is top-heavy and the title text
+                // sits slightly low (font-cell descent reserve), so geometric centering makes
+                // the icon read as floating high relative to the text.
+                int iconY = (Height - IconSize) / 2 + 1;
                 g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 g.DrawImage(_appIcon, new Rectangle(x, iconY, IconSize, IconSize));
