@@ -36,6 +36,9 @@ namespace YSMInstaller {
         private CancellationTokenSource? _autoUpdateCts;
         private bool _hasFoundWarnoExe;
         private bool _showAllEntries;
+        // Set when an install completes while the window is backgrounded — the taskbar stays
+        // green at 100% until the user refocuses, then this triggers the clear.
+        private bool _clearTaskbarOnActivate;
 
         public Form1() {
             InitializeComponent();
@@ -54,6 +57,12 @@ namespace YSMInstaller {
             }
 
             Activated += async (sender, args) => {
+                // Backgrounded-install completion left the taskbar green at 100% as a beacon;
+                // the user just refocused, so clear it now.
+                if (_clearTaskbarOnActivate) {
+                    _clearTaskbarOnActivate = false;
+                    TaskbarProgress.Clear(this);
+                }
                 try {
                     await ScanIfWarnoMissingAsync();
                 }

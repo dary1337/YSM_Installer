@@ -666,7 +666,11 @@ namespace YSMInstaller {
         }
 
         private void OnInstallPercent(int percent) {
-            if (_progressBar == null) {
+            // Progress<int> callbacks marshal asynchronously, so a final report can land after
+            // the install finished and RenderComplete already cleared the taskbar. Ignoring
+            // them once we've left the Installing state prevents a late SetProgressValue from
+            // re-lighting the taskbar green (the API auto-switches state to Normal on SetValue).
+            if (_state != AppState.Installing || _progressBar == null) {
                 return;
             }
             // Bytes-based progress arrives from multiple phases (download, then extraction);
@@ -862,6 +866,9 @@ namespace YSMInstaller {
         // ---- Installing state ----
         private void RenderInstalling(string modName, string gamePath) {
             _state = AppState.Installing;
+            // A prior backgrounded-complete may have armed the clear-on-activate beacon; a new
+            // install supersedes it so it can't wipe this run's fresh progress on refocus.
+            _clearTaskbarOnActivate = false;
             SetHeader("Installing", $"{modName} → {ShortenPath(gamePath, 60)}");
             HideIsland();
             TaskbarProgress.SetState(this, TaskbarProgress.State.Normal);
@@ -968,7 +975,17 @@ namespace YSMInstaller {
 
         // ---- Complete state ----
         private void RenderComplete(string modName, WarnoEntry? entry) {
-            TaskbarProgress.Clear(this);
+            // If the user is looking at us, drop the taskbar progress right away. If we're in
+            // the background (they tabbed out — likely playing a game), freeze it green at 100%
+            // as a "done, come back" beacon and clear it only when they refocus the window.
+            if (Form.ActiveForm == this) {
+                TaskbarProgress.Clear(this);
+            }
+            else {
+                TaskbarProgress.SetState(this, TaskbarProgress.State.Normal);
+                TaskbarProgress.SetValue(this, 100);
+                _clearTaskbarOnActivate = true;
+            }
             _state = AppState.Complete;
             SetHeader("Done", "Installation complete");
 
@@ -1036,11 +1053,12 @@ namespace YSMInstaller {
             // entry.ModsPath ({GamePath}\Mods) is the Steam install probe / Workshop mirror, not
             // where WARNO loads mods from — the real load path is Saved Games.
             string modsPath = WarnoPaths.ModFolder;
+            const int folderCardWidth = 500;
             var folderCard = new MaterialCard(Sizes.RadiusSmall) {
                 Anchor = AnchorStyles.None,
                 BackColor = MaterialPalette.SurfaceContainerHigh,
                 Margin = Padding.Empty,
-                Size = new Size(440, 48),
+                Size = new Size(folderCardWidth, 48),
             };
             var folderLabel = new SoftLabel {
                 AutoEllipsis = true,
@@ -1048,7 +1066,7 @@ namespace YSMInstaller {
                 Font = MaterialType.BodyMedium,
                 ForeColor = MaterialPalette.OnSurfaceVariant,
                 Location = new Point(14, 14),
-                Size = new Size(330, 20),
+                Size = new Size(390, 20),
                 Text = ShortenPath(modsPath, 60),
                 TextAlign = ContentAlignment.MiddleLeft,
             };
@@ -1056,7 +1074,7 @@ namespace YSMInstaller {
                 Variant = MaterialButtonVariant.Text,
                 Text = "Open",
                 IconGlyph = MaterialIcons.OpenFolder,
-                Location = new Point(440 - 92, 4),
+                Location = new Point(folderCardWidth - 92, 4),
                 Size = new Size(84, 40),
             };
             openButton.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
