@@ -676,6 +676,7 @@ namespace YSMInstaller {
                 return;
             }
             _progressBar.Value = percent;
+            TaskbarProgress.SetValue(this, percent);
             if (_percentLabel != null) {
                 _percentLabel.Text = $"{percent}%";
             }
@@ -863,6 +864,8 @@ namespace YSMInstaller {
             _state = AppState.Installing;
             SetHeader("Installing", $"{modName} → {ShortenPath(gamePath, 60)}");
             HideIsland();
+            TaskbarProgress.SetState(this, TaskbarProgress.State.Normal);
+            TaskbarProgress.SetValue(this, 0);
 
             var card = new MaterialCard(Sizes.RadiusMedium) {
                 AutoSize = true,
@@ -965,6 +968,7 @@ namespace YSMInstaller {
 
         // ---- Complete state ----
         private void RenderComplete(string modName, WarnoEntry? entry) {
+            TaskbarProgress.Clear(this);
             _state = AppState.Complete;
             SetHeader("Done", "Installation complete");
 
@@ -1073,6 +1077,10 @@ namespace YSMInstaller {
 
         // ---- Failed state ----
         private void RenderFailed() {
+            // Briefly flash the taskbar red so the user notices on a backgrounded window.
+            // Cleared next time the user enters any other state.
+            TaskbarProgress.SetState(this, TaskbarProgress.State.Error);
+            TaskbarProgress.SetValue(this, 100);
             _state = AppState.Failed;
             SetHeader("Installation failed", "Changes were rolled back");
             HideIsland();

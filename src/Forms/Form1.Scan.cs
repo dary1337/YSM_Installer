@@ -228,6 +228,8 @@ namespace YSMInstaller {
 
         // ---- Installs found ----
         private void RenderInstallsFound() {
+            // Idempotent — covers exit from any prior state including install-cancelled.
+            TaskbarProgress.Clear(this);
             _state = AppState.InstallsFound;
             int count = _entries.Count;
 

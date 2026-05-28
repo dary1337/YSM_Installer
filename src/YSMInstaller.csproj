@@ -152,6 +152,7 @@
     </Compile>
     <Compile Include="UI\Tokens.cs" />
     <Compile Include="UI\AppLinks.cs" />
+    <Compile Include="UI\TaskbarProgress.cs" />
     <Compile Include="UI\BuildIcons.cs" />
     <Compile Include="UI\FormDragAnywhere.cs" />
     <Compile Include="UI\FormAnimation.cs" />
