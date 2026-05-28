@@ -29,6 +29,7 @@ namespace YSMInstaller {
         private const int WS_POPUP = unchecked((int)0x80000000);
         private const int WS_THICKFRAME = 0x00040000;
         private const int WS_CAPTION = 0x00C00000;
+        private const int WS_EX_APPWINDOW = 0x00040000;
         private const int CS_DROPSHADOW = 0x00020000;
 
         private const int WM_NCCALCSIZE = 0x0083;
@@ -126,6 +127,10 @@ namespace YSMInstaller {
                 // (NC area stripped by WM_NCCALCSIZE): omitting it broke DWM-managed
                 // resize/drag in an earlier attempt; melak47 keeps it for the same reason.
                 cp.Style |= WS_POPUP | WS_THICKFRAME | WS_CAPTION;
+                // WS_POPUP normally suppresses the taskbar button — without WS_EX_APPWINDOW
+                // a programmatic minimize (e.g. after Launch WARNO) hides the window with no
+                // way for the user to restore it, looking like the app closed.
+                cp.ExStyle |= WS_EX_APPWINDOW;
                 if (!_aeroEnabled) {
                     cp.ClassStyle |= CS_DROPSHADOW;
                 }

@@ -314,12 +314,27 @@ namespace YSMInstaller {
         }
 
         private void DevRunInstall(bool fail) {
+            // Self-bootstrap so the button works cold from app startup. Real-install path
+            // doesn't honor SimulateInstallFailure (checked only in SimulateInstallAsync),
+            // and an empty _entries silently aborts before any UI feedback — both prior
+            // failure modes when a user clicks "Run install → failure" without first
+            // toggling mocks + loading a scenario.
+            if (!DevWarnoMocks.IsEnabled) {
+                DevService.IsMockWarnoPathsEnabled = true;
+                AppLogger.Info("Dev: auto-enabled Mock WARNO paths for Run install test.");
+            }
             if (_entries == null || _entries.Count == 0) {
+                DevLoadScenario(DevWarnoMocks.MixedInstalls());
+                AppLogger.Info("Dev: auto-seeded mixed-installs scenario for Run install test.");
+            }
+            if (_entries!.Count == 0) {
+                AppLogger.Info("Dev: Run install aborted — scenario seed returned no entries.");
                 return;
             }
             _selectedEntry = _entries[0];
             var variants = GetVariantsForVersion(_selectedEntry.Version);
             if (variants.Count == 0) {
+                AppLogger.Info("Dev: Run install aborted — variants empty after seed.");
                 return;
             }
             DevWarnoMocks.SimulateInstallFailure = fail;
