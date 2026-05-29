@@ -40,7 +40,9 @@ namespace YSMInstaller {
                 "The selected file does not look like a valid WARNO installation. Pick Warno.exe inside your WARNO game folder.");
         }
 
-        private static void OpenLog() {
+        // Opens the log file itself (default text handler), not its folder — shared so every
+        // "Open log" affordance behaves identically.
+        public static void OpenLog() {
             try {
                 Process.Start(new ProcessStartInfo(AppLogger.LogPath) { UseShellExecute = true });
             }

@@ -489,7 +489,12 @@ namespace YSMInstaller {
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllLines(gameConfig, new[] { "[mod]", "ActivatedMods =" });
+            // Matches the [Config]/ActivatedMods layout WARNO writes itself; the trailing comment is
+            // preserved by IniFile.WriteValues when the install later sets ActivatedMods.
+            File.WriteAllLines(gameConfig, new[] {
+                "[Config]",
+                "ActivatedMods = ;Set every mod you want activated for the next game startup separated by a '|'.",
+            });
         }
 
         private static string ResolveExtractedModPath(string extractedRoot) {

@@ -36,3 +36,7 @@ The installer goes online only to:
 - get the list of supported mod versions
 - download the mod archive you chose (from GitHub or Google Drive, depending on the build)
 - check for installer updates
+
+## Third-party
+
+Mod archives are extracted with [7-Zip](https://www.7-zip.org/)'s `7z.dll` (bundled, LGPL). Licenses and details: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and [licenses/](licenses/).

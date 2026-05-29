@@ -582,7 +582,7 @@ namespace YSMInstaller {
         private string? PickManualArchive() {
             using (var dialog = new OpenFileDialog()) {
                 dialog.Title = "Select the mod archive";
-                dialog.Filter = "Mod archive|*.zip;*.7z;*.rar;*.tar;*.tar.gz;*.tgz;*.tar.bz2;*.tbz2";
+                dialog.Filter = ModArchiveFormats.OpenFileDialogFilter + "|All files (*.*)|*.*";
                 dialog.CheckFileExists = true;
                 dialog.Multiselect = false;
                 if (dialog.ShowDialog(this) != DialogResult.OK) {
@@ -1129,7 +1129,7 @@ namespace YSMInstaller {
             AddToStack(stack, stepsCard, Sizes.ContentGap);
 
             MaterialButton openLog = OutlinedButton("Open log", MaterialIcons.Document);
-            openLog.Click += (s, e) => OpenInExplorer(AppLogger.LogPath);
+            openLog.Click += (s, e) => UserMessages.OpenLog();
 
             MaterialButton tryAgain = TonalButton("Try again", MaterialIcons.Refresh);
             tryAgain.Click += async (s, e) => {
