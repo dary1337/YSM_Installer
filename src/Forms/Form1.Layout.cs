@@ -361,6 +361,12 @@ namespace YSMInstaller {
                 action.Dock = DockStyle.None;
                 action.AutoSize = true;
                 action.Margin = new Padding(i == 0 ? 0 : Tokens.Space2, 2, 0, 2);
+                // TabStop=false stops the form auto-selecting the first island button when the
+                // island becomes visible — that auto-select calls SetForegroundWindow and yanks
+                // the window in front of whatever the user tabbed to (e.g. a game) when a state
+                // transition (notably install-complete) lands while we're backgrounded. Buttons
+                // stay fully mouse-clickable; the island has no Enter/Tab affordance to lose.
+                action.TabStop = false;
                 _islandActions.Controls.Add(action);
             }
             _islandActions.ResumeLayout(true);

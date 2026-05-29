@@ -187,7 +187,7 @@ namespace YSMInstaller {
             float x = TextLeft;
             int midY = StatusRowTop + ChipHeight / 2;
 
-            x = DrawText(g, $"v{_entry.Version}", MaterialType.BodySmall, MaterialPalette.OnSurfaceVariant, x, midY) + 8;
+            x = DrawText(g, $"v{_entry.Version}", MaterialType.BodySmall, MaterialPalette.OnSurface, x, midY) + 8;
 
             if (NotSupported) {
                 x = DrawChip(g, "not supported", string.Empty, MaterialPalette.ErrorContainer, MaterialPalette.OnErrorContainer, Color.Transparent, x) + 8;

@@ -2,9 +2,11 @@ using System.Drawing;
 
 namespace YSMInstaller {
     /// <summary>
-    /// Material You (Material 3) dark color roles. Values mirror the project XAML palette 1:1 so the
-    /// WinForms UI and any future XAML surface stay in sync. Roles not provided by the source palette
-    /// (OnSecondary, OnWarning*, scrim) are derived to complete the tonal set.
+    /// Material You (Material 3) dark color roles — "Platinum" monochrome theme. Primary and
+    /// the accent families are neutral greys so the only chromatic events on screen are the
+    /// red Y logo and the shared semantic colors (Success/Error/Warning) plus the Steam blue.
+    /// Surfaces are unchanged from the base dark scale. Roles not in the source palette
+    /// (OnSecondary, OnTertiaryContainer, OnWarning*, scrim) are derived to complete the set.
     /// </summary>
     public static class MaterialPalette {
         private static Color Hex(string hex) {
@@ -12,19 +14,19 @@ namespace YSMInstaller {
         }
 
         // Primary
-        public static readonly Color Primary = Hex("#8AB4F8");
-        public static readonly Color OnPrimary = Hex("#0A305F");
-        public static readonly Color PrimaryContainer = Hex("#1F4280");
-        public static readonly Color OnPrimaryContainer = Hex("#D5E3FF");
+        public static readonly Color Primary = Hex("#D5D2DA");
+        public static readonly Color OnPrimary = Hex("#1B1B22");
+        public static readonly Color PrimaryContainer = Hex("#45454F");
+        public static readonly Color OnPrimaryContainer = Hex("#F2F0F4");
 
         // Secondary
-        public static readonly Color SecondaryContainer = Hex("#3A3F4E");
-        public static readonly Color OnSecondaryContainer = Hex("#DAE2F9");
+        public static readonly Color SecondaryContainer = Hex("#3A3A42");
+        public static readonly Color OnSecondaryContainer = Hex("#E1DFE6");
 
         // Tertiary
-        public static readonly Color Tertiary = Hex("#F0B8E2");
-        public static readonly Color TertiaryContainer = Hex("#57374F");
-        public static readonly Color OnTertiaryContainer = Hex("#FFD8EE");
+        public static readonly Color Tertiary = Hex("#C7C5D0");
+        public static readonly Color TertiaryContainer = Hex("#3E3D46");
+        public static readonly Color OnTertiaryContainer = Hex("#E1DFE6"); // derived light tone
 
         // Error
         public static readonly Color Error = Hex("#FFB4AB");
@@ -66,7 +68,7 @@ namespace YSMInstaller {
 
         // Derived utility tones
         public static readonly Color Scrim = Color.FromArgb(168, 0, 0, 0);
-        public static readonly Color OnSecondary = Hex("#0A305F");
+        public static readonly Color OnSecondary = Hex("#1B1B22"); // derived dark for filled secondary
 
         /// <summary>Composites a translucent state-layer color over a solid base (M3 hover/press overlays).</summary>
         public static Color Overlay(Color baseColor, Color layer, double opacity) {
