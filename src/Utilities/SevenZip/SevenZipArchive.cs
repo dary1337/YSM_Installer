@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -53,7 +54,8 @@ namespace YSMInstaller.SevenZip {
                 int hr = archive.Open(stream, ref maxCheck, null);
                 if (hr != HResult.Ok) {
                     // Prefer the real source-read failure (e.g. file vanished) over the opaque HRESULT.
-                    throw stream.FirstError ?? new InvalidDataException(
+                    stream.FirstError?.Throw();
+                    throw new InvalidDataException(
                         $"7z.dll could not open the archive (HRESULT 0x{hr:X8}): {archivePath}"
                     );
                 }
@@ -206,7 +208,9 @@ namespace YSMInstaller.SevenZip {
         private readonly Dictionary<uint, SevenZipEntry> _entriesByIndex;
 
         private Stream? _currentStream;
-        private Exception? _pendingException;
+        // Captured (not rethrown inline) so the exception doesn't cross the COM boundary; replayed by
+        // ThrowIfFaulted via ExceptionDispatchInfo, which preserves the original stack trace.
+        private ExceptionDispatchInfo? _pendingError;
         private bool _cancelled;
 
         public ArchiveExtractCallback(
@@ -252,7 +256,7 @@ namespace YSMInstaller.SevenZip {
                     target,
                     _onBytesWritten,
                     () => _cancellationToken.IsCancellationRequested,
-                    exception => _pendingException ??= exception
+                    exception => _pendingError ??= ExceptionDispatchInfo.Capture(exception)
                 );
                 return HResult.Ok;
             }
@@ -260,7 +264,7 @@ namespace YSMInstaller.SevenZip {
                 return Abort();
             }
             catch (Exception exception) {
-                _pendingException ??= exception;
+                _pendingError ??= ExceptionDispatchInfo.Capture(exception);
                 return HResult.Fail;
             }
         }
@@ -271,9 +275,9 @@ namespace YSMInstaller.SevenZip {
             _currentStream?.Dispose();
             _currentStream = null;
             if (operationResult != OperationResult.Ok) {
-                _pendingException ??= new IOException(
+                _pendingError ??= ExceptionDispatchInfo.Capture(new IOException(
                     $"7z reported extraction failure for an entry (operation result {operationResult})."
-                );
+                ));
                 return HResult.Fail;
             }
             return HResult.Ok;
@@ -281,16 +285,13 @@ namespace YSMInstaller.SevenZip {
 
         // transportError is the source-stream read/seek failure captured by InStreamWrapper, surfaced
         // ahead of the generic HRESULT but behind cancellation and per-entry write errors.
-        public void ThrowIfFaulted(int extractHResult, CancellationToken cancellationToken, Exception? transportError) {
+        public void ThrowIfFaulted(int extractHResult, CancellationToken cancellationToken, ExceptionDispatchInfo? transportError) {
             if (_cancelled || extractHResult == HResult.Abort) {
                 cancellationToken.ThrowIfCancellationRequested();
             }
-            if (_pendingException != null) {
-                throw _pendingException;
-            }
-            if (transportError != null) {
-                throw transportError;
-            }
+            // .Throw() replays the captured exception with its original stack trace intact.
+            _pendingError?.Throw();
+            transportError?.Throw();
             if (extractHResult != HResult.Ok) {
                 throw new IOException($"7z extraction failed (HRESULT 0x{extractHResult:X8}).");
             }

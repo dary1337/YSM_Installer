@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 
 namespace YSMInstaller.SevenZip {
@@ -21,10 +22,11 @@ namespace YSMInstaller.SevenZip {
             _stream = stream;
         }
 
-        // First exception thrown while reading/seeking the source. Letting it escape would collapse
-        // into a generic 7z HRESULT across the COM boundary; callers surface this to report the real
-        // cause (e.g. the archive file disappearing mid-extract). Mirrors OutStreamWrapper.
-        public Exception? FirstError { get; private set; }
+        // First read/seek failure on the source, captured (not rethrown inline) so it can't cross the
+        // COM boundary and collapse into a generic 7z HRESULT. Callers replay it via .Throw() to report
+        // the real cause (e.g. the archive file disappearing mid-extract) with its stack trace intact.
+        // Mirrors OutStreamWrapper.
+        public ExceptionDispatchInfo? FirstError { get; private set; }
 
         public int Read(IntPtr data, uint size, IntPtr processedSize) {
             try {
@@ -39,7 +41,7 @@ namespace YSMInstaller.SevenZip {
                 return HResult.Ok;
             }
             catch (Exception exception) {
-                FirstError = FirstError ?? exception;
+                FirstError = FirstError ?? ExceptionDispatchInfo.Capture(exception);
                 return HResult.Fail;
             }
         }
@@ -53,7 +55,7 @@ namespace YSMInstaller.SevenZip {
                 return HResult.Ok;
             }
             catch (Exception exception) {
-                FirstError = FirstError ?? exception;
+                FirstError = FirstError ?? ExceptionDispatchInfo.Capture(exception);
                 return HResult.Fail;
             }
         }
