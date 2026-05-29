@@ -21,24 +21,41 @@ namespace YSMInstaller.SevenZip {
             _stream = stream;
         }
 
+        // First exception thrown while reading/seeking the source. Letting it escape would collapse
+        // into a generic 7z HRESULT across the COM boundary; callers surface this to report the real
+        // cause (e.g. the archive file disappearing mid-extract). Mirrors OutStreamWrapper.
+        public Exception? FirstError { get; private set; }
+
         public int Read(IntPtr data, uint size, IntPtr processedSize) {
-            int toRead = (int)Math.Min(size, (uint)_buffer.Length);
-            int read = _stream.Read(_buffer, 0, toRead);
-            if (read > 0) {
-                Marshal.Copy(_buffer, 0, data, read);
+            try {
+                int toRead = (int)Math.Min(size, (uint)_buffer.Length);
+                int read = _stream.Read(_buffer, 0, toRead);
+                if (read > 0) {
+                    Marshal.Copy(_buffer, 0, data, read);
+                }
+                if (processedSize != IntPtr.Zero) {
+                    Marshal.WriteInt32(processedSize, read);
+                }
+                return HResult.Ok;
             }
-            if (processedSize != IntPtr.Zero) {
-                Marshal.WriteInt32(processedSize, read);
+            catch (Exception exception) {
+                FirstError = FirstError ?? exception;
+                return HResult.Fail;
             }
-            return HResult.Ok;
         }
 
         public int Seek(long offset, uint seekOrigin, IntPtr newPosition) {
-            long pos = _stream.Seek(offset, (SeekOrigin)seekOrigin);
-            if (newPosition != IntPtr.Zero) {
-                Marshal.WriteInt64(newPosition, pos);
+            try {
+                long pos = _stream.Seek(offset, (SeekOrigin)seekOrigin);
+                if (newPosition != IntPtr.Zero) {
+                    Marshal.WriteInt64(newPosition, pos);
+                }
+                return HResult.Ok;
             }
-            return HResult.Ok;
+            catch (Exception exception) {
+                FirstError = FirstError ?? exception;
+                return HResult.Fail;
+            }
         }
 
         public void Dispose() {

@@ -52,7 +52,8 @@ namespace YSMInstaller.SevenZip {
                 ulong maxCheck = SignatureScanLimit;
                 int hr = archive.Open(stream, ref maxCheck, null);
                 if (hr != HResult.Ok) {
-                    throw new InvalidDataException(
+                    // Prefer the real source-read failure (e.g. file vanished) over the opaque HRESULT.
+                    throw stream.FirstError ?? new InvalidDataException(
                         $"7z.dll could not open the archive (HRESULT 0x{hr:X8}): {archivePath}"
                     );
                 }
@@ -121,7 +122,7 @@ namespace YSMInstaller.SevenZip {
         ) {
             using (var callback = new ArchiveExtractCallback(this, openTarget, onBytesWritten, cancellationToken)) {
                 int hr = _archive.Extract(null, ExtractIndices.All, 0, callback);
-                callback.ThrowIfFaulted(hr, cancellationToken);
+                callback.ThrowIfFaulted(hr, cancellationToken, _stream.FirstError);
             }
         }
 
@@ -131,7 +132,7 @@ namespace YSMInstaller.SevenZip {
                 Func<SevenZipEntry, Stream?> open = e => e.Index == entry.Index ? memory : null;
                 using (var callback = new ArchiveExtractCallback(this, open, _ => { }, cancellationToken)) {
                     int hr = _archive.Extract(new[] { entry.Index }, 1, 0, callback);
-                    callback.ThrowIfFaulted(hr, cancellationToken);
+                    callback.ThrowIfFaulted(hr, cancellationToken, _stream.FirstError);
                 }
                 return memory.ToArray();
             }
@@ -278,12 +279,17 @@ namespace YSMInstaller.SevenZip {
             return HResult.Ok;
         }
 
-        public void ThrowIfFaulted(int extractHResult, CancellationToken cancellationToken) {
+        // transportError is the source-stream read/seek failure captured by InStreamWrapper, surfaced
+        // ahead of the generic HRESULT but behind cancellation and per-entry write errors.
+        public void ThrowIfFaulted(int extractHResult, CancellationToken cancellationToken, Exception? transportError) {
             if (_cancelled || extractHResult == HResult.Abort) {
                 cancellationToken.ThrowIfCancellationRequested();
             }
             if (_pendingException != null) {
                 throw _pendingException;
+            }
+            if (transportError != null) {
+                throw transportError;
             }
             if (extractHResult != HResult.Ok) {
                 throw new IOException($"7z extraction failed (HRESULT 0x{extractHResult:X8}).");
