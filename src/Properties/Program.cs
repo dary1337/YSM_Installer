@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -6,9 +8,24 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     static class Program {
         private static int _fatalErrorDialogShown;
+        // Held for the process lifetime so the single-instance lock stays owned until exit.
+        private static Mutex? _instanceMutex;
+        // Local\ scopes the lock to the current login session (per-user), so it doesn't block a
+        // second user on the same machine or another RDP session.
+        private const string InstanceMutexName = @"Local\YSMInstaller.SingleInstance";
 
         [STAThread]
         static void Main() {
+            // A second copy would race the first over the shared WARNO mod folder and Config.ini
+            // (the ActivatedMods read-modify-write isn't cross-process safe), so hand off to the
+            // already-running window instead of running concurrently. Checked before anything else
+            // so the second instance doesn't touch the shared log or init the UI.
+            _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out bool createdNew);
+            if (!createdNew) {
+                ActivateExistingInstance();
+                return;
+            }
+
             AppLogger.Initialize();
             RegisterCriticalErrorHandlers();
 
@@ -23,6 +40,38 @@ namespace YSMInstaller {
                 AppLogger.Critical("Unhandled application startup exception.", exception);
                 ShowFatalError(exception);
                 Environment.ExitCode = 1;
+            }
+        }
+
+        // Best-effort: if the running instance's window handle isn't ready yet, exit quietly rather
+        // than spawning a duplicate.
+        private static void ActivateExistingInstance() {
+            try {
+                Process current = Process.GetCurrentProcess();
+                foreach (Process other in Process.GetProcessesByName(current.ProcessName)) {
+                    try {
+                        if (other.Id == current.Id) {
+                            continue;
+                        }
+                        IntPtr handle = other.MainWindowHandle;
+                        if (handle == IntPtr.Zero) {
+                            continue;
+                        }
+                        if (NativeMethods.IsIconic(handle)) {
+                            NativeMethods.ShowWindow(handle, NativeMethods.SwRestore);
+                        }
+                        NativeMethods.SetForegroundWindow(handle);
+                        break;
+                    }
+                    finally {
+                        other.Dispose();
+                    }
+                }
+            }
+            catch (Exception exception) {
+                // Logger isn't initialized on this path; the call no-ops safely. Focusing the other
+                // window is a nicety — failing it must not crash the second-instance exit.
+                AppLogger.Info($"Could not focus the existing instance: {exception.Message}");
             }
         }
 
@@ -128,6 +177,22 @@ namespace YSMInstaller {
         private static Exception ToException(object exceptionObject) {
             return exceptionObject as Exception
                 ?? new Exception($"Unhandled non-Exception object: {exceptionObject}");
+        }
+
+        private static class NativeMethods {
+            public const int SwRestore = 9;
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool IsIconic(IntPtr hWnd);
         }
     }
 }
