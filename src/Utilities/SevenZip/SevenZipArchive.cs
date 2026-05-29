@@ -36,6 +36,7 @@ namespace YSMInstaller.SevenZip {
         private readonly IInArchive _archive;
         private readonly InStreamWrapper _stream;
         private readonly List<SevenZipEntry> _entries;
+        private bool _disposed;
 
         private SevenZipArchive(IInArchive archive, InStreamWrapper stream, List<SevenZipEntry> entries) {
             _archive = archive;
@@ -130,7 +131,14 @@ namespace YSMInstaller.SevenZip {
 
         // Even on a solid block, 7z only decodes up to the requested entry — no full-archive pass.
         public byte[] ExtractEntryBytes(SevenZipEntry entry, CancellationToken cancellationToken) {
-            using (var memory = new MemoryStream(entry.Size > 0 && entry.Size < int.MaxValue ? (int)entry.Size : 0)) {
+            // Read into a single in-memory buffer (used for small files like Config.ini); reject
+            // anything that can't fit a byte[] so a malicious oversized entry can't OOM the process.
+            if (entry.Size < 0 || entry.Size > int.MaxValue) {
+                throw new InvalidDataException(
+                    $"ExtractEntryBytes: entry '{entry.Path}' is too large to read into memory ({entry.Size} bytes)."
+                );
+            }
+            using (var memory = new MemoryStream((int)entry.Size)) {
                 Func<SevenZipEntry, Stream?> open = e => e.Index == entry.Index ? memory : null;
                 using (var callback = new ArchiveExtractCallback(this, open, _ => { }, cancellationToken)) {
                     int hr = _archive.Extract(new[] { entry.Index }, 1, 0, callback);
@@ -141,6 +149,12 @@ namespace YSMInstaller.SevenZip {
         }
 
         public void Dispose() {
+            // Idempotent: a second Close/ReleaseComObject on the already-released RCW would throw
+            // InvalidComObjectException.
+            if (_disposed) {
+                return;
+            }
+            _disposed = true;
             Teardown(_archive, _stream);
         }
 
@@ -285,15 +299,30 @@ namespace YSMInstaller.SevenZip {
         public int PrepareOperation(int askExtractMode) => HResult.Ok;
 
         public int SetOperationResult(int operationResult) {
-            _currentStream?.Dispose();
-            _currentStream = null;
+            // Capture the operation failure first so it stays the primary fault; a later flush-on-dispose
+            // error only fills in when nothing failed yet.
             if (operationResult != OperationResult.Ok) {
                 _pendingError ??= ExceptionDispatchInfo.Capture(new IOException(
                     $"7z reported extraction failure for an entry (operation result {operationResult})."
                 ));
-                return HResult.Fail;
             }
-            return HResult.Ok;
+            DisposeCurrentStream();
+            return operationResult == OperationResult.Ok ? HResult.Ok : HResult.Fail;
+        }
+
+        // Disposing the per-entry stream flushes buffered writes and can throw (e.g. disk full). That
+        // must not cross the COM boundary or mask the primary fault, so capture it only if nothing
+        // failed earlier, then swallow.
+        private void DisposeCurrentStream() {
+            try {
+                _currentStream?.Dispose();
+            }
+            catch (Exception exception) {
+                _pendingError ??= ExceptionDispatchInfo.Capture(exception);
+            }
+            finally {
+                _currentStream = null;
+            }
         }
 
         // transportError is the source-stream read/seek failure captured by InStreamWrapper, surfaced
@@ -311,8 +340,7 @@ namespace YSMInstaller.SevenZip {
         }
 
         public void Dispose() {
-            _currentStream?.Dispose();
-            _currentStream = null;
+            DisposeCurrentStream();
         }
 
         private int Abort() {
