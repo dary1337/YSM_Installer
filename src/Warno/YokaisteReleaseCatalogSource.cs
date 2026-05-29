@@ -67,10 +67,6 @@ namespace YSMInstaller {
             return gameVersion;
         }
 
-        private static readonly string[] SupportedArchiveExtensions = {
-            ".zip", ".7z", ".rar", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2",
-        };
-
         private static GitHubReleaseAsset SelectArchiveAsset(GitHubRelease release) {
             List<GitHubReleaseAsset> archiveAssets = release
                 .Assets.Where(asset => IsSafeArchiveAsset(asset.BrowserDownloadUrl))
@@ -89,10 +85,7 @@ namespace YSMInstaller {
             if (!Uri.TryCreate(value, UriKind.Absolute, out Uri uri) || uri.Scheme != Uri.UriSchemeHttps) {
                 return false;
             }
-            string path = uri.AbsolutePath;
-            return SupportedArchiveExtensions.Any(
-                ext => path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)
-            );
+            return ModArchiveFormats.HasSupportedExtension(uri.AbsolutePath);
         }
 
         private sealed class GitHubRelease {
