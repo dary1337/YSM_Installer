@@ -125,6 +125,10 @@ namespace YSMInstaller.SevenZip {
         ) {
             using (var callback = new ArchiveExtractCallback(this, openTarget, onBytesWritten, cancellationToken)) {
                 int hr = _archive.Extract(null, ExtractIndices.All, 0, callback);
+                // Dispose now (flushes the last entry stream after an abort) so a close failure is
+                // captured before ThrowIfFaulted replays errors; Dispose is idempotent so the using's
+                // end-of-block dispose is a no-op.
+                callback.Dispose();
                 callback.ThrowIfFaulted(hr, cancellationToken, _stream.FirstError);
             }
         }
@@ -142,6 +146,7 @@ namespace YSMInstaller.SevenZip {
                 Func<SevenZipEntry, Stream?> open = e => e.Index == entry.Index ? memory : null;
                 using (var callback = new ArchiveExtractCallback(this, open, _ => { }, cancellationToken)) {
                     int hr = _archive.Extract(new[] { entry.Index }, 1, 0, callback);
+                    callback.Dispose();
                     callback.ThrowIfFaulted(hr, cancellationToken, _stream.FirstError);
                 }
                 return memory.ToArray();
