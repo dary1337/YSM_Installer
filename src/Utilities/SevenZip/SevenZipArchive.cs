@@ -24,8 +24,9 @@ namespace YSMInstaller.SevenZip {
     // Bulk extraction goes through a single Extract(all-indices) call so solid blocks (.7z/.rar) are
     // decoded once front-to-back rather than re-decoded per entry.
     internal sealed class SevenZipArchive : IDisposable {
-        // Upper bound on how far into the file 7z scans for the archive signature — generous so a
-        // self-extracting stub prepended to the real archive is still located.
+        // Max window 7z scans for the archive signature when opening. The format handler is chosen by
+        // sniffing magic bytes at offset 0 (DetectHandlerId), so self-extracting archives behind a
+        // prepended stub aren't recognized — WARNO mods ship as plain archives, not SFX.
         private const ulong SignatureScanLimit = 1 << 23;
         // Bytes sniffed up front to pick the format handler. 262 is the minimum to reach the tar
         // "ustar" magic at offset 257; 512 is one tar record and leaves margin.
@@ -65,8 +66,7 @@ namespace YSMInstaller.SevenZip {
                 return result;
             }
             catch {
-                stream?.Dispose();
-                SafeRelease(archive);
+                Teardown(archive, stream);
                 throw;
             }
         }
@@ -141,12 +141,25 @@ namespace YSMInstaller.SevenZip {
         }
 
         public void Dispose() {
-            _archive.Close();
-            SafeRelease(_archive);
-            // Keep the input-stream CCW rooted until after Close: 7z still reads through it during
-            // Extract, and the only managed reference is this field.
-            GC.KeepAlive(_stream);
-            _stream.Dispose();
+            Teardown(_archive, _stream);
+        }
+
+        // Close → release → dispose, run exactly once on every path. Close goes first (7z drops its
+        // hold on the input stream); release and disposal run in finally so a Close failure can't leak
+        // the COM object or the file handle. Used by both the Open failure path and Dispose.
+        private static void Teardown(IInArchive archive, InStreamWrapper? stream) {
+            try {
+                archive.Close();
+            }
+            catch (Exception exception) {
+                AppLogger.Critical("Closing the 7z archive during teardown failed.", exception);
+            }
+            finally {
+                SafeRelease(archive);
+                // Rooted until here so the input-stream CCW survives Close (7z reads through it).
+                GC.KeepAlive(stream);
+                stream?.Dispose();
+            }
         }
 
         private static void SafeRelease(IInArchive archive) {
