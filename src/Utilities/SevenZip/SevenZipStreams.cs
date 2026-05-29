@@ -52,28 +52,44 @@ namespace YSMInstaller.SevenZip {
         private readonly Stream _stream;
         private readonly Action<long> _onWrote;
         private readonly Func<bool> _isCancellationRequested;
+        private readonly Action<Exception> _reportError;
         private readonly byte[] _buffer = new byte[SevenZipStreamBuffer.Size];
 
-        public OutStreamWrapper(Stream stream, Action<long> onWrote, Func<bool> isCancellationRequested) {
+        public OutStreamWrapper(
+            Stream stream,
+            Action<long> onWrote,
+            Func<bool> isCancellationRequested,
+            Action<Exception> reportError
+        ) {
             _stream = stream;
             _onWrote = onWrote;
             _isCancellationRequested = isCancellationRequested;
+            _reportError = reportError;
         }
 
         public int Write(IntPtr data, uint size, IntPtr processedSize) {
             if (_isCancellationRequested()) {
                 return HResult.Abort;
             }
-            // Consume at most one buffer; reporting a short processedSize tells 7z to call again for
-            // the remainder, so a single huge request can't force an oversized allocation.
-            int toWrite = (int)Math.Min(size, (uint)_buffer.Length);
-            Marshal.Copy(data, _buffer, 0, toWrite);
-            _stream.Write(_buffer, 0, toWrite);
-            _onWrote(toWrite);
-            if (processedSize != IntPtr.Zero) {
-                Marshal.WriteInt32(processedSize, toWrite);
+            try {
+                // Consume at most one buffer; reporting a short processedSize tells 7z to call again
+                // for the remainder, so a single huge request can't force an oversized allocation.
+                int toWrite = (int)Math.Min(size, (uint)_buffer.Length);
+                Marshal.Copy(data, _buffer, 0, toWrite);
+                _stream.Write(_buffer, 0, toWrite);
+                _onWrote(toWrite);
+                if (processedSize != IntPtr.Zero) {
+                    Marshal.WriteInt32(processedSize, toWrite);
+                }
+                return HResult.Ok;
             }
-            return HResult.Ok;
+            catch (Exception exception) {
+                // A write failure (e.g. disk full) must not escape across the COM boundary, where it
+                // would collapse into a generic 7z HRESULT. Hand it to the callback so ThrowIfFaulted
+                // can surface the real cause; report no processedSize on failure.
+                _reportError(exception);
+                return HResult.Fail;
+            }
         }
     }
 }

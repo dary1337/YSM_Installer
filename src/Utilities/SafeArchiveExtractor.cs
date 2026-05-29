@@ -90,10 +90,14 @@ namespace YSMInstaller {
             }
         }
 
-        public static byte[]? ReadEntryBytes(string archivePath, string entryFileName) {
+        public static byte[]? ReadEntryBytes(
+            string archivePath,
+            string entryFileName,
+            CancellationToken cancellationToken = default
+        ) {
             return IsZip(archivePath)
-                ? ReadEntryBytesZip(archivePath, entryFileName)
-                : ReadEntryBytesSevenZip(archivePath, entryFileName);
+                ? ReadEntryBytesZip(archivePath, entryFileName, cancellationToken)
+                : ReadEntryBytesSevenZip(archivePath, entryFileName, cancellationToken);
         }
 
         private static void ExtractZip(
@@ -135,7 +139,11 @@ namespace YSMInstaller {
             }
         }
 
-        private static byte[]? ReadEntryBytesZip(string archivePath, string entryFileName) {
+        private static byte[]? ReadEntryBytesZip(
+            string archivePath,
+            string entryFileName,
+            CancellationToken cancellationToken
+        ) {
             using (var archive = ZipFile.OpenRead(archivePath)) {
                 var matches = archive.Entries
                     .Where(e => string.Equals(e.Name, entryFileName, StringComparison.OrdinalIgnoreCase))
@@ -150,7 +158,7 @@ namespace YSMInstaller {
                 }
                 using (var stream = matches[0].Open())
                 using (var memory = new MemoryStream()) {
-                    stream.CopyTo(memory);
+                    CopyStream(stream, memory, cancellationToken);
                     return memory.ToArray();
                 }
             }
@@ -203,7 +211,11 @@ namespace YSMInstaller {
             }
         }
 
-        private static byte[]? ReadEntryBytesSevenZip(string archivePath, string entryFileName) {
+        private static byte[]? ReadEntryBytesSevenZip(
+            string archivePath,
+            string entryFileName,
+            CancellationToken cancellationToken
+        ) {
             using (var archive = SevenZipArchive.Open(archivePath)) {
                 var matches = archive.Entries
                     .Where(e =>
@@ -224,7 +236,17 @@ namespace YSMInstaller {
                         $"Archive contains multiple '{entryFileName}' entries."
                     );
                 }
-                return archive.ExtractEntryBytes(matches[0], CancellationToken.None);
+                return archive.ExtractEntryBytes(matches[0], cancellationToken);
+            }
+        }
+
+        // Stream.CopyTo ignores cancellation; copy in chunks so a requested cancel lands promptly.
+        private static void CopyStream(Stream source, Stream destination, CancellationToken cancellationToken) {
+            byte[] buffer = new byte[81920];
+            int read;
+            while ((read = source.Read(buffer, 0, buffer.Length)) > 0) {
+                cancellationToken.ThrowIfCancellationRequested();
+                destination.Write(buffer, 0, read);
             }
         }
 

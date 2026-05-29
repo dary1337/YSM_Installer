@@ -74,24 +74,41 @@ namespace YSMInstaller.SevenZip {
                 throw new InvalidDataException($"7z.dll could not read the archive index (HRESULT 0x{hr:X8}).");
             }
             var entries = new List<SevenZipEntry>((int)Math.Min(count, int.MaxValue));
+            // A throw mid-loop disposes the buffer (PropVariantClear + free) via the using, so a
+            // failed read never leaves a leaked allocation or a half-built entry table.
             using (var prop = new PropVariantBuffer()) {
                 for (uint i = 0; i < count; i++) {
-                    archive.GetProperty(i, ItemPropId.Path, prop.Ptr);
+                    RequireOk(archive.GetProperty(i, ItemPropId.Path, prop.Ptr), ItemPropId.Path, i);
                     string path = prop.ReadString() ?? string.Empty;
                     prop.Reset();
 
-                    archive.GetProperty(i, ItemPropId.IsFolder, prop.Ptr);
+                    RequireOk(archive.GetProperty(i, ItemPropId.IsFolder, prop.Ptr), ItemPropId.IsFolder, i);
                     bool isDir = prop.ReadBool();
                     prop.Reset();
 
-                    archive.GetProperty(i, ItemPropId.Size, prop.Ptr);
-                    long size = (long)prop.ReadUInt64();
+                    RequireOk(archive.GetProperty(i, ItemPropId.Size, prop.Ptr), ItemPropId.Size, i);
+                    ulong rawSize = prop.ReadUInt64();
                     prop.Reset();
+                    // Reject (don't wrap) sizes above long.MaxValue: a wrapped-negative size would be
+                    // clamped to 0 by downstream Math.Max(0, ...) and bypass the disk-space check.
+                    if (rawSize > long.MaxValue) {
+                        throw new InvalidDataException(
+                            $"Archive entry {i} reports an impossibly large size ({rawSize}) — file may be malformed or malicious."
+                        );
+                    }
 
-                    entries.Add(new SevenZipEntry(i, path, isDir, size));
+                    entries.Add(new SevenZipEntry(i, path, isDir, (long)rawSize));
                 }
             }
             return entries;
+        }
+
+        private static void RequireOk(int hr, ItemPropId propId, uint index) {
+            if (hr != HResult.Ok) {
+                throw new InvalidDataException(
+                    $"7z.dll failed to read property {propId} of entry {index} (HRESULT 0x{hr:X8})."
+                );
+            }
         }
 
         // Streams every entry out in one decode pass. The callback resolves each index to a target
@@ -230,7 +247,12 @@ namespace YSMInstaller.SevenZip {
                     return HResult.Ok;
                 }
                 _currentStream = target;
-                outStream = new OutStreamWrapper(target, _onBytesWritten, () => _cancellationToken.IsCancellationRequested);
+                outStream = new OutStreamWrapper(
+                    target,
+                    _onBytesWritten,
+                    () => _cancellationToken.IsCancellationRequested,
+                    exception => _pendingException ??= exception
+                );
                 return HResult.Ok;
             }
             catch (OperationCanceledException) {
