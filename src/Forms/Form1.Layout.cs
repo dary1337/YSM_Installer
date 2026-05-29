@@ -218,20 +218,30 @@ namespace YSMInstaller {
             _subLabel.Text = TruncateToWidth(_headerSubFull, _subLabel.Font, availablePx);
         }
 
-        // Reads the actual width of the percent-100 title column from the laid-out header,
-        // rather than approximating via ClientSize − magic constants. Previously the magic
-        // constants under-reported the available width on wide windows and truncated the
-        // subtitle even when there was plenty of room.
+        // Compute the available width from the parent (_root), not from _headerRow. With
+        // _headerRow.AutoSize=true the row degenerates to its content (Width == column[0] + column[1]),
+        // so reading column[0] OR _headerRow.Width − column[1] both feed back from the current
+        // _subLabel text and shrink the subtitle to whatever the previous state's text was. _root is a
+        // single Percent-100 column docked to the form's content area, so its ClientSize.Width tracks
+        // the form's width regardless of any header content.
         private int GetHeaderSubAvailableWidth() {
-            if (_headerRow != null && _headerRow.IsHandleCreated && _headerRow.Width > 0) {
+            int rowMaxWidth;
+            if (_root != null && _root.IsHandleCreated && _root.ClientSize.Width > 0) {
+                rowMaxWidth = _root.ClientSize.Width;
+            }
+            else {
+                rowMaxWidth = Math.Max(0, ClientSize.Width - 2 * Sizes.WindowPadding);
+            }
+            int rightActionsWidth = 0;
+            if (_headerRow != null && _headerRow.IsHandleCreated) {
                 int[] columnWidths = _headerRow.GetColumnWidths();
-                if (columnWidths.Length > 0 && columnWidths[0] > 0) {
-                    // Leave a few px so the ellipsis doesn't kiss the Settings cluster.
-                    return Math.Max(120, columnWidths[0] - 8);
+                if (columnWidths.Length > 1 && columnWidths[1] > 0) {
+                    rightActionsWidth = columnWidths[1];
                 }
             }
-            // Fallback for very early calls before layout has settled.
-            return Math.Max(120, ClientSize.Width - 200);
+            int available = rowMaxWidth - rightActionsWidth;
+            // Leave a few px so the ellipsis doesn't kiss the Settings cluster.
+            return Math.Max(120, available - 8);
         }
 
         // GDI+ MeasureString (matched to SoftLabel.OnPaint's Graphics.DrawString) — TextRenderer
