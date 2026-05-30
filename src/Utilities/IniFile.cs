@@ -99,9 +99,11 @@ namespace YSMInstaller {
                         File.Delete(tempPath);
                     }
                 }
-                catch {
-                    // Best-effort cleanup of the partial tmp; the surfaced exception below is the
-                    // one we care about, and an orphaned .tmp is overwritten on the next write.
+                catch (Exception cleanupException) {
+                    // Cleanup of the partial tmp is best-effort — the outer exception is the one we
+                    // care about and will rethrow. Log this so an antivirus / file-lock blocking the
+                    // delete is at least visible in the log rather than silently swallowed.
+                    AppLogger.Error($"Failed to delete partial Config.ini tmp '{tempPath}'.", cleanupException);
                 }
                 throw;
             }
