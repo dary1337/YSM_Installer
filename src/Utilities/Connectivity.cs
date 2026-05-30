@@ -1,8 +1,8 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace YSMInstaller {
@@ -17,14 +17,14 @@ namespace YSMInstaller {
         private static readonly HttpClient ProbeClient = CreateProbeClient();
 
         public static async Task<string> DiagnoseCatalogAsync(string? technicalReason = null) {
-            bool google = await CanResolveAsync("www.google.com");
-            bool github = await CanResolveAsync("github.com");
+            bool google = await CanResolveAsync("www.google.com").ConfigureAwait(false);
+            bool github = await CanResolveAsync("github.com").ConfigureAwait(false);
 
             if (!google && !github) {
                 return "You appear to be offline. Check your internet connection and try again.";
             }
 
-            if (!github || !await CanReachAsync("https://github.com")) {
+            if (!github || !await CanReachAsync("https://github.com").ConfigureAwait(false)) {
                 return "GitHub is unreachable right now. The mod catalog is hosted there, so try again in a bit.";
             }
 
@@ -37,11 +37,11 @@ namespace YSMInstaller {
         private static async Task<bool> CanResolveAsync(string host) {
             try {
                 Task<System.Net.IPAddress[]> lookup = System.Net.Dns.GetHostAddressesAsync(host);
-                Task completed = await Task.WhenAny(lookup, Task.Delay(3000));
+                Task completed = await Task.WhenAny(lookup, Task.Delay(3000)).ConfigureAwait(false);
                 if (completed != lookup) {
                     return false;
                 }
-                System.Net.IPAddress[] addresses = await lookup;
+                System.Net.IPAddress[] addresses = await lookup.ConfigureAwait(false);
                 return addresses.Length > 0;
             }
             catch (SocketException) {
@@ -54,9 +54,9 @@ namespace YSMInstaller {
 
         private static async Task<bool> CanReachAsync(string url) {
             try {
+                // ProbeClient.Timeout (4 s) already covers connect + send + receive — no second CTS needed.
                 using (var request = new HttpRequestMessage(HttpMethod.Head, url))
-                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4)))
-                using (var response = await ProbeClient.SendAsync(request, cts.Token)) {
+                using (var response = await ProbeClient.SendAsync(request).ConfigureAwait(false)) {
                     return response.IsSuccessStatusCode;
                 }
             }
@@ -75,7 +75,10 @@ namespace YSMInstaller {
         }
 
         private static HttpClient CreateProbeClient() {
-            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+            var handler = new HttpClientHandler {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            };
+            var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(4) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("YSMInstaller/1.0");
             return client;
         }
