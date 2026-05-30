@@ -214,7 +214,7 @@ namespace YSMInstaller {
                 return ("WARNO Tactical Overhaul — Freedom Decks, Realistic LOS, Unit Speed, 2x Scale.", false);
             }
             if (modType == ModTypes.Manual) {
-                return ("Install from a local folder or an archive you already have.", false);
+                return ("Already downloaded a mod? Pick its folder or archive file.", false);
             }
             return ("Yokaiste's Sandbox Mod — an open-source overhaul with deep customization.", false);
         }
