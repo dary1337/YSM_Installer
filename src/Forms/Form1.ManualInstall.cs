@@ -68,6 +68,15 @@ namespace YSMInstaller {
                 return;
             }
 
+            if (ModArchiveFormats.IsMultiPartContinuationVolume(archivePath)) {
+                UserMessages.ShowError(
+                    this,
+                    "Pick the first part",
+                    "This looks like part 2 (or later) of a multi-part archive. Pick the file ending in `.001` instead — the rest of the parts must be in the same folder."
+                );
+                return;
+            }
+
             // Peek into the zip off the UI thread — opening a large archive can stall repaint.
             (Dictionary<string, string>? config, string? peekError) =
                 await Task.Run(() => ProbeManualArchive(archivePath));
