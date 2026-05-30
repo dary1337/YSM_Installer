@@ -150,6 +150,8 @@ namespace YSMInstaller {
             // no prompt needed, and we don't want them holding sockets after teardown.
             if (!e.Cancel) {
                 _chooseBuildCts?.Cancel();
+                _chooseBuildCts?.Dispose();
+                _chooseBuildCts = null;
             }
 
             base.OnFormClosing(e);
