@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,13 @@ namespace YSMInstaller {
 
         [STAThread]
         static void Main() {
+            // Process-wide HTTP defaults, set before any HttpClient is created. The stock 4.7.2
+            // protocol set still includes TLS 1.0/1.1 on older registry configs — GitHub rejects
+            // both, so force a 1.2 floor. DefaultConnectionLimit caps concurrent connections per
+            // host at 2 by default, which throttles parallel HEAD probes on the release CDN.
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.DefaultConnectionLimit = 16;
+
             // A second copy would race the first over the shared WARNO mod folder and Config.ini
             // (the ActivatedMods read-modify-write isn't cross-process safe), so hand off to the
             // already-running window instead of running concurrently. Checked before anything else

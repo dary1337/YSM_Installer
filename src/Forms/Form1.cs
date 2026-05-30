@@ -34,6 +34,10 @@ namespace YSMInstaller {
         private bool _isInstalling;
         private bool _isAutoUpdating;
         private CancellationTokenSource? _autoUpdateCts;
+        // Scoped to the ChooseBuild screen — cancels in-flight HEAD probes for build sizes when
+        // the user navigates away or closes the form, so we don't keep sockets open against the
+        // CDN for the full HttpClient timeout after the UI is already gone.
+        private CancellationTokenSource? _chooseBuildCts;
         private bool _hasFoundWarnoExe;
         private bool _showAllEntries;
         // Set when an install completes while the window is backgrounded — the taskbar stays
@@ -140,6 +144,14 @@ namespace YSMInstaller {
                         _autoUpdateCts?.Cancel();
                     }
                 }
+            }
+
+            // Always abort ChooseBuild size probes on close — they're best-effort UI decoration,
+            // no prompt needed, and we don't want them holding sockets after teardown.
+            if (!e.Cancel) {
+                _chooseBuildCts?.Cancel();
+                _chooseBuildCts?.Dispose();
+                _chooseBuildCts = null;
             }
 
             base.OnFormClosing(e);

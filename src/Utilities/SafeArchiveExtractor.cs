@@ -296,6 +296,9 @@ namespace YSMInstaller {
         }
 
         private static bool IsZip(string archivePath) {
+            if (ModArchiveFormats.IsMultiPartFirstVolume(archivePath)) {
+                return false;
+            }
             byte[] header = new byte[4];
             int read;
             using (var fs = File.OpenRead(archivePath)) {

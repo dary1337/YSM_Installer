@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,13 @@ namespace YSMInstaller {
     public static class HttpService {
         private static readonly HttpClient Client = CreateClient();
         private const int UnknownSizeProgressStepBytes = 256 * 1024;
+
+        // 80 KB is the inflection point for async file/network IO on Windows: it's well past the
+        // TCP receive window we get on a healthy keep-alive HTTPS connection to GitHub's CDN, and
+        // it cuts the await/ReadAsync iteration count ~10x on a fast pipe (50 MB/s would otherwise
+        // re-enter the state machine 6400 times per second). Same buffer is used as the FileStream
+        // internal buffer so the write side matches.
+        private const int DownloadBufferSize = 80 * 1024;
 
         // Per-chunk retry budget for multi-part downloads. Covers transient hiccups (5xx, brief
         // network drop, server-side reset) without disguising deterministic failures — the
@@ -48,9 +56,9 @@ namespace YSMInstaller {
                     request.Headers.Accept.ParseAdd(acceptHeader);
                 }
 
-                using (var response = await Client.SendAsync(request, cancellationToken)) {
+                using (var response = await Client.SendAsync(request, cancellationToken).ConfigureAwait(false)) {
                     response.EnsureSuccessStatusCode();
-                    return await response.Content.ReadAsStringAsync();
+                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -72,7 +80,7 @@ namespace YSMInstaller {
 
             try {
                 using (var headRequest = new HttpRequestMessage(HttpMethod.Head, url))
-                using (var headResponse = await Client.SendAsync(headRequest, cancellationToken)) {
+                using (var headResponse = await Client.SendAsync(headRequest, cancellationToken).ConfigureAwait(false)) {
                     if (headResponse.IsSuccessStatusCode) {
                         long? len = headResponse.Content.Headers.ContentLength;
                         if (len.HasValue && len.Value > 0) {
@@ -86,7 +94,9 @@ namespace YSMInstaller {
                 throw;
             }
             catch (Exception exception) {
-                AppLogger.Critical($"HEAD size probe failed for {url}; falling back to GET headers.", exception);
+                // Some hosts return 405 / refuse HEAD; that's expected — log at Error, not Critical,
+                // and let the GET-with-ResponseHeadersRead fallback below handle it.
+                AppLogger.Error($"HEAD size probe failed for {url}; falling back to GET headers.", exception);
             }
 
             try {
@@ -95,7 +105,7 @@ namespace YSMInstaller {
                         url,
                         HttpCompletionOption.ResponseHeadersRead,
                         cancellationToken
-                    )
+                    ).ConfigureAwait(false)
                 ) {
                     if (!response.IsSuccessStatusCode) {
                         return null;
@@ -131,7 +141,7 @@ namespace YSMInstaller {
             bool moved = false;
             try {
             using (
-                var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                var response = await Client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false)
             ) {
                 response.EnsureSuccessStatusCode();
 
@@ -151,26 +161,26 @@ namespace YSMInstaller {
                 var totalBytes = response.Content.Headers.ContentLength ?? -1L;
                 var canReportProgress = totalBytes != -1 && progress != null;
 
-                using (var contentStream = await response.Content.ReadAsStreamAsync())
+                using (var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 using (
                     var fileStream = new FileStream(
                         tempPath,
                         FileMode.Create,
                         FileAccess.Write,
                         FileShare.None,
-                        8192,
+                        DownloadBufferSize,
                         true
                     )
                 ) {
-                    var buffer = new byte[8192];
+                    var buffer = new byte[DownloadBufferSize];
                     long totalRead = 0;
                     int read;
                     int lastReported = -1;
                     long lastReportedBytes = -UnknownSizeProgressStepBytes;
                     DateTime lastDetailedReportAt = DateTime.MinValue;
 
-                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
-                        await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
+                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0) {
+                        await fileStream.WriteAsync(buffer, 0, read, cancellationToken).ConfigureAwait(false);
                         totalRead += read;
 
                         if (
@@ -231,13 +241,19 @@ namespace YSMInstaller {
             if (urls == null || urls.Count == 0) {
                 return null;
             }
+            // Fire all HEAD probes in parallel — each one is independent and individually cached,
+            // so serializing them just added round-trip latency per part with nothing to share.
+            Task<long?>[] probes = new Task<long?>[urls.Count];
+            for (int i = 0; i < urls.Count; i++) {
+                probes[i] = TryGetRemoteFileSizeAsync(urls[i], cancellationToken);
+            }
+            long?[] sizes = await Task.WhenAll(probes).ConfigureAwait(false);
             long total = 0;
-            foreach (string url in urls) {
-                long? part = await TryGetRemoteFileSizeAsync(url, cancellationToken);
-                if (!part.HasValue || part.Value <= 0) {
+            foreach (long? size in sizes) {
+                if (!size.HasValue || size.Value <= 0) {
                     return null;
                 }
-                total = checked(total + part.Value);
+                total = checked(total + size.Value);
             }
             return total;
         }
@@ -272,7 +288,7 @@ namespace YSMInstaller {
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None,
-                    8192,
+                    DownloadBufferSize,
                     true
                 )
             ) {
@@ -280,7 +296,7 @@ namespace YSMInstaller {
                 int lastPercent = -1;
                 long lastReportedBytes = -UnknownSizeProgressStepBytes;
                 DateTime lastDetailedReportAt = DateTime.MinValue;
-                var buffer = new byte[8192];
+                var buffer = new byte[DownloadBufferSize];
 
                 for (int i = 0; i < urls.Count; i++) {
                     string url = GoogleDriveLinks.Normalize(urls[i]);
@@ -309,7 +325,7 @@ namespace YSMInstaller {
                                     url,
                                     HttpCompletionOption.ResponseHeadersRead,
                                     cancellationToken
-                                )
+                                ).ConfigureAwait(false)
                             ) {
                                 response.EnsureSuccessStatusCode();
                                 string? mediaType = response.Content.Headers.ContentType?.MediaType;
@@ -322,10 +338,10 @@ namespace YSMInstaller {
                                     );
                                 }
 
-                                using (var contentStream = await response.Content.ReadAsStreamAsync()) {
+                                using (var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false)) {
                                     int read;
-                                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0) {
-                                        await fileStream.WriteAsync(buffer, 0, read, cancellationToken);
+                                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0) {
+                                        await fileStream.WriteAsync(buffer, 0, read, cancellationToken).ConfigureAwait(false);
                                         writtenSoFar += read;
 
                                         if (
@@ -368,16 +384,16 @@ namespace YSMInstaller {
                         ) {
                             // HttpClient timeout (not user cancel — that case is filtered out and
                             // handled by the OperationCanceledException catch below).
-                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count);
+                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                             throw;
                         }
                         catch (HttpRequestException exception) when (attempt < MaxChunkAttempts) {
-                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count);
+                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count).ConfigureAwait(false);
                         }
                         catch (IOException exception) when (attempt < MaxChunkAttempts) {
-                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count);
+                            await ResetChunkAndBackoffAsync(exception, attempt, i + 1, urls.Count).ConfigureAwait(false);
                         }
                     }
 
@@ -399,7 +415,7 @@ namespace YSMInstaller {
                         writtenSoFar = chunkStartBytes;
                         lastReportedBytes = chunkStartReported;
                         lastPercent = chunkStartPercent;
-                        await Task.Delay(delay, cancellationToken);
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -436,8 +452,12 @@ namespace YSMInstaller {
         }
 
         private static HttpClient CreateClient() {
-            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-
+            // GitHub API + raw.githubusercontent.com both serve gzip; JSON catalogs shrink 5-10x.
+            // Decompression happens transparently so callers still see plain text.
+            var handler = new HttpClientHandler {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            };
+            var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("YSMInstaller/1.0");
             return client;
         }
