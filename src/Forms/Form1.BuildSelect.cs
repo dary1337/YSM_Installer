@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -60,6 +61,13 @@ namespace YSMInstaller {
 
         // ---- Inline build selection ----
         private async Task RenderChooseBuild(List<ModMetadata> variants) {
+            // Re-entering ChooseBuild (or any new render) supersedes any prior probe batch; cancel
+            // it so two batches don't race against the cards we're about to rebuild.
+            _chooseBuildCts?.Cancel();
+            _chooseBuildCts?.Dispose();
+            _chooseBuildCts = new CancellationTokenSource();
+            CancellationToken cancellationToken = _chooseBuildCts.Token;
+
             _state = AppState.ChooseBuild;
             _chooseVersion = _selectedEntry!.Version;
             _buildCards.Clear();
@@ -114,7 +122,7 @@ namespace YSMInstaller {
             _selectedBuild = (ModMetadata)def.Tag2!;
             UpdateChooseBuildIsland();
 
-            await PopulateBuildSizesAsync(variants);
+            await PopulateBuildSizesAsync(variants, cancellationToken);
         }
 
         private void OnBuildSelected(MaterialOptionCard selected) {
@@ -176,9 +184,9 @@ namespace YSMInstaller {
             SetIslandActions(back, install);
         }
 
-        private async Task PopulateBuildSizesAsync(List<ModMetadata> variants) {
+        private async Task PopulateBuildSizesAsync(List<ModMetadata> variants, CancellationToken cancellationToken) {
             foreach (MaterialOptionCard card in _buildCards.ToList()) {
-                if (_state != AppState.ChooseBuild || card.IsDisposed) {
+                if (cancellationToken.IsCancellationRequested || _state != AppState.ChooseBuild || card.IsDisposed) {
                     return;
                 }
                 var variant = (ModMetadata)card.Tag2!;
@@ -187,10 +195,18 @@ namespace YSMInstaller {
                 if (string.IsNullOrWhiteSpace(variant.DownloadUrl) && !hasParts) {
                     continue;
                 }
-                long? size = hasParts
-                    ? await HttpService.TryGetTotalSizeAsync(variant.DownloadUrlParts!)
-                    : await HttpService.TryGetRemoteFileSizeAsync(variant.DownloadUrl);
-                if (_state != AppState.ChooseBuild || card.IsDisposed) {
+                long? size;
+                try {
+                    size = hasParts
+                        ? await HttpService.TryGetTotalSizeAsync(variant.DownloadUrlParts!, cancellationToken)
+                        : await HttpService.TryGetRemoteFileSizeAsync(variant.DownloadUrl, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                    // Form closed / navigated away mid-probe. Exit silently — outer caller catches
+                    // generic Exception and would log this as Critical otherwise.
+                    return;
+                }
+                if (cancellationToken.IsCancellationRequested || _state != AppState.ChooseBuild || card.IsDisposed) {
                     return;
                 }
                 if (size.HasValue && size.Value > 0) {
