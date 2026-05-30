@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
@@ -110,10 +111,11 @@ namespace YSMInstaller.SevenZip {
                 return false;
             }
             string suffix = name.Substring(dot + 1);
+            // NumberStyles.None disallows leading sign / whitespace, so a pathological filename
+            // like `foo. 1` (suffix=" 1") won't be misread as the first volume.
             return suffix.Length >= 2
-                && int.TryParse(suffix, out int n)
-                && n == 1
-                && System.Linq.Enumerable.All(suffix, c => c >= '0' && c <= '9');
+                && int.TryParse(suffix, NumberStyles.None, CultureInfo.InvariantCulture, out int n)
+                && n == 1;
         }
 
         private static List<SevenZipEntry> ReadEntries(IInArchive archive) {
