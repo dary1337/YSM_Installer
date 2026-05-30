@@ -48,10 +48,11 @@ reviews:
     - path: "src/**/*.cs"
       instructions: >
         C# (net472, nullable enabled where annotated, no LangVersion override). Enforce: dispose every IDisposable created locally; use StringComparison.Ordinal for
-        identifiers/paths/keys, CurrentCulture only for user-facing display; never catch System.Exception without rethrow or AppLogger.Critical; never block on async
-        with .Result/.Wait/.GetAwaiter().GetResult() on the UI thread; never use async void outside a true event handler; propagate CancellationToken through every
-        I/O call site; prefer using-declarations or using-blocks over manual try/finally for disposal; reject fields named with underscore-prefix when they are not
-        private mutable instance state; reject `var` only when type cannot be inferred from RHS, otherwise allow.
+        identifiers/paths/keys, CurrentCulture only for user-facing display; never catch System.Exception without rethrow or an AppLogger call (Critical for hard
+        faults that abort the operation, Error for recoverable best-effort failures the caller continues past); never block on async with .Result/.Wait/.GetAwaiter().GetResult()
+        on the UI thread; never use async void outside a true event handler; propagate CancellationToken through every I/O call site; prefer using-declarations or
+        using-blocks over manual try/finally for disposal; reject fields named with underscore-prefix when they are not private mutable instance state; reject `var`
+        only when type cannot be inferred from RHS, otherwise allow.
 
     - path: "src/Forms/**/*.cs"
       instructions: >
