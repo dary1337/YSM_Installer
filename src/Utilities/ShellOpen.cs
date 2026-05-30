@@ -27,7 +27,9 @@ namespace YSMInstaller {
                 }
             }
             catch (Exception exception) {
-                AppLogger.Critical($"Failed to open path: {path}", exception);
+                // Best-effort UX action — log at Error so a missing path or shell hiccup doesn't
+                // get triaged as a critical failure alongside actual install / network breakage.
+                AppLogger.Error($"Failed to open path: {path}", exception);
             }
         }
     }
