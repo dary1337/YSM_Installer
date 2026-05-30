@@ -176,6 +176,14 @@
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Form1.BuildSelect.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\Form1.ManualInstall.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\Form1.Layout.cs">
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>
@@ -200,7 +208,9 @@
     <Compile Include="Utilities\MemoryCache.cs" />
     <Compile Include="Utilities\RemoteHtmlResponseException.cs" />
     <Compile Include="Utilities\IniFile.cs" />
+    <Compile Include="Utilities\PathFormatting.cs" />
     <Compile Include="Utilities\SafeArchiveExtractor.cs" />
+    <Compile Include="Utilities\ShellOpen.cs" />
     <Compile Include="Utilities\SevenZip\SevenZipInterop.cs" />
     <Compile Include="Utilities\SevenZip\SevenZipLibrary.cs" />
     <Compile Include="Utilities\SevenZip\SevenZipStreams.cs" />
