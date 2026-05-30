@@ -215,6 +215,7 @@
     <Compile Include="Utilities\SevenZip\SevenZipLibrary.cs" />
     <Compile Include="Utilities\SevenZip\SevenZipStreams.cs" />
     <Compile Include="Utilities\SevenZip\SevenZipArchive.cs" />
+    <Compile Include="Utilities\SevenZip\MultiVolumeStream.cs" />
     <Compile Include="Utilities\SystemCursors.cs" />
     <Compile Include="Utilities\UpdateService.cs" />
     <Compile Include="Models\ModMetadata.cs" />

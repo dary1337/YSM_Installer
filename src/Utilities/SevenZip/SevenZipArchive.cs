@@ -47,11 +47,22 @@ namespace YSMInstaller.SevenZip {
         public IReadOnlyList<SevenZipEntry> Entries => _entries;
 
         public static SevenZipArchive Open(string archivePath) {
-            Guid classId = SevenZipFormat.FromHandlerId(DetectHandlerId(archivePath));
-            IInArchive archive = SevenZipLibrary.CreateInArchive(classId);
+            // `.7z.001` / `.zip.001` etc. are byte-splits — read the parts as one virtual stream
+            // rather than copying them to a temp file. The format handler is still chosen from the
+            // first part's magic bytes; we just feed 7z a stream that transparently crosses volume
+            // boundaries. .rar.001 multi-volume from WinRAR is not byte-concatenable, but 7z-style
+            // splits of any inner format work because the underlying archive bytes are unchanged.
+            Stream source = OpenSource(archivePath);
+            IInArchive? archive = null;
             InStreamWrapper? stream = null;
             try {
-                stream = new InStreamWrapper(File.OpenRead(archivePath));
+                Guid classId = SevenZipFormat.FromHandlerId(DetectHandlerId(source));
+                source.Seek(0, SeekOrigin.Begin);
+                archive = SevenZipLibrary.CreateInArchive(classId);
+                stream = new InStreamWrapper(source);
+                // InStreamWrapper now owns `source` — disposing the wrapper closes it. Null the
+                // local so the catch below doesn't double-dispose.
+                source = null!;
                 ulong maxCheck = SignatureScanLimit;
                 int hr = archive.Open(stream, ref maxCheck, null);
                 if (hr != HResult.Ok) {
@@ -67,9 +78,42 @@ namespace YSMInstaller.SevenZip {
                 return result;
             }
             catch {
-                Teardown(archive, stream);
+                // `source` is non-null only if InStreamWrapper hadn't taken ownership yet (i.e.
+                // DetectHandlerId / CreateInArchive failed). Dispose it directly; the wrapper
+                // (when constructed) will dispose its underlying stream via its own Dispose.
+                source?.Dispose();
+                if (archive != null) {
+                    Teardown(archive, stream);
+                }
+                else {
+                    stream?.Dispose();
+                }
                 throw;
             }
+        }
+
+        private static Stream OpenSource(string archivePath) {
+            if (IsFirstVolumePath(archivePath)) {
+                List<string> parts = MultiVolumeStream.ResolveSiblings(archivePath);
+                return new MultiVolumeStream(parts);
+            }
+            return File.OpenRead(archivePath);
+        }
+
+        // True for `<name>.001` (3-digit numeric suffix == 1), case-insensitive. Doesn't care about
+        // the inner extension — `.7z.001`, `.zip.001`, `.rar.001` all qualify. The caller already
+        // restricts which extensions reach the archive layer.
+        private static bool IsFirstVolumePath(string archivePath) {
+            string name = Path.GetFileName(archivePath);
+            int dot = name.LastIndexOf('.');
+            if (dot < 0 || dot >= name.Length - 1) {
+                return false;
+            }
+            string suffix = name.Substring(dot + 1);
+            return suffix.Length >= 2
+                && int.TryParse(suffix, out int n)
+                && n == 1
+                && System.Linq.Enumerable.All(suffix, c => c >= '0' && c <= '9');
         }
 
         private static List<SevenZipEntry> ReadEntries(IInArchive archive) {
@@ -187,11 +231,16 @@ namespace YSMInstaller.SevenZip {
             }
         }
 
-        private static byte DetectHandlerId(string archivePath) {
+        private static byte DetectHandlerId(Stream source) {
             byte[] header = new byte[HeaderProbeBytes];
-            int read;
-            using (var fs = File.OpenRead(archivePath)) {
-                read = fs.Read(header, 0, header.Length);
+            source.Seek(0, SeekOrigin.Begin);
+            // Loop the read: a virtual multi-volume stream returns a short read at part boundaries,
+            // and even FileStream isn't contractually required to fill the buffer in one call.
+            int read = 0;
+            while (read < header.Length) {
+                int n = source.Read(header, read, header.Length - read);
+                if (n == 0) break;
+                read += n;
             }
 
             if (StartsWith(header, read, 0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C)) return SevenZipFormat.SevenZip;
@@ -201,9 +250,12 @@ namespace YSMInstaller.SevenZip {
             if (StartsWith(header, read, 0x42, 0x5A, 0x68)) return SevenZipFormat.BZip2;
             if (StartsWith(header, read, 0x1F, 0x8B)) return SevenZipFormat.GZip;
             if (HasTarMagic(header, read)) return SevenZipFormat.Tar;
+            if (StartsWith(header, read, 0x50, 0x4B, 0x03, 0x04)) return SevenZipFormat.Zip;
+            if (StartsWith(header, read, 0x50, 0x4B, 0x05, 0x06)) return SevenZipFormat.Zip;
+            if (StartsWith(header, read, 0x50, 0x4B, 0x07, 0x08)) return SevenZipFormat.Zip;
 
             throw new InvalidDataException(
-                $"Unrecognized archive format (not 7z/rar/xz/bzip2/gzip/tar): {archivePath}"
+                "Unrecognized archive format (not 7z/rar/xz/bzip2/gzip/tar/zip)."
             );
         }
 
