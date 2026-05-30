@@ -78,7 +78,33 @@ namespace YSMInstaller {
                 }
             }
 
-            File.WriteAllLines(path, output);
+            // Atomic write via tmp + File.Replace. A direct WriteAllLines truncates the target
+            // before writing — a crash, BSOD, or kill mid-flush would leave WARNO's Config.ini
+            // empty or partial, wiping ActivatedMods and the rest of the per-user game settings.
+            // The replace happens inside the install's "no-cancel" finalize block, so we can't
+            // rely on rollback to recover. File.Replace is NTFS-journal-atomic on the same volume.
+            string tempPath = path + ".tmp";
+            try {
+                File.WriteAllLines(tempPath, output);
+                if (File.Exists(path)) {
+                    File.Replace(tempPath, path, destinationBackupFileName: null);
+                }
+                else {
+                    File.Move(tempPath, path);
+                }
+            }
+            catch {
+                try {
+                    if (File.Exists(tempPath)) {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch {
+                    // Best-effort cleanup of the partial tmp; the surfaced exception below is the
+                    // one we care about, and an orphaned .tmp is overwritten on the next write.
+                }
+                throw;
+            }
         }
 
         public static string GetRequiredValue(
