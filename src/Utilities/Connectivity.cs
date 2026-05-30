@@ -11,6 +11,11 @@ namespace YSMInstaller {
     /// went wrong: no internet at all, GitHub unreachable, or the catalog parsed badly.
     /// </summary>
     public static class Connectivity {
+        // Dedicated probe client: short timeout, kept process-wide because per-call `new HttpClient` would
+        // accumulate sockets in TIME_WAIT (~2 min each) and eventually exhaust the ephemeral port range if
+        // diagnostics ever ran in a loop. HttpService's main Client has a 60s timeout — unsuitable here.
+        private static readonly HttpClient ProbeClient = CreateProbeClient();
+
         public static async Task<string> DiagnoseCatalogAsync(string? technicalReason = null) {
             bool google = await CanResolveAsync("www.google.com");
             bool github = await CanResolveAsync("github.com");
@@ -33,7 +38,11 @@ namespace YSMInstaller {
             try {
                 Task<System.Net.IPAddress[]> lookup = System.Net.Dns.GetHostAddressesAsync(host);
                 Task completed = await Task.WhenAny(lookup, Task.Delay(3000));
-                return completed == lookup && lookup.Result.Length > 0;
+                if (completed != lookup) {
+                    return false;
+                }
+                System.Net.IPAddress[] addresses = await lookup;
+                return addresses.Length > 0;
             }
             catch (SocketException) {
                 return false;
@@ -45,13 +54,10 @@ namespace YSMInstaller {
 
         private static async Task<bool> CanReachAsync(string url) {
             try {
-                using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) })
-                using (var request = new HttpRequestMessage(HttpMethod.Head, url)) {
-                    client.DefaultRequestHeaders.UserAgent.ParseAdd("YSMInstaller/1.0");
-                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4)))
-                    using (var response = await client.SendAsync(request, cts.Token)) {
-                        return response.IsSuccessStatusCode;
-                    }
+                using (var request = new HttpRequestMessage(HttpMethod.Head, url))
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4)))
+                using (var response = await ProbeClient.SendAsync(request, cts.Token)) {
+                    return response.IsSuccessStatusCode;
                 }
             }
             catch (HttpRequestException) {
@@ -66,6 +72,12 @@ namespace YSMInstaller {
             catch (SocketException) {
                 return false;
             }
+        }
+
+        private static HttpClient CreateProbeClient() {
+            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("YSMInstaller/1.0");
+            return client;
         }
 
         private static string Shorten(string value) {
