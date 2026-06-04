@@ -188,5 +188,11 @@
         ],
         "known_issues_url": null,
         "min_installer_version": "1.1.0.0"
+    },
+    {
+        "mod_type": "ysm",
+        "game_version": 193438,
+        "download_url": "https://github.com/Yokaiste/YSM/releases/download/v193438/ysm_build_193438.zip",
+        "known_issues_url": null
     }
 ]
