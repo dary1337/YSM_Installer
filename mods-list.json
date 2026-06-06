@@ -194,5 +194,11 @@
         "game_version": 193438,
         "download_url": "https://github.com/Yokaiste/YSM/releases/download/v193438/ysm_build_193438.zip",
         "known_issues_url": null
+    },
+    {
+        "mod_type": "wto",
+        "game_version": 193438,
+        "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v193438wto/wto_193438.7z",
+        "known_issues_url": null
     }
 ]
