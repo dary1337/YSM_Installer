@@ -75,7 +75,7 @@ namespace YSMInstaller {
                     using (Stream? stream = asm.GetManifestResourceStream(steam))
                     using (var reader = stream != null ? new StreamReader(stream) : null) {
                         if (reader != null) {
-                            MaterialIconRenderer.Register("steam", reader.ReadToEnd());
+                            MaterialIconRenderer.Register(MaterialIcons.Steam, reader.ReadToEnd());
                         }
                     }
                 }
