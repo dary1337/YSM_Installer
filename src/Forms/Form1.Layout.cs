@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Drawing;
 using System.Drawing.Text;
@@ -22,8 +28,7 @@ namespace YSMInstaller {
             SuspendLayout();
             try {
                 Controls.Clear();
-                // Padding lives on the inner content wrapper instead of the form so the titlebar
-                // can run edge-to-edge along the top.
+                // Padding lives on the inner content wrapper so the titlebar runs edge-to-edge.
                 Padding = Padding.Empty;
 
                 var titleBar = new MaterialTitleBar {
@@ -52,7 +57,7 @@ namespace YSMInstaller {
                 // titlebar) so Windows cascades WM_NCHITTEST up to the form, whose DefWindowProc
                 // handles native resize/drag via WS_THICKFRAME.
                 var contentWrap = new BorderlessForm.HitTestForwardingPanel {
-                    BackColor = MaterialPalette.Surface,
+                    BackColor = MaterialColors.Surface,
                     Dock = DockStyle.Fill,
                     Margin = Padding.Empty,
                     Padding = new Padding(Sizes.WindowPadding),
@@ -95,14 +100,14 @@ namespace YSMInstaller {
             _overlineLabel = new SoftLabel {
                 AutoSize = true,
                 Font = MaterialType.Overline,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Margin = new Padding(0, 0, 0, 2),
                 Text = "STARTING…",
             };
             _subLabel = new SoftLabel {
                 AutoSize = true,
                 Font = MaterialType.TitleMedium,
-                ForeColor = MaterialPalette.OnSurface,
+                ForeColor = MaterialColors.OnSurface,
                 Margin = Padding.Empty,
                 Text = "Preparing installer",
             };
@@ -128,7 +133,7 @@ namespace YSMInstaller {
                 Height = 36,
                 Margin = Padding.Empty,
             };
-            _settingsButton.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+            _settingsButton.SetAccent(MaterialColors.Primary, MaterialColors.OnPrimary);
             _settingsButton.Click += async (sender, args) => await OpenSettingsAsync();
             rightActions.Controls.Add(_settingsButton);
 
@@ -140,7 +145,7 @@ namespace YSMInstaller {
                 Height = 36,
                 Margin = new Padding(0, 0, 4, 0),
             };
-            testButton.SetAccent(MaterialPalette.Tertiary, MaterialPalette.OnTertiaryContainer);
+            testButton.SetAccent(MaterialColors.Tertiary, MaterialColors.OnTertiaryContainer);
             testButton.Click += (sender, args) => OpenDevTestMenu();
             rightActions.Controls.Add(testButton);
 #endif
@@ -162,7 +167,6 @@ namespace YSMInstaller {
         }
 
         private Control BuildIsland() {
-            // No island chrome — just a transparent host that holds the bottom action row.
             _island = new Panel {
                 BackColor = Color.Transparent,
                 Dock = DockStyle.Top,
@@ -218,12 +222,8 @@ namespace YSMInstaller {
             _subLabel.Text = TruncateToWidth(_headerSubFull, _subLabel.Font, availablePx);
         }
 
-        // Compute the available width from the parent (_root), not from _headerRow. With
-        // _headerRow.AutoSize=true the row degenerates to its content (Width == column[0] + column[1]),
-        // so reading column[0] OR _headerRow.Width − column[1] both feed back from the current
-        // _subLabel text and shrink the subtitle to whatever the previous state's text was. _root is a
-        // single Percent-100 column docked to the form's content area, so its ClientSize.Width tracks
-        // the form's width regardless of any header content.
+        // Width comes from _root, not _headerRow: _headerRow.AutoSize collapses to its content,
+        // so its width feeds back from the current _subLabel text and shrinks the subtitle.
         private int GetHeaderSubAvailableWidth() {
             int rowMaxWidth;
             if (_root != null && _root.IsHandleCreated && _root.ClientSize.Width > 0) {
@@ -323,7 +323,6 @@ namespace YSMInstaller {
             _contentHost.ResumeLayout(true);
         }
 
-        /// <summary>Vertical full-width stack hosted in an AutoScroll panel.</summary>
         private static TableLayoutPanel NewStack() {
             var stack = new TableLayoutPanel {
                 AutoSize = true,
@@ -437,7 +436,7 @@ namespace YSMInstaller {
                 IconGlyph = glyph,
                 Height = Sizes.ButtonHeight,
             };
-            button.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+            button.SetAccent(MaterialColors.Primary, MaterialColors.OnPrimary);
             return button;
         }
     }

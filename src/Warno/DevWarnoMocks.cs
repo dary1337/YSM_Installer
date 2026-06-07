@@ -5,14 +5,10 @@ namespace YSMInstaller {
     internal static class DevWarnoMocks {
         public static bool IsEnabled => DevService.IsMockWarnoPathsEnabled;
 
-        /// <summary>One-shot flag: when set, the next simulated install throws to exercise the failure UI.</summary>
         public static bool SimulateInstallFailure { get; set; }
 
 #if DEBUG
-        // Counter consumed by HttpService.DownloadFilePartsAsync before each chunk attempt.
-        // Each non-zero value injects a synthetic IOException so the retry path is exercised
-        // without real network failures. Whole block compiled out of Release — no caller exists
-        // outside #if DEBUG-gated dev surfaces.
+        // Consumed by HttpService.DownloadFilePartsAsync to inject synthetic IOExceptions and exercise the retry path.
         private static int ChunkFailuresRemaining;
         private static string ChunkFailureReason = string.Empty;
 
@@ -47,7 +43,6 @@ namespace YSMInstaller {
             return new ScanResult(new List<ModMetadata>(), 0, new List<WarnoEntry>());
         }
 
-        // ---- Catalog ----
         public static List<ModMetadata> Catalog() {
             return new List<ModMetadata> {
                 Mod(ModTypes.Ysm, 146198, "https://steamcommunity.com/workshop/filedetails/discussion/3296415395/4509876644765422685/"),
@@ -67,7 +62,6 @@ namespace YSMInstaller {
             };
         }
 
-        // ---- Scenarios (for the dev Test menu) ----
         public static List<WarnoEntry> MixedInstalls() {
             var catalog = Catalog();
             return new List<WarnoEntry> {

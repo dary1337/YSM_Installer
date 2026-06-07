@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -61,7 +67,6 @@ namespace YSMInstaller {
             return exception.GetBaseException();
         }
 
-        // ---- Scanning ----
         private void RenderScanning() {
             _state = AppState.Scanning;
             SetHeader("Searching for WARNO…", "Scanning Steam libraries, registry, common folders");
@@ -73,7 +78,6 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
         }
 
-        // ---- Not found ----
         private void RenderNotFound() {
             _state = AppState.NotFound;
             bool fullScanDone = _includeSystemFolders;
@@ -88,8 +92,8 @@ namespace YSMInstaller {
 
             MaterialCard card = BuildMessageCard(
                 MaterialIcons.Search,
-                MaterialPalette.OnErrorContainer,
-                MaterialPalette.ErrorContainer,
+                MaterialColors.OnErrorContainer,
+                MaterialColors.ErrorContainer,
                 fullScanDone ? "No WARNO installations detected" : "WARNO installation not detected",
                 fullScanDone
                     ? "Steam libraries, registry, and common folders were scanned."
@@ -115,7 +119,7 @@ namespace YSMInstaller {
                 Text = "Re-scan",
                 IconGlyph = MaterialIcons.Refresh,
             };
-            rescan.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+            rescan.SetAccent(MaterialColors.Primary, MaterialColors.OnPrimary);
             rescan.Click += async (s, e) => {
                 try {
                     await ScanAsync();
@@ -141,7 +145,6 @@ namespace YSMInstaller {
             }
             buttons.Add(rescan);
 
-            // Auto-sized buttons in a left-aligned flow — match the mockup, no forced equal widths.
             var row = new FlowLayoutPanel {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -162,7 +165,6 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
         }
 
-        // ---- Catalog unavailable / offline ----
         private void RenderCatalogUnavailable(string reason) {
             _state = AppState.CatalogUnavailable;
             SetHeader("Mod list unavailable", "Could not load the mod list");
@@ -171,8 +173,8 @@ namespace YSMInstaller {
             TableLayoutPanel stack = NewStack();
             MaterialCard card = BuildMessageCard(
                 MaterialIcons.Cloud,
-                MaterialPalette.OnErrorContainer,
-                MaterialPalette.ErrorContainer,
+                MaterialColors.OnErrorContainer,
+                MaterialColors.ErrorContainer,
                 "Mod list unavailable",
                 reason
             );
@@ -226,7 +228,6 @@ namespace YSMInstaller {
             return Task.CompletedTask;
         }
 
-        // ---- Installs found ----
         private void RenderInstallsFound() {
             // Idempotent — covers exit from any prior state including install-cancelled.
             TaskbarProgress.Clear(this);
@@ -263,7 +264,7 @@ namespace YSMInstaller {
                     Dock = DockStyle.None,
                     Margin = new Padding(0, 2, 0, 0),
                 };
-                showMore.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+                showMore.SetAccent(MaterialColors.Primary, MaterialColors.OnPrimary);
                 showMore.Click += (s, e) => { _showAllEntries = true; RenderInstallsFound(); };
                 stack.Controls.Add(showMore);
             }

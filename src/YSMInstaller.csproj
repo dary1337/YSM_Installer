@@ -96,6 +96,10 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(NuGetPackageRoot)newtonsoft.json\13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="Material3.WinForms">
+      <HintPath>$(NuGetPackageRoot)material3.winforms\0.3.0\lib\net472\Material3.WinForms.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Svg">
       <HintPath>$(NuGetPackageRoot)svg\3.4.7\lib\net472\Svg.dll</HintPath>
       <Private>True</Private>
@@ -112,63 +116,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Controls\Material\MaterialButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\MaterialOptionCard.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\SoftLabel.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\MaterialCard.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Controls\Material\MaterialRadioCard.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\SkeletonCard.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\MaterialProgressBar.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\StepChecklist.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\MaterialScrollPanel.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Material\MaterialTitleBar.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="UI\Tokens.cs" />
     <Compile Include="UI\AppLinks.cs" />
-    <Compile Include="UI\TaskbarProgress.cs" />
     <Compile Include="UI\BuildIcons.cs" />
-    <Compile Include="UI\FormDragAnywhere.cs" />
-    <Compile Include="UI\FormAnimation.cs" />
-    <Compile Include="UI\MaterialPalette.cs" />
-    <Compile Include="UI\MaterialType.cs" />
     <Compile Include="UI\MaterialIcons.cs" />
-    <Compile Include="UI\MaterialIconRenderer.cs" />
-    <Compile Include="UI\WindowChrome.cs" />
-    <Compile Include="Forms\BorderlessForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\MaterialDialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Controls\Rounded\RoundedControls.cs" />
-    <Compile Include="Controls\Rounded\RoundedButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Rounded\RoundedPanel.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\Ui\DropdownSelect.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Forms\Form1.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -216,7 +170,6 @@
     <Compile Include="Utilities\SevenZip\SevenZipStreams.cs" />
     <Compile Include="Utilities\SevenZip\SevenZipArchive.cs" />
     <Compile Include="Utilities\SevenZip\MultiVolumeStream.cs" />
-    <Compile Include="Utilities\SystemCursors.cs" />
     <Compile Include="Utilities\UpdateService.cs" />
     <Compile Include="Models\ModMetadata.cs" />
     <Compile Include="Models\ModTypes.cs" />
@@ -319,6 +272,7 @@
     <EmbeddedResource Include="Resources\icons\videogame_asset.svg" />
     <EmbeddedResource Include="Resources\icons\warning.svg" />
     <EmbeddedResource Include="Resources\icons\warning_filled.svg" />
+    <EmbeddedResource Include="Resources\icons\ysm.png" />
     <EmbeddedResource Include="Resources\icons\ysm_wif.png" />
     <EmbeddedResource Include="Resources\icons\ysm_wif_wto.png" />
     <EmbeddedResource Include="Resources\icons\wto.png" />
@@ -354,6 +308,7 @@
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Resources.Extensions" Version="10.0.7" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
+    <PackageReference Include="Material3.WinForms" Version="0.3.0" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

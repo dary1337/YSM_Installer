@@ -1,68 +1,44 @@
-using System.Windows.Forms;
+using Material3.WinForms.Tokens;
 
 namespace YSMInstaller {
-    /// <summary>
-    /// Single source of truth for layout/sizing/type tokens (adapted from the project's WPF resource
-    /// dictionary). Use these everywhere instead of magic numbers. Type sizes are in points
-    /// (WPF px * 0.75) so WinForms <see cref="System.Drawing.Font"/> matches the intended pixel size.
-    /// </summary>
+    // App-local aliases over the Material3.WinForms tokens — single source of truth lives in the
+    // library; only Space3_5 and the window-size values below are app-specific.
     public static class Tokens {
-        // Spacing
-        public const int Space1 = 4;
-        public const int Space2 = 8;
-        public const int Space3 = 12;
+        public const int Space1 = Spacing.Space1;
+        public const int Space2 = Spacing.Space2;
+        public const int Space3 = Spacing.Space3;
         public const int Space3_5 = 14;
-        public const int Space4 = 16;
-        public const int Space5 = 20;
-        public const int Space6 = 24;
-        public const int Space8 = 32;
+        public const int Space4 = Spacing.Space4;
+        public const int Space5 = Spacing.Space5;
+        public const int Space6 = Spacing.Space6;
+        public const int Space8 = Spacing.Space8;
 
-        // Common paddings
-        public static readonly Padding WindowBody = new Padding(20, 16, 20, 20);
-        public static readonly Padding Card = new Padding(14);
-        public static readonly Padding ListItem = new Padding(16, 12, 16, 12);
-        public static readonly Padding Modal = new Padding(24);
+        public const int ShapeXs = Shape.ExtraSmall;
+        public const int ShapeSm = Shape.Small;
+        public const int ShapeMd = Shape.Medium;
+        public const int ShapeLg = Shape.Large;
+        public const int ShapeXl = Shape.ExtraLarge;
+        public const int ShapeFull = Shape.Full;
 
-        // Shape · corner radius
-        public const int ShapeXs = 4;
-        public const int ShapeSm = 8;
-        public const int ShapeMd = 12;
-        public const int ShapeLg = 16;
-        public const int ShapeXl = 28;
-        public const int ShapeFull = 9999;
+        public const int BtnHeight = ComponentSizes.ButtonHeight;
+        public const int BtnHeightSm = ComponentSizes.ButtonHeightSmall;
+        public const int BtnTextHeight = ComponentSizes.TextButtonHeight;
+        public const int ChipHeight = ComponentSizes.ChipHeight;
+        public const int ChipAssistHeight = ComponentSizes.AssistChipHeight;
+        public const int ListItemMinHeight = ComponentSizes.ListItemMinHeight;
+        public const int DropdownHeight = ComponentSizes.DropdownHeight;
+        public const int ProgressHeight = ComponentSizes.LinearProgressHeight;
+        public const int ModalMaxWidth = ComponentSizes.DialogMaxWidth;
+        public const int TitleBarHeight = ComponentSizes.TitleBarHeight;
 
-        // Component sizes
-        public const int BtnHeight = 40;
-        public const int BtnHeightSm = 32;
-        public const int BtnTextHeight = 36;
-        public const int ChipHeight = 24;
-        public const int ChipAssistHeight = 32;
-        public const int ListItemMinHeight = 56;
-        public const int DropdownHeight = 48;
-        public const int ProgressHeight = 8;
-        public const int ModalMaxWidth = 420;
-        public const int TitleBarHeight = 40;
+        public const int IconXs = ComponentSizes.IconExtraSmall;
+        public const int IconSm = ComponentSizes.IconSmall;
+        public const int IconMd = ComponentSizes.IconMedium;
+        public const int IconLg = ComponentSizes.IconLarge;
 
-        // Window — fixed height (no per-state resizing); content is centered within it.
         public const int WindowWidth = 680;
         public const int WindowHeight = 470;
         public const int WindowMinWidth = 560;
         public const int WindowMinHeight = 430;
-
-        // Icon sizes (pixels)
-        public const int IconXs = 16;
-        public const int IconSm = 18;
-        public const int IconMd = 20;
-        public const int IconLg = 24;
-
-        // Type sizes (points = WPF DIP * 0.75)
-        public const float TypeBodySmall = 8.25f;
-        public const float TypeLabelMedium = 9f;
-        public const float TypeBodyMedium = 9.75f;
-        public const float TypeBodyLarge = 10.5f;
-        public const float TypeTitleMedium = 12f;
-        public const float TypeTitleLarge = 13.5f;
-        public const float TypeDisplaySmall = 16.5f;
-        public const float TypeOverline = 8f;
     }
 }

@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +17,6 @@ namespace YSMInstaller {
         private ModMetadata? _selectedBuild;
         private int _chooseVersion;
 
-        // ---- Variant resolution (ported from the original install-button logic) ----
         private List<ModMetadata> GetVariantsForVersion(int version) {
             List<ModMetadata> found = _supportedVersions.Where(mod => mod.GameVersion == version).ToList();
             if (found.Count == 0) {
@@ -36,7 +41,6 @@ namespace YSMInstaller {
             return _supportedVersions.Where(mod => mod.GameVersion == latestSupported).ToList();
         }
 
-        // ---- Island ----
         private void UpdateIslandForSelection() {
             if (_selectedEntry == null) {
                 HideIsland();
@@ -59,7 +63,6 @@ namespace YSMInstaller {
             SetIslandActions(choose);
         }
 
-        // ---- Inline build selection ----
         private async Task RenderChooseBuild(List<ModMetadata> variants) {
             // Re-entering ChooseBuild (or any new render) supersedes any prior probe batch; cancel
             // it so two batches don't race against the cards we're about to rebuild.
@@ -82,9 +85,9 @@ namespace YSMInstaller {
                 if (_chooseVersion > variant.GameVersion) {
                     title += $" (latest v{variant.GameVersion})";
                 }
-                var card = new MaterialOptionCard(title, description, recommended, BuildIcons.ForBuild(variant.ModType)) {
+                var card = new MaterialOptionCard(title, description, recommended ? "recommended" : null, BuildIcons.ForBuild(variant.ModType)) {
                     Height = 70,
-                    Tag2 = variant,
+                    Payload = variant,
                 };
                 card.SelectedChanged += OnBuildSelected;
                 _buildCards.Add(card);
@@ -101,12 +104,12 @@ namespace YSMInstaller {
             var manualCard = new MaterialOptionCard(
                 ModTypes.ToDisplayName(ModTypes.Manual),
                 manualDescription,
-                recommended: false,
+                accentSuffix: null,
                 customIcon: null,
                 fallbackGlyph: MaterialIcons.Game
             ) {
                 Height = 70,
-                Tag2 = manualMetadata,
+                Payload = manualMetadata,
             };
             manualCard.SelectedChanged += OnBuildSelected;
             _buildCards.Add(manualCard);
@@ -115,11 +118,11 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
 
             MaterialOptionCard def =
-                _buildCards.FirstOrDefault(c => ((ModMetadata)c.Tag2!).ModType == ModTypes.Ysm)
-                ?? _buildCards.FirstOrDefault(c => ((ModMetadata)c.Tag2!).ModType != ModTypes.Manual)
+                _buildCards.FirstOrDefault(c => ((ModMetadata)c.Payload!).ModType == ModTypes.Ysm)
+                ?? _buildCards.FirstOrDefault(c => ((ModMetadata)c.Payload!).ModType != ModTypes.Manual)
                 ?? manualCard;
             def.SetSelected(true);
-            _selectedBuild = (ModMetadata)def.Tag2!;
+            _selectedBuild = (ModMetadata)def.Payload!;
             UpdateChooseBuildIsland();
 
             await PopulateBuildSizesAsync(variants, cancellationToken);
@@ -131,7 +134,7 @@ namespace YSMInstaller {
                     card.SetSelected(false);
                 }
             }
-            _selectedBuild = (ModMetadata)selected.Tag2!;
+            _selectedBuild = (ModMetadata)selected.Payload!;
             UpdateChooseBuildIsland();
         }
 
@@ -189,7 +192,7 @@ namespace YSMInstaller {
                 if (cancellationToken.IsCancellationRequested || _state != AppState.ChooseBuild || card.IsDisposed) {
                     return;
                 }
-                var variant = (ModMetadata)card.Tag2!;
+                var variant = (ModMetadata)card.Payload!;
                 bool hasParts = variant.DownloadUrlParts != null && variant.DownloadUrlParts.Length > 0;
                 // Manual install has no remote URL to probe — its card stays size-less.
                 if (string.IsNullOrWhiteSpace(variant.DownloadUrl) && !hasParts) {
@@ -210,11 +213,11 @@ namespace YSMInstaller {
                     return;
                 }
                 if (size.HasValue && size.Value > 0) {
-                    card.SizeText = $"{size.Value / 1024d / 1024d:0.0} MB";
+                    card.DetailText = $"{size.Value / 1024d / 1024d:0.0} MB";
                 }
                 else if (string.Equals(variant.ModType, ModTypes.YsmWif, StringComparison.Ordinal)
                     || string.Equals(variant.ModType, ModTypes.YsmWifWto, StringComparison.Ordinal)) {
-                    card.SizeText = "> 2 GB";
+                    card.DetailText = "> 2 GB";
                 }
             }
         }

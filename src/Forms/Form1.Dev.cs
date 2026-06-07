@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -8,8 +14,6 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     public partial class Form1 {
 #if DEBUG
-        // Debug-only surface (compiled out of Release) to inspect every modal and every screen state —
-        // including a simulated failed install — without a real game/network.
         private void OpenDevTestMenu() {
             using (var form = new Form {
                 Text = "Dev test menu",
@@ -18,13 +22,13 @@ namespace YSMInstaller {
                 MinimizeBox = false,
                 ShowInTaskbar = false,
                 StartPosition = FormStartPosition.CenterParent,
-                BackColor = MaterialPalette.Surface,
-                ForeColor = MaterialPalette.OnSurface,
+                BackColor = MaterialColors.Surface,
+                ForeColor = MaterialColors.OnSurface,
                 Font = MaterialType.BodyMedium,
                 Icon = Properties.Resources.logo,
                 ClientSize = new Size(380, 620),
             }) {
-            WindowChrome.ApplyDark(form);
+            WindowChrome.Apply(form);
 
             var flow = new FlowLayoutPanel {
                 AutoScroll = true,
@@ -40,7 +44,7 @@ namespace YSMInstaller {
                 flow.Controls.Add(new SoftLabel {
                     AutoSize = false,
                     Font = MaterialType.Overline,
-                    ForeColor = MaterialPalette.OnSurfaceVariant,
+                    ForeColor = MaterialColors.OnSurfaceVariant,
                     Height = 22,
                     Margin = new Padding(0, 8, 0, 4),
                     Text = title.ToUpperInvariant(),
@@ -95,8 +99,8 @@ namespace YSMInstaller {
                 Width = 330,
                 Margin = new Padding(0, 0, 0, 6),
                 Font = MaterialType.BodyMedium,
-                BackColor = MaterialPalette.SurfaceContainerHigh,
-                ForeColor = MaterialPalette.OnSurface,
+                BackColor = MaterialColors.SurfaceContainerHigh,
+                ForeColor = MaterialColors.OnSurface,
                 BorderStyle = BorderStyle.FixedSingle,
                 Text = DevService.ModListUrlOverride ?? string.Empty,
             };
@@ -197,7 +201,7 @@ namespace YSMInstaller {
         private void DevShowUpdateDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Info;
-                dialog.IconColor = MaterialPalette.Primary;
+                dialog.IconColor = MaterialColors.Primary;
                 dialog.TitleText = "Update available";
                 dialog.BodyText =
                     "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
@@ -211,7 +215,7 @@ namespace YSMInstaller {
         private void DevShowLongUpdateDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Info;
-                dialog.IconColor = MaterialPalette.Primary;
+                dialog.IconColor = MaterialColors.Primary;
                 dialog.TitleText = "Update available";
                 dialog.BodyText =
                     "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
@@ -233,7 +237,7 @@ namespace YSMInstaller {
         private void DevShowWarnoRunningDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "WARNO is running";
                 dialog.BodyText = "WARNO will be closed to install the mod. All other mods are disabled for compatibility.";
                 dialog.AddAction("Cancel", DialogResult.Cancel, MaterialButtonVariant.Text);

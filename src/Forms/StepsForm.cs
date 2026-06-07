@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -27,8 +33,8 @@ namespace YSMInstaller {
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
             Icon = Properties.Resources.logo;
-            BackColor = MaterialPalette.Surface;
-            ForeColor = MaterialPalette.OnSurface;
+            BackColor = MaterialColors.Surface;
+            ForeColor = MaterialColors.OnSurface;
             Font = MaterialType.BodyMedium;
             ClientSize = new Size(720, 560);
             Padding = Padding.Empty;
@@ -72,14 +78,14 @@ namespace YSMInstaller {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = MaterialType.Overline,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Margin = new Padding(0, 0, 0, 2),
             };
             _titleLabel = new Label {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = MaterialType.TitleLarge,
-                ForeColor = MaterialPalette.OnSurface,
+                ForeColor = MaterialColors.OnSurface,
                 Margin = Padding.Empty,
             };
             header.Controls.Add(_overlineLabel);
@@ -145,7 +151,7 @@ namespace YSMInstaller {
                 ShowMinimize = false,
             };
             var contentWrap = new Panel {
-                BackColor = MaterialPalette.Surface,
+                BackColor = MaterialColors.Surface,
                 Dock = DockStyle.Fill,
                 Margin = Padding.Empty,
                 Padding = new Padding(Sizes.WindowPadding),
