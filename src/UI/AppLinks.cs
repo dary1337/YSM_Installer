@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 
 namespace YSMInstaller {
-    /// <summary>External help/support links surfaced from error dialogs and the offline panel.</summary>
     public static class AppLinks {
         public const string Discord = "https://discord.gg/8AMXxnjngR";
         public const string Issues = "https://github.com/dary1337/YSM_Installer/issues";

@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -50,7 +56,7 @@ namespace YSMInstaller {
             DialogResult answer;
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Info;
-                dialog.IconColor = MaterialPalette.Primary;
+                dialog.IconColor = MaterialColors.Primary;
                 dialog.TitleText = "Update available";
                 dialog.BodyText = BuildUpdateMessage(updateInfo);
                 dialog.AddAction("Later", DialogResult.No, MaterialButtonVariant.Text);

@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -49,8 +55,8 @@ namespace YSMInstaller {
 
             Text = "YSM Installer";
             Icon = Properties.Resources.logo;
-            BackColor = MaterialPalette.Surface;
-            ForeColor = MaterialPalette.OnSurface;
+            BackColor = MaterialColors.Surface;
+            ForeColor = MaterialColors.OnSurface;
             Font = MaterialType.BodyMedium;
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(Tokens.WindowMinWidth, Tokens.WindowMinHeight);
@@ -160,7 +166,7 @@ namespace YSMInstaller {
         private bool ConfirmCloseDuringInstall() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "Installation in progress";
                 dialog.BodyText =
                     "Quitting now will cancel the install and roll back any partial changes. Continue?";
@@ -173,7 +179,7 @@ namespace YSMInstaller {
         private bool ConfirmCloseDuringAutoUpdate() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "Update in progress";
                 dialog.BodyText =
                     "The auto-update is still running. Quitting now will abort it. Continue?";

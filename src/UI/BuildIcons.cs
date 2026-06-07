@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -6,10 +12,6 @@ using System.Linq;
 using System.Reflection;
 
 namespace YSMInstaller {
-    /// <summary>
-    /// Resolves the brand icon for each YSM build variant from the embedded PNG assets. Returns
-    /// null when the variant has no custom artwork (the caller falls back to the YSM app logo).
-    /// </summary>
     public static class BuildIcons {
         private static readonly Dictionary<string, Image?> Cache =
             new Dictionary<string, Image?>(StringComparer.Ordinal);
@@ -17,7 +19,8 @@ namespace YSMInstaller {
 
         public static Image? ForBuild(string modType) {
             string? key = null;
-            if (string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal)) key = "ysm_wif";
+            if (string.Equals(modType, ModTypes.Ysm, StringComparison.Ordinal)) key = "ysm";
+            else if (string.Equals(modType, ModTypes.YsmWif, StringComparison.Ordinal)) key = "ysm_wif";
             else if (string.Equals(modType, ModTypes.YsmWifWto, StringComparison.Ordinal)) key = "ysm_wif_wto";
             else if (string.Equals(modType, ModTypes.Wto, StringComparison.Ordinal)) key = "wto";
             if (key == null) {
@@ -52,8 +55,7 @@ namespace YSMInstaller {
                     using (var memory = new MemoryStream()) {
                         stream.CopyTo(memory);
                         memory.Position = 0;
-                        // Clone into a new Bitmap to detach from the MemoryStream — Image.FromStream
-                        // keeps a handle to its source, which would leak the stream if returned directly.
+                        // Image.FromStream keeps a handle to its source; clone into a new Bitmap so the stream can be disposed.
                         using (var loaded = Image.FromStream(memory)) {
                             return new Bitmap(loaded);
                         }

@@ -1,6 +1,4 @@
 namespace YSMInstaller {
-    /// <summary>Semantic aliases over <see cref="Tokens"/>. Keep names domain-flavored (ButtonHeight,
-    /// RadioCardMinHeight) so callsites read intent instead of raw token names.</summary>
     static class Sizes {
         public const int WindowPadding = Tokens.Space4;
         public const int ContentGap = Tokens.Space3;

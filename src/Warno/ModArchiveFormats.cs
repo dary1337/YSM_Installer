@@ -16,7 +16,6 @@ namespace YSMInstaller {
         // 7z error, which is acceptable surface for that rare case.
         public static readonly string[] MultiPartFirstVolumeExtensions = { ".7z.001", ".zip.001", ".rar.001" };
 
-        // OpenFileDialog.Filter, e.g. "Mod archive|*.zip;*.7z;*.rar;*.7z.001;...".
         public static string OpenFileDialogFilter {
             get {
                 string[] all = new string[Extensions.Length + MultiPartFirstVolumeExtensions.Length];
@@ -63,7 +62,6 @@ namespace YSMInstaller {
             if (suffix.Length < 2 || !int.TryParse(suffix, out int n) || n < 2) {
                 return false;
             }
-            // Strip the numeric suffix and verify the remainder ends in a known inner extension.
             string inner = name.Substring(0, dot);
             foreach (string ext in Extensions) {
                 if (inner.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) {

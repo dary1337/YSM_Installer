@@ -3,10 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace YSMInstaller {
-    /// <summary>
-    /// Runs the installation and maps it to a UI-facing result. Confirmation and all status feedback
-    /// are owned by the caller (Form1 inline states), so this stays free of dialogs.
-    /// </summary>
     public sealed class InstallWorkflow {
         public async Task<InstallWorkflowResult> InstallAsync(
             ModMetadata metadata,
