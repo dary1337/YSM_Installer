@@ -245,7 +245,8 @@ namespace YSMInstaller {
             bool hasIcon = !string.IsNullOrEmpty(glyph);
             int width = ChipRenderer.Measure(g, text, hasIcon, metrics);
             var style = new ChipRenderer.Style(fill, content, content, outline.A > 0 ? outline : (Color?)null, pill: true);
-            return ChipRenderer.Draw(g, text, hasIcon ? glyph : null, null, style, metrics, (int)x, StatusRowTop, width);
+            int chipX = (int)Math.Round(x);
+            return ChipRenderer.Draw(g, text, hasIcon ? glyph : null, null, style, metrics, chipX, StatusRowTop, width);
         }
 
         private Rectangle DrawLink(Graphics g, string text, string? iconKey, bool iconOnLeft,
