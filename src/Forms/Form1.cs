@@ -20,6 +20,8 @@ namespace YSMInstaller {
             InstallsFound,
             ChooseBuild,
             VersionMismatch,
+            VersionSwitchPlan,
+            SwitchingGameVersion,
             Installing,
             Complete,
             Failed,
@@ -150,6 +152,15 @@ namespace YSMInstaller {
                         _autoUpdateCts?.Cancel();
                     }
                 }
+                else if (_isSwitchingVersion) {
+                    if (!ConfirmCloseDuringSwitch()) {
+                        e.Cancel = true;
+                    }
+                    else {
+                        // Best-effort rollback before the app dies; nothing we can await here.
+                        _switchCts?.Cancel();
+                    }
+                }
             }
 
             // Always abort ChooseBuild size probes on close — they're best-effort UI decoration,
@@ -158,6 +169,9 @@ namespace YSMInstaller {
                 _chooseBuildCts?.Cancel();
                 _chooseBuildCts?.Dispose();
                 _chooseBuildCts = null;
+                _switchCts?.Cancel();
+                _switchCts?.Dispose();
+                _switchCts = null;
             }
 
             base.OnFormClosing(e);
@@ -184,6 +198,19 @@ namespace YSMInstaller {
                 dialog.BodyText =
                     "The auto-update is still running. Quitting now will abort it. Continue?";
                 dialog.AddAction("Keep updating", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Quit anyway", DialogResult.OK, MaterialButtonVariant.Filled);
+                return dialog.ShowDialog(this) == DialogResult.OK;
+            }
+        }
+
+        private bool ConfirmCloseDuringSwitch() {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialColors.Warning;
+                dialog.TitleText = "Version switch in progress";
+                dialog.BodyText =
+                    "WARNO's version is still being switched through Steam. Quitting now stops it and tries to restore your previous version. Continue?";
+                dialog.AddAction("Keep switching", DialogResult.Cancel, MaterialButtonVariant.Text);
                 dialog.AddAction("Quit anyway", DialogResult.OK, MaterialButtonVariant.Filled);
                 return dialog.ShowDialog(this) == DialogResult.OK;
             }

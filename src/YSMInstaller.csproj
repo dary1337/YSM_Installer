@@ -162,6 +162,7 @@
     <Compile Include="Utilities\MemoryCache.cs" />
     <Compile Include="Utilities\RemoteHtmlResponseException.cs" />
     <Compile Include="Utilities\IniFile.cs" />
+    <Compile Include="Utilities\AcfKeyValues.cs" />
     <Compile Include="Utilities\PathFormatting.cs" />
     <Compile Include="Utilities\SafeArchiveExtractor.cs" />
     <Compile Include="Utilities\ShellOpen.cs" />
@@ -195,6 +196,7 @@
     <Compile Include="Warno\DevWarnoMocks.cs" />
     <Compile Include="Warno\IModCatalogSource.cs" />
     <Compile Include="Warno\InstallWorkflow.cs" />
+    <Compile Include="Warno\SteamVersionSwitcher.cs" />
     <Compile Include="Warno\ModArchiveFormats.cs" />
     <Compile Include="Warno\InstallDeclinedByUserException.cs" />
     <Compile Include="Warno\InstallModResult.cs" />

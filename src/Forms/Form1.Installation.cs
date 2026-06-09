@@ -332,8 +332,7 @@ namespace YSMInstaller {
             MaterialButton back = TonalButton("Back");
             back.Click += async (s, e) => {
                 try {
-                    List<ModMetadata> variants = GetVariantsForVersion(selectedGameVersion);
-                    await RenderChooseBuild(variants);
+                    await RenderChooseBuild();
                 }
                 catch (Exception ex) {
                     AppLogger.Critical("Back from version mismatch failed.", ex);
@@ -424,41 +423,9 @@ namespace YSMInstaller {
                 Padding = new Padding(20),
             };
 
-            // Fixed-height, fully docked grid — AutoSize TableLayoutPanel with a Percent column degenerates
-            // under Dock=Top and pushes the labels to the wrong edges relative to the progress bar.
-            var grid = new TableLayoutPanel {
-                AutoSize = false,
-                BackColor = Color.Transparent,
-                ColumnCount = 2,
-                Dock = DockStyle.Top,
-                Height = 24,
-                Margin = Padding.Empty,
-            };
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
-
-            _detailLabel = new SoftLabel {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Font = MaterialType.BodyMedium,
-                ForeColor = MaterialColors.OnSurface,
-                Height = 22,
-                Text = "Preparing…",
-                TextAlign = ContentAlignment.MiddleLeft,
-            };
-            _percentLabel = new SoftLabel {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Font = MaterialType.TitleMedium,
-                ForeColor = MaterialColors.Primary,
-                Height = 22,
-                Text = "0%",
-                TextAlign = ContentAlignment.MiddleRight,
-                Width = 60,
-            };
-            grid.Controls.Add(_detailLabel, 0, 0);
-            grid.Controls.Add(_percentLabel, 1, 0);
+            (TableLayoutPanel grid, SoftLabel detailLabel, SoftLabel percentLabel) = BuildProgressHeaderRow();
+            _detailLabel = detailLabel;
+            _percentLabel = percentLabel;
 
             _progressBar = new MaterialProgressBar {
                 Dock = DockStyle.Top,
@@ -485,16 +452,7 @@ namespace YSMInstaller {
             _stepChecklist.ActiveIndex = 0;
             _currentStepIndex = 0;
 
-            var cancel = new MaterialButton {
-                Variant = MaterialButtonVariant.Text,
-                Text = "Cancel",
-                IconGlyph = MaterialIcons.Cancel,
-                Anchor = AnchorStyles.Right,
-                Dock = DockStyle.Top,
-                Height = Sizes.ButtonHeight,
-                Margin = new Padding(0, Tokens.Space8, 0, 0),
-            };
-            cancel.SetAccent(MaterialColors.Error, MaterialColors.OnError);
+            MaterialButton cancel = BuildProgressCancelButton();
             cancel.Click += (s, e) => {
                 if (!ConfirmCancelInstall()) {
                     return;

@@ -258,11 +258,9 @@ namespace YSMInstaller {
             if (_entries == null || _entries.Count == 0) {
                 return;
             }
-            _selectedEntry = _entries.FirstOrDefault(e => GetVariantsForVersion(e.Version).Count > 1) ?? _entries[0];
-            var variants = GetVariantsForVersion(_selectedEntry.Version);
-            if (variants.Count > 0) {
-                await RenderChooseBuild(variants);
-            }
+            _selectedEntry = _entries.FirstOrDefault(e => BuildOptionsModel(e.Version).Any(o => o.Kind != BuildSwitchKind.Ready))
+                ?? _entries[0];
+            await RenderChooseBuild();
         }
 
         private static async Task SafeFireDev(Func<Task> work, string failureLog) {
@@ -336,13 +334,14 @@ namespace YSMInstaller {
                 return;
             }
             _selectedEntry = _entries[0];
-            var variants = GetVariantsForVersion(_selectedEntry.Version);
-            if (variants.Count == 0) {
-                AppLogger.Info("Dev: Run install aborted — variants empty after seed.");
+            List<BuildOption> options = BuildOptionsModel(_selectedEntry.Version);
+            BuildOption? target = options.FirstOrDefault(o => o.Kind == BuildSwitchKind.Ready) ?? options.FirstOrDefault();
+            if (target == null) {
+                AppLogger.Info("Dev: Run install aborted — no build options after seed.");
                 return;
             }
             DevWarnoMocks.SimulateInstallFailure = fail;
-            _ = StartInstallAsync(variants[0], _selectedEntry.Version);
+            _ = StartInstallAsync(target.Metadata, _selectedEntry.Version);
         }
 #endif
     }
