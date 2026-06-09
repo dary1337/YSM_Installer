@@ -132,6 +132,9 @@ namespace YSMInstaller {
 
         // Ensures the nested block path exists and sets the leaf value at the final key.
         public void SetValue(string value, params string[] path) {
+            if (path == null || path.Length == 0) {
+                throw new ArgumentException("path must contain at least one key.", nameof(path));
+            }
             AcfKeyValues node = this;
             for (int i = 0; i < path.Length - 1; i++) {
                 AcfKeyValues? next = node.FindChild(path[i]);
@@ -159,6 +162,9 @@ namespace YSMInstaller {
         }
 
         public void Remove(params string[] path) {
+            if (path == null || path.Length == 0) {
+                throw new ArgumentException("path must contain at least one key.", nameof(path));
+            }
             AcfKeyValues node = this;
             for (int i = 0; i < path.Length - 1; i++) {
                 AcfKeyValues? next = node.FindChild(path[i]);
