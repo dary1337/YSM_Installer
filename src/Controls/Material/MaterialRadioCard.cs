@@ -9,6 +9,7 @@ using Material3.WinForms;
 using Material3.WinForms.Controls;
 using Material3.WinForms.Theming;
 using Material3.WinForms.Typography;
+using ChipRenderer = Material3.WinForms.Drawing.ChipRenderer;
 using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using RoundedControlRenderer = Material3.WinForms.Drawing.RoundedControlRenderer;
 
@@ -233,39 +234,18 @@ namespace YSMInstaller {
         }
 
         private float DrawChip(Graphics g, string text, string glyph, Color fill, Color content, Color outline, float x) {
-            const int padX = 10;
-            const int iconPx = 14;
-            const int iconGap = 5;
-            Font font = MaterialType.LabelMedium;
-            SizeF textSize = g.MeasureString(text, font, int.MaxValue, StringFormat.GenericTypographic);
+            var metrics = new ChipRenderer.Metrics {
+                Height = ChipHeight,
+                PadX = 10,
+                IconPx = 14,
+                IconGap = 5,
+                OutlineWidth = 1f,
+                Font = MaterialType.LabelMedium,
+            };
             bool hasIcon = !string.IsNullOrEmpty(glyph);
-            int chipWidth = (int)Math.Ceiling(textSize.Width) + padX * 2 + (hasIcon ? iconPx + iconGap : 0);
-            var rect = new Rectangle((int)x, StatusRowTop, chipWidth, ChipHeight);
-
-            using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(rect, ChipHeight / 2)) {
-                if (fill.A > 0) {
-                    using (var brush = new SolidBrush(fill)) {
-                        g.FillPath(brush, path);
-                    }
-                }
-                if (outline.A > 0) {
-                    using (var pen = new Pen(outline, 1f)) {
-                        g.DrawPath(pen, path);
-                    }
-                }
-            }
-
-            float cx = rect.X + padX;
-            int midY = rect.Y + rect.Height / 2;
-            if (hasIcon) {
-                Bitmap icon = MaterialIconRenderer.Get(glyph, iconPx, content);
-                g.DrawImageUnscaled(icon, (int)cx, midY - iconPx / 2);
-                cx += iconPx + iconGap;
-            }
-            using (var brush = new SolidBrush(content)) {
-                g.DrawString(text, font, brush, cx, midY - textSize.Height / 2f, StringFormat.GenericTypographic);
-            }
-            return rect.Right;
+            int width = ChipRenderer.Measure(g, text, hasIcon, metrics);
+            var style = new ChipRenderer.Style(fill, content, content, outline.A > 0 ? outline : (Color?)null, pill: true);
+            return ChipRenderer.Draw(g, text, hasIcon ? glyph : null, null, style, metrics, (int)x, StatusRowTop, width);
         }
 
         private Rectangle DrawLink(Graphics g, string text, string? iconKey, bool iconOnLeft,
