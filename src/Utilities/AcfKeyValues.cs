@@ -196,7 +196,7 @@ namespace YSMInstaller {
         }
 
         private static string Escape(string s) {
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\t", "\\t");
         }
     }
 }

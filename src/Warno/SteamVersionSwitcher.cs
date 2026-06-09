@@ -113,7 +113,10 @@ namespace YSMInstaller {
             try {
                 return AcfKeyValues.Parse(File.ReadAllText(manifestPath)).GetValue("MountedConfig", "betakey") ?? string.Empty;
             }
-            catch {
+            catch (Exception exception) {
+                // Conservative fallback: an empty branch won't match originalBranch, so the caller
+                // forces a re-validate rather than trusting a build we couldn't confirm is mounted.
+                AppLogger.Error("Failed to read the mounted Steam branch.", exception);
                 return string.Empty;
             }
         }
