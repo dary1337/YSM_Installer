@@ -96,7 +96,7 @@ namespace YSMInstaller {
                 // restoring the betakey needs no update — keep StateFlags=installed so Steam doesn't
                 // re-validate a build the user never actually left.
                 string mounted = ReadMountedBranch(manifestPath);
-                string stateFlags = string.Equals(mounted, originalBranch, StringComparison.OrdinalIgnoreCase)
+                string stateFlags = string.Equals(mounted, originalBranch, StringComparison.Ordinal)
                     ? StateFlagsFullyInstalled
                     : StateFlagsNeedsUpdate;
                 WriteBranch(manifestPath, originalBranch, stateFlags);
@@ -219,7 +219,7 @@ namespace YSMInstaller {
                     long.TryParse(manifest.GetValue("BytesDownloaded"), out long downloaded);
                     long.TryParse(manifest.GetValue("BytesToDownload"), out long total);
 
-                    bool onTarget = string.Equals(mounted, targetBranch, StringComparison.OrdinalIgnoreCase);
+                    bool onTarget = string.Equals(mounted, targetBranch, StringComparison.Ordinal);
                     if (stateFlags == StateFlagsFullyInstalled && onTarget) {
                         progress.Report(new SwitchProgress {
                             Phase = SwitchPhase.Done,
