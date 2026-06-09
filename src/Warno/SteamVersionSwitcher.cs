@@ -206,8 +206,10 @@ namespace YSMInstaller {
                 try {
                     manifest = AcfKeyValues.Parse(File.ReadAllText(manifestPath));
                 }
-                catch {
-                    // Steam may be mid-write — retry on the next tick.
+                catch (Exception exception) when (exception is IOException || exception is FormatException) {
+                    // Steam is mid-write (file locked) or the manifest is half-flushed — retry next
+                    // tick. Non-transient faults (ACL, missing path) propagate to the caller, which
+                    // logs and rolls back instead of spinning until the stall timeout.
                 }
 
                 string snapshot = string.Empty;
