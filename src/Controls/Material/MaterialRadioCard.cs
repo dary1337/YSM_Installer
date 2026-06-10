@@ -184,13 +184,42 @@ namespace YSMInstaller {
         private void DrawPath(Graphics g) {
             var pathRect = new RectangleF(TextLeft, Pad - 2, Width - TextLeft - RadioArea, 20);
             using (var brush = new SolidBrush(MaterialColors.OnSurface))
-            using (var fmt = new StringFormat(StringFormatFlags.NoWrap) {
+            using (var fmt = new StringFormat(StringFormat.GenericTypographic) {
                 Alignment = StringAlignment.Near,
                 LineAlignment = StringAlignment.Center,
-                Trimming = StringTrimming.EllipsisPath,
+                FormatFlags = StringFormatFlags.NoWrap,
             }) {
-                g.DrawString(_entry.ExePath, MaterialType.BodyLarge, brush, pathRect, fmt);
+                string shown = MiddleEllipsis(g, _entry.ExePath, MaterialType.BodyLarge, pathRect.Width);
+                g.DrawString(shown, MaterialType.BodyLarge, brush, pathRect, fmt);
             }
+        }
+
+        private static string MiddleEllipsis(Graphics g, string text, Font font, float maxWidth) {
+            if (string.IsNullOrEmpty(text) || Measure(g, text, font) <= maxWidth) {
+                return text ?? string.Empty;
+            }
+            const string ellipsis = "…";
+            int low = 0, high = text.Length - 1, best = 0;
+            while (low <= high) {
+                int keep = (low + high) / 2;
+                if (Measure(g, Splice(text, keep, ellipsis), font) <= maxWidth) {
+                    best = keep;
+                    low = keep + 1;
+                }
+                else {
+                    high = keep - 1;
+                }
+            }
+            return best > 0 ? Splice(text, best, ellipsis) : ellipsis;
+        }
+
+        private static string Splice(string text, int keep, string ellipsis) {
+            int head = (keep + 1) / 2;
+            return text.Substring(0, head) + ellipsis + text.Substring(text.Length - (keep - head));
+        }
+
+        private static float Measure(Graphics g, string text, Font font) {
+            return g.MeasureString(text, font, int.MaxValue, StringFormat.GenericTypographic).Width;
         }
 
         private void DrawStatusRow(Graphics g) {
