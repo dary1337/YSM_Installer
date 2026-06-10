@@ -117,6 +117,7 @@ namespace YSMInstaller {
                 TitleText = "Settings",
                 AppIcon = Properties.Resources.logo.ToBitmap(),
                 ShowMinimize = false,
+                ShowMaximize = false,
             };
             Controls.Add(titleBar);
 

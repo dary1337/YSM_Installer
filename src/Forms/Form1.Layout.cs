@@ -34,6 +34,7 @@ namespace YSMInstaller {
                 var titleBar = new MaterialTitleBar {
                     TitleText = "YSM Installer",
                     AppIcon = Properties.Resources.logo.ToBitmap(),
+                    ShowMaximize = false,
                 };
 
                 _root = new TableLayoutPanel {
