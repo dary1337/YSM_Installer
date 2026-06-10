@@ -318,13 +318,24 @@ namespace YSMInstaller {
             );
             AddToStack(stack, warn, isSteamEntry ? Sizes.ContentGap : 0);
 
+            // Steam installs switch for the user: the card jumps into the automatic version switch,
+            // which pins the Steam beta to the target build and then installs the mod.
             if (isSteamEntry) {
-                MaterialCard guide = BuildGuideCard(
-                    "How to switch WARNO versions",
-                    "Steam → right-click WARNO → Betas",
-                    OpenStepsForm
+                var switchOption = new BuildOption {
+                    Metadata = metadata,
+                    TargetVersion = metadata.GameVersion,
+                    Kind = metadata.GameVersion < selectedGameVersion
+                        ? BuildSwitchKind.Downgrade
+                        : BuildSwitchKind.Upgrade,
+                };
+                MaterialCard switchCard = BuildActionCard(
+                    "Switch automatically",
+                    $"Let YSM set WARNO to v{metadata.GameVersion} via Steam, then install.",
+                    "Switch",
+                    MaterialIcons.Download,
+                    () => RenderVersionSwitchPlan(switchOption)
                 );
-                AddToStack(stack, guide, 0);
+                AddToStack(stack, switchCard, 0);
             }
 
             SetContent(stack, fill: false);
@@ -350,7 +361,7 @@ namespace YSMInstaller {
             SetIslandActions(back, install);
         }
 
-        private MaterialCard BuildGuideCard(string title, string subtitle, Action onGuide) {
+        private MaterialCard BuildActionCard(string title, string subtitle, string buttonText, string buttonIcon, Action onClick) {
             var card = new MaterialCard(Sizes.RadiusMedium) {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -393,15 +404,15 @@ namespace YSMInstaller {
                 Text = subtitle,
             });
 
-            MaterialButton guideBtn = OutlinedButton("Guide", MaterialIcons.OpenInNew);
-            guideBtn.AutoSize = true;
-            guideBtn.Anchor = AnchorStyles.None;
-            guideBtn.Margin = new Padding(Tokens.Space3, 0, 0, 0);
-            Action capturedAction = onGuide;
-            guideBtn.Click += (s, e) => capturedAction();
+            MaterialButton actionBtn = OutlinedButton(buttonText, buttonIcon);
+            actionBtn.AutoSize = true;
+            actionBtn.Anchor = AnchorStyles.None;
+            actionBtn.Margin = new Padding(Tokens.Space3, 0, 0, 0);
+            Action captured = onClick;
+            actionBtn.Click += (s, e) => captured();
 
             grid.Controls.Add(textStack, 0, 0);
-            grid.Controls.Add(guideBtn, 1, 0);
+            grid.Controls.Add(actionBtn, 1, 0);
             card.Controls.Add(grid);
             return card;
         }

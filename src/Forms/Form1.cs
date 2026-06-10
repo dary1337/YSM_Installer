@@ -229,12 +229,6 @@ namespace YSMInstaller {
             await ScanAsync();
         }
 
-        private void OpenStepsForm() {
-            using (var form = new StepsForm()) {
-                form.ShowDialog(this);
-            }
-        }
-
         private async Task OpenSettingsAsync() {
             try {
                 using (var form = new SettingsForm()) {

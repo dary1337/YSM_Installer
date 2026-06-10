@@ -97,7 +97,7 @@
       <HintPath>$(NuGetPackageRoot)newtonsoft.json\13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="Material3.WinForms">
-      <HintPath>$(NuGetPackageRoot)material3.winforms\0.5.0\lib\net472\Material3.WinForms.dll</HintPath>
+      <HintPath>$(NuGetPackageRoot)material3.winforms\0.6.0\lib\net472\Material3.WinForms.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Svg">
@@ -182,12 +182,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Forms\StepsForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\StepsForm.Designer.cs">
-      <DependentUpon>StepsForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="Forms\SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -221,9 +215,6 @@
       <SubType>Designer</SubType>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Include="Forms\StepsForm.resx">
-      <DependentUpon>StepsForm.cs</DependentUpon>
-    </EmbeddedResource>
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -249,18 +240,8 @@
     <EmbeddedResource Include="Resources\native\7z.dll.gz" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\Screenshot 2025-03-02 182641.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Resources\Screenshot 2025-03-02 182659.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Resources\Screenshot 2025-03-02 182718.png" />
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="FodyWeavers.xml" />
     <Content Include="Resources\logo.ico" />
-    <None Include="Resources\Screenshot 2025-03-02 182724.png" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Costura.Fody">
@@ -278,7 +259,7 @@
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Resources.Extensions" Version="10.0.7" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
-    <PackageReference Include="Material3.WinForms" Version="0.5.0" />
+    <PackageReference Include="Material3.WinForms" Version="0.6.0" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
