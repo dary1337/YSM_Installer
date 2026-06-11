@@ -40,3 +40,5 @@ The installer goes online only to:
 ## Third-party
 
 Mod archives are extracted with [7-Zip](https://www.7-zip.org/)'s `7z.dll` (bundled, LGPL). Licenses and details: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and [licenses/](licenses/).
+
+The interface is built on [Material3.WinForms](https://github.com/dary1337/material3-winforms) (MIT) — Material 3 controls for Windows Forms.
