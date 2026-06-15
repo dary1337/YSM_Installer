@@ -171,9 +171,9 @@
         "mod_type": "ysm_wif",
         "game_version": 189668,
         "download_url_parts": [
-            "https://github.com/dary1337/YSM_Archives/releases/download/v189668wif/ysm_wif_189668.001",
-            "https://github.com/dary1337/YSM_Archives/releases/download/v189668wif/ysm_wif_189668.002",
-            "https://github.com/dary1337/YSM_Archives/releases/download/v189668wif/ysm_wif_189668.003"
+            "https://github.com/dary1337/YSM_Archives/releases/download/v189668wif/ysm_wif_189668.7z.001",
+            "https://github.com/dary1337/YSM_Archives/releases/download/v189668wif/ysm_wif_189668.7z.002",
+            "https://github.com/dary1337/YSM_Archives/releases/download/v189668wif/ysm_wif_189668.7z.003"
         ],
         "known_issues_url": null,
         "min_installer_version": "1.1.0.0"
@@ -199,6 +199,29 @@
         "mod_type": "wto",
         "game_version": 193438,
         "download_url": "https://github.com/dary1337/YSM_Archives/releases/download/v193438wto/wto_193438.7z",
-        "known_issues_url": null
+        "known_issues_url": null,
+        "min_installer_version": "1.1.0.0"
+    },
+    {
+        "mod_type": "ysm_wif",
+        "game_version": 193438,
+        "download_url_parts": [
+            "https://github.com/dary1337/YSM_Archives/releases/download/v193438wif/ysm_wif_193438.7z.001",
+            "https://github.com/dary1337/YSM_Archives/releases/download/v193438wif/ysm_wif_193438.7z.002",
+            "https://github.com/dary1337/YSM_Archives/releases/download/v193438wif/ysm_wif_193438.7z.003"
+        ],
+        "known_issues_url": null,
+        "min_installer_version": "1.1.0.0"
+    },
+    {
+        "mod_type": "ysm_wif_wto",
+        "game_version": 193438,
+        "download_url_parts": [
+            "https://github.com/dary1337/YSM_Archives/releases/download/v193438wif_wto/ysm_wif_wto_193438.7z.001",
+            "https://github.com/dary1337/YSM_Archives/releases/download/v193438wif_wto/ysm_wif_wto_193438.7z.002",
+            "https://github.com/dary1337/YSM_Archives/releases/download/v193438wif_wto/ysm_wif_wto_193438.7z.003"
+        ],
+        "known_issues_url": null,
+        "min_installer_version": "1.1.0.0"
     }
 ]
