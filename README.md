@@ -31,7 +31,6 @@ One-click installer for [**YSM**](https://steamcommunity.com/sharedfiles/filedet
 - **Safe install** — closes WARNO first, backs up your current mod config, and rolls everything back if anything fails.
 - **Cancel anytime** — the progress bar has a Cancel button. Canceling restores the previous state.
 - **Clear errors** — if the installer can't reach the internet, it tells you whether you're offline, the mod host (GitHub or Google Drive) is down, or just the mod list is broken, instead of a cryptic error.
-- **Settings** — switch between the official mod list and Yokaiste's GitHub releases as the source (for the current session; nothing is saved to disk).
 
 ## Requirements
 

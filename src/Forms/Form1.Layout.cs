@@ -16,7 +16,6 @@ namespace YSMInstaller {
         private FlowLayoutPanel _titleStack = null!;
         private Label _overlineLabel = null!;
         private Label _subLabel = null!;
-        private MaterialButton _settingsButton = null!;
         private Panel _contentHost = null!;
         private Panel _island = null!;
         private FlowLayoutPanel _islandActions = null!;
@@ -129,18 +128,6 @@ namespace YSMInstaller {
                 Padding = Padding.Empty,
                 WrapContents = false,
             };
-
-            _settingsButton = new MaterialButton {
-                Variant = MaterialButtonVariant.Text,
-                IconGlyph = MaterialIcons.Settings,
-                Text = "Settings",
-                Width = 110,
-                Height = 36,
-                Margin = Padding.Empty,
-            };
-            _settingsButton.SetAccent(MaterialColors.Primary, MaterialColors.OnPrimary);
-            _settingsButton.Click += async (sender, args) => await OpenSettingsAsync();
-            rightActions.Controls.Add(_settingsButton);
 
 #if DEBUG
             var testButton = new MaterialButton {
@@ -307,8 +294,8 @@ namespace YSMInstaller {
             bool hasSub = _headerSubFull.Length > 0;
             ApplyHeaderSubtitle();
             _subLabel.Visible = hasSub;
-            // Anchor=Left (no Top) lets the TLP cell center the stack vertically, matching the Settings
-            // button row when only the overline shows. With both labels, top-anchor keeps the original look.
+            // Anchor=Left (no Top) lets the TLP cell center the stack vertically, matching the header
+            // actions row when only the overline shows. With both labels, top-anchor keeps the original look.
             _titleStack.Anchor = hasSub
                 ? AnchorStyles.Top | AnchorStyles.Left
                 : AnchorStyles.Left;
@@ -342,7 +329,7 @@ namespace YSMInstaller {
                 }
             }
             int available = rowMaxWidth - rightActionsWidth;
-            // Leave a few px so the ellipsis doesn't kiss the Settings cluster.
+            // Leave a few px so the ellipsis doesn't kiss the header actions cluster.
             return Math.Max(120, available - 8);
         }
 

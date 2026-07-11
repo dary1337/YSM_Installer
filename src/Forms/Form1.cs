@@ -286,20 +286,5 @@ namespace YSMInstaller {
 
             await ScanAsync();
         }
-
-        private async Task OpenSettingsAsync() {
-            try {
-                using (var form = new SettingsForm()) {
-                    // Rescan during install would replace the live progress UI with disposed controls.
-                    if (form.ShowDialog(this) == DialogResult.OK && form.SourceChanged && !_isInstalling) {
-                        await ScanAsync();
-                    }
-                }
-            }
-            catch (Exception ex) {
-                AppLogger.Critical("Settings dialog failed.", ex);
-                UserMessages.ShowError(this, "Settings error", $"{ex.GetType().Name}: {ex.Message}");
-            }
-        }
     }
 }
