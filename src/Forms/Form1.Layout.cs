@@ -185,7 +185,6 @@ namespace YSMInstaller {
                 Size = new Size(24, 24),
                 SizeMode = PictureBoxSizeMode.CenterImage,
             };
-            icon.Disposed += (s, e) => icon.Image?.Dispose();
 
             var textStack = new FlowLayoutPanel {
                 Anchor = AnchorStyles.Left,
