@@ -250,9 +250,7 @@ namespace YSMInstaller {
             }
         }
 
-        // Copies source → destination in chunks so cancellation lands within ms even on
-        // multi-gigabyte entries; Stream.CopyTo() ignores tokens, which would let a cancel
-        // request sit until the entry finishes.
+        // Stream.CopyTo ignores cancellation; copy in chunks so a requested cancel lands promptly.
         private static void CopyWithProgress(
             Stream source,
             Stream destination,

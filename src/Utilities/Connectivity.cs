@@ -6,10 +6,6 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace YSMInstaller {
-    /// <summary>
-    /// Lightweight connectivity diagnosis so an offline / catalog failure tells the user what actually
-    /// went wrong: no internet at all, GitHub unreachable, or the catalog parsed badly.
-    /// </summary>
     public static class Connectivity {
         // Dedicated probe client: short timeout, kept process-wide because per-call `new HttpClient` would
         // accumulate sockets in TIME_WAIT (~2 min each) and eventually exhaust the ephemeral port range if

@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -23,8 +29,8 @@ namespace YSMInstaller {
             // Total height = original content (300) + titlebar (40) so the visible body matches
             // the previous SettingsForm layout exactly.
             ClientSize = new Size(420, 300 + Tokens.TitleBarHeight);
-            BackColor = MaterialPalette.Surface;
-            ForeColor = MaterialPalette.OnSurface;
+            BackColor = MaterialColors.Surface;
+            ForeColor = MaterialColors.OnSurface;
             Font = MaterialType.BodyMedium;
             Icon = Properties.Resources.logo;
 
@@ -35,7 +41,7 @@ namespace YSMInstaller {
             var overline = new SoftLabel {
                 AutoSize = true,
                 Font = MaterialType.Overline,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Location = new Point(margin, top),
                 Text = "MOD LIST",
             };
@@ -44,7 +50,7 @@ namespace YSMInstaller {
             var fieldLabel = new SoftLabel {
                 AutoSize = true,
                 Font = MaterialType.BodySmall,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Location = new Point(margin, top + 26),
                 Text = "Source",
             };
@@ -68,7 +74,7 @@ namespace YSMInstaller {
             int noteTop = top + 46 + Tokens.DropdownHeight + Tokens.Space4;
             var noteIcon = new PictureBox {
                 BackColor = Color.Transparent,
-                Image = MaterialIconRenderer.Get(MaterialIcons.Info, Tokens.IconXs, MaterialPalette.OnSurfaceMuted),
+                Image = MaterialIconRenderer.Get(MaterialIcons.Info, Tokens.IconXs, MaterialColors.OnSurfaceMuted),
                 Location = new Point(margin, noteTop),
                 Size = new Size(Tokens.IconXs, Tokens.IconXs),
                 SizeMode = PictureBoxSizeMode.Normal,
@@ -78,7 +84,7 @@ namespace YSMInstaller {
             var note = new SoftLabel {
                 AutoSize = false,
                 Font = MaterialType.BodySmall,
-                ForeColor = MaterialPalette.OnSurfaceMuted,
+                ForeColor = MaterialColors.OnSurfaceMuted,
                 Location = new Point(margin + 22, noteTop - 1),
                 Size = new Size(innerWidth - 22, 40),
                 Text = "Loads releases straight from the GitHub repo. Falls back to the official mod list if unreachable.",
@@ -111,6 +117,7 @@ namespace YSMInstaller {
                 TitleText = "Settings",
                 AppIcon = Properties.Resources.logo.ToBitmap(),
                 ShowMinimize = false,
+                ShowMaximize = false,
             };
             Controls.Add(titleBar);
 

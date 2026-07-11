@@ -1,10 +1,15 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Material3.WinForms.Theming;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 
 namespace YSMInstaller {
     static class Program {
@@ -39,18 +44,45 @@ namespace YSMInstaller {
 
             AppLogger.Initialize();
             RegisterCriticalErrorHandlers();
+            LegacySettingsCleanup.Run();
 
             try {
                 Application.EnableVisualStyles();
                 // Native GDI text rendering for stock controls; our owner-drawn text uses AntiAliasGridFit
                 // (smooth but grid-fitted, so not blurry) via SoftLabel and the Material controls.
                 Application.SetCompatibleTextRenderingDefault(false);
+                // Drive the Material3.WinForms library's controls from the Platinum (monochrome) theme,
+                // matching the installer's former static palette. Register the app's own Steam glyph
+                // with the library's icon renderer (the library ships only generic Material Symbols).
+                ThemeManager.Apply(MaterialTheme.Platinum(), isDark: true);
+                RegisterCustomIcons();
                 Application.Run(new Form1());
             }
             catch (Exception exception) {
                 AppLogger.Critical("Unhandled application startup exception.", exception);
                 ShowFatalError(exception);
                 Environment.ExitCode = 1;
+            }
+        }
+
+        // The app's own icons (e.g. the Steam glyph) aren't part of the generic library set; register
+        // their embedded SVG so MaterialIconRenderer.Get(key) renders them like a bundled icon.
+        private static void RegisterCustomIcons() {
+            try {
+                Assembly asm = typeof(Program).Assembly;
+                string? steam = asm.GetManifestResourceNames()
+                    .FirstOrDefault(n => n.EndsWith(".steam.svg", StringComparison.OrdinalIgnoreCase));
+                if (steam != null) {
+                    using (Stream? stream = asm.GetManifestResourceStream(steam))
+                    using (var reader = stream != null ? new StreamReader(stream) : null) {
+                        if (reader != null) {
+                            MaterialIconRenderer.Register(MaterialIcons.Steam, reader.ReadToEnd());
+                        }
+                    }
+                }
+            }
+            catch (Exception exception) {
+                AppLogger.Critical("Failed to register custom icons.", exception);
             }
         }
 

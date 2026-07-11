@@ -1,8 +1,4 @@
 namespace YSMInstaller {
-    /// <summary>
-    /// Logical icon keys mapped to the embedded Material Symbols SVG files (Resources/icons/{key}.svg).
-    /// Render with <see cref="MaterialIconRenderer.Get"/>.
-    /// </summary>
     public static class MaterialIcons {
         public const string Settings = "settings";
         public const string Folder = "folder";

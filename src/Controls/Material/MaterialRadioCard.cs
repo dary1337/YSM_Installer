@@ -5,6 +5,13 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.IO;
 using System.Windows.Forms;
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using ChipRenderer = Material3.WinForms.Drawing.ChipRenderer;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
+using RoundedControlRenderer = Material3.WinForms.Drawing.RoundedControlRenderer;
 
 namespace YSMInstaller {
     /// <summary>
@@ -33,6 +40,9 @@ namespace YSMInstaller {
         private const int StatusRowTop = 38;
         private const int ChipHeight = 22;
 
+        // Steam brand blue (#66C0F4) — app-specific, not part of the generic library palette.
+        private static readonly Color SteamBrand = Color.FromArgb(0x66, 0xC0, 0xF4);
+
         public WarnoEntry Entry => _entry;
         public bool IsSelected => _selected;
 
@@ -41,9 +51,9 @@ namespace YSMInstaller {
             _entry = entry;
             _exeIcon = TryLoadExeIcon(entry.ExePath);
 
-            BackColor = MaterialPalette.SurfaceContainer;
+            BackColor = MaterialColors.SurfaceContainer;
             MinimumSize = new Size(0, Sizes.RadioCardMinHeight);
-            Cursor = SystemCursors.Pointer;
+            Cursor = MaterialCursors.Pointer;
             SetOutline(StatusOutline());
 
             _selectionTween = new Timer { Interval = 16 };
@@ -94,18 +104,18 @@ namespace YSMInstaller {
 
         private void UpdateSurface() {
             BackColor = _selected
-                ? MaterialPalette.SurfaceContainerHigh
+                ? MaterialColors.SurfaceContainerHigh
                 : _hovered
-                    ? MaterialPalette.Overlay(MaterialPalette.SurfaceContainer, MaterialPalette.OnSurface, 0.05)
-                    : MaterialPalette.SurfaceContainer;
-            SetOutline(_selected ? MaterialPalette.Primary : StatusOutline());
+                    ? MaterialColors.Overlay(MaterialColors.SurfaceContainer, MaterialColors.OnSurface, 0.05)
+                    : MaterialColors.SurfaceContainer;
+            SetOutline(_selected ? MaterialColors.Primary : StatusOutline());
             Invalidate();
         }
 
         private Color StatusOutline() {
-            if (NotSupported) return MaterialPalette.Error;
-            if (UsesLatestMod || HasKnownIssues) return MaterialPalette.Warning;
-            return MaterialPalette.OutlineVariant;
+            if (NotSupported) return MaterialColors.Error;
+            if (UsesLatestMod || HasKnownIssues) return MaterialColors.Warning;
+            return MaterialColors.OutlineVariant;
         }
 
         protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hovered = true; UpdateSurface(); }
@@ -153,7 +163,7 @@ namespace YSMInstaller {
         private void DrawIcon(Graphics g) {
             var iconRect = new Rectangle(Pad, Pad, IconBox, IconBox);
             using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(iconRect, Sizes.RadiusExtraSmall))
-            using (var brush = new SolidBrush(MaterialPalette.SurfaceContainerHighest)) {
+            using (var brush = new SolidBrush(MaterialColors.SurfaceContainerHighest)) {
                 g.FillPath(brush, path);
             }
 
@@ -164,7 +174,7 @@ namespace YSMInstaller {
             }
             else {
                 const int s = 22;
-                Bitmap img = MaterialIconRenderer.Get(MaterialIcons.Game, s, MaterialPalette.OnSurfaceVariant);
+                Bitmap img = MaterialIconRenderer.Get(MaterialIcons.Game, s, MaterialColors.OnSurfaceVariant);
                 g.DrawImageUnscaled(img, iconRect.X + (iconRect.Width - s) / 2, iconRect.Y + (iconRect.Height - s) / 2);
             }
         }
@@ -173,34 +183,63 @@ namespace YSMInstaller {
 
         private void DrawPath(Graphics g) {
             var pathRect = new RectangleF(TextLeft, Pad - 2, Width - TextLeft - RadioArea, 20);
-            using (var brush = new SolidBrush(MaterialPalette.OnSurface))
-            using (var fmt = new StringFormat(StringFormatFlags.NoWrap) {
+            using (var brush = new SolidBrush(MaterialColors.OnSurface))
+            using (var fmt = new StringFormat(StringFormat.GenericTypographic) {
                 Alignment = StringAlignment.Near,
                 LineAlignment = StringAlignment.Center,
-                Trimming = StringTrimming.EllipsisPath,
+                FormatFlags = StringFormatFlags.NoWrap,
             }) {
-                g.DrawString(_entry.ExePath, MaterialType.BodyLarge, brush, pathRect, fmt);
+                string shown = MiddleEllipsis(g, _entry.ExePath, MaterialType.BodyLarge, pathRect.Width);
+                g.DrawString(shown, MaterialType.BodyLarge, brush, pathRect, fmt);
             }
+        }
+
+        private static string MiddleEllipsis(Graphics g, string text, Font font, float maxWidth) {
+            if (string.IsNullOrEmpty(text) || Measure(g, text, font) <= maxWidth) {
+                return text ?? string.Empty;
+            }
+            const string ellipsis = "…";
+            int low = 0, high = text.Length - 1, best = 0;
+            while (low <= high) {
+                int keep = (low + high) / 2;
+                if (Measure(g, Splice(text, keep, ellipsis), font) <= maxWidth) {
+                    best = keep;
+                    low = keep + 1;
+                }
+                else {
+                    high = keep - 1;
+                }
+            }
+            return best > 0 ? Splice(text, best, ellipsis) : ellipsis;
+        }
+
+        private static string Splice(string text, int keep, string ellipsis) {
+            int head = (keep + 1) / 2;
+            return text.Substring(0, head) + ellipsis + text.Substring(text.Length - (keep - head));
+        }
+
+        private static float Measure(Graphics g, string text, Font font) {
+            return g.MeasureString(text, font, int.MaxValue, StringFormat.GenericTypographic).Width;
         }
 
         private void DrawStatusRow(Graphics g) {
             float x = TextLeft;
             int midY = StatusRowTop + ChipHeight / 2;
 
-            x = DrawText(g, $"v{_entry.Version}", MaterialType.BodySmall, MaterialPalette.OnSurface, x, midY) + 8;
+            x = DrawText(g, $"v{_entry.Version}", MaterialType.BodySmall, MaterialColors.OnSurface, x, midY) + 8;
 
             if (NotSupported) {
-                x = DrawChip(g, "not supported", string.Empty, MaterialPalette.ErrorContainer, MaterialPalette.OnErrorContainer, Color.Transparent, x) + 8;
+                x = DrawChip(g, "not supported", string.Empty, MaterialColors.ErrorContainer, MaterialColors.OnErrorContainer, Color.Transparent, x) + 8;
             }
             else if (UsesLatestMod) {
                 x = DrawChip(g, $"Game ahead — mod v{_entry.LatestCompatibleModVersion}", MaterialIcons.Warning,
-                    MaterialPalette.WarningContainer, MaterialPalette.OnWarningContainer, Color.Transparent, x) + 8;
+                    MaterialColors.WarningContainer, MaterialColors.OnWarningContainer, Color.Transparent, x) + 8;
                 _issuesLinkRect = Rectangle.Empty;
             }
             else if (HasKnownIssues) {
                 _issuesLinkRect = DrawLink(g, "Has known issues — see why", MaterialIcons.Help,
                     iconOnLeft: true,
-                    MaterialPalette.Warning, MaterialPalette.WarningContainer,
+                    MaterialColors.Warning, MaterialColors.WarningContainer,
                     x, midY, _hoveredLink == HoveredLink.Issues);
                 x = _issuesLinkRect.Right + 8;
             }
@@ -209,9 +248,9 @@ namespace YSMInstaller {
             }
 
             string sourceGlyph = IsSteamEntry ? MaterialIcons.Steam : MaterialIcons.Folder;
-            Color sourceFill = IsSteamEntry ? Color.Transparent : MaterialPalette.SecondaryContainer;
-            Color sourceContent = IsSteamEntry ? MaterialPalette.SteamBrand : MaterialPalette.OnSecondaryContainer;
-            Color sourceOutline = IsSteamEntry ? MaterialPalette.SteamBrand : Color.Transparent;
+            Color sourceFill = IsSteamEntry ? Color.Transparent : MaterialColors.SecondaryContainer;
+            Color sourceContent = IsSteamEntry ? SteamBrand : MaterialColors.OnSecondaryContainer;
+            Color sourceOutline = IsSteamEntry ? SteamBrand : Color.Transparent;
             DrawChip(g, _entry.SourceLabel, sourceGlyph, sourceFill, sourceContent, sourceOutline, x);
         }
 
@@ -224,45 +263,21 @@ namespace YSMInstaller {
         }
 
         private float DrawChip(Graphics g, string text, string glyph, Color fill, Color content, Color outline, float x) {
-            const int padX = 10;
-            const int iconPx = 14;
-            const int iconGap = 5;
-            Font font = MaterialType.LabelMedium;
-            SizeF textSize = g.MeasureString(text, font, int.MaxValue, StringFormat.GenericTypographic);
+            var metrics = new ChipRenderer.Metrics {
+                Height = ChipHeight,
+                PadX = 10,
+                IconPx = 14,
+                IconGap = 5,
+                OutlineWidth = 1f,
+                Font = MaterialType.LabelMedium,
+            };
             bool hasIcon = !string.IsNullOrEmpty(glyph);
-            int chipWidth = (int)Math.Ceiling(textSize.Width) + padX * 2 + (hasIcon ? iconPx + iconGap : 0);
-            var rect = new Rectangle((int)x, StatusRowTop, chipWidth, ChipHeight);
-
-            using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(rect, ChipHeight / 2)) {
-                if (fill.A > 0) {
-                    using (var brush = new SolidBrush(fill)) {
-                        g.FillPath(brush, path);
-                    }
-                }
-                if (outline.A > 0) {
-                    using (var pen = new Pen(outline, 1f)) {
-                        g.DrawPath(pen, path);
-                    }
-                }
-            }
-
-            float cx = rect.X + padX;
-            int midY = rect.Y + rect.Height / 2;
-            if (hasIcon) {
-                Bitmap icon = MaterialIconRenderer.Get(glyph, iconPx, content);
-                g.DrawImageUnscaled(icon, (int)cx, midY - iconPx / 2);
-                cx += iconPx + iconGap;
-            }
-            using (var brush = new SolidBrush(content)) {
-                g.DrawString(text, font, brush, cx, midY - textSize.Height / 2f, StringFormat.GenericTypographic);
-            }
-            return rect.Right;
+            int width = ChipRenderer.Measure(g, text, hasIcon, metrics);
+            var style = new ChipRenderer.Style(fill, content, content, outline.A > 0 ? outline : (Color?)null, pill: true);
+            int chipX = (int)Math.Round(x);
+            return ChipRenderer.Draw(g, text, hasIcon ? glyph : null, null, style, metrics, chipX, StatusRowTop, width);
         }
 
-        // Two modes:
-        //   - fillColor.A == 0 → text-button style (transparent rest, hover state layer of textColor).
-        //   - fillColor.A  > 0 → tonal-chip style (always filled with fillColor, hover slightly brighter).
-        // Icon can be placed before or after the label. Box height matches ChipHeight for row alignment.
         private Rectangle DrawLink(Graphics g, string text, string? iconKey, bool iconOnLeft,
                                    Color textColor, Color fillColor, float x, int midY, bool hovered) {
             const int iconPx = 12;
@@ -278,10 +293,10 @@ namespace YSMInstaller {
 
             Color effectiveFill;
             if (fillColor.A > 0) {
-                effectiveFill = hovered ? MaterialPalette.Overlay(fillColor, textColor, 0.10) : fillColor;
+                effectiveFill = hovered ? MaterialColors.Overlay(fillColor, textColor, 0.10) : fillColor;
             }
             else {
-                effectiveFill = hovered ? MaterialPalette.Overlay(BackColor, textColor, 0.12) : Color.Transparent;
+                effectiveFill = hovered ? MaterialColors.Overlay(BackColor, textColor, 0.12) : Color.Transparent;
             }
             if (effectiveFill.A > 0) {
                 using (GraphicsPath path = RoundedControlRenderer.GetFigurePath(box, boxH / 2))
@@ -312,14 +327,14 @@ namespace YSMInstaller {
             int cx = Width - RadioArea / 2 - 2;
             int cy = Height / 2;
             var outer = new Rectangle(cx - diameter / 2, cy - diameter / 2, diameter, diameter);
-            Color ringColor = MaterialPalette.Overlay(MaterialPalette.Outline, MaterialPalette.Primary, _selectionProgress);
+            Color ringColor = MaterialColors.Overlay(MaterialColors.Outline, MaterialColors.Primary, _selectionProgress);
             using (var pen = new Pen(ringColor, 2f)) {
                 g.DrawEllipse(pen, outer);
             }
             if (_selectionProgress > 0.01f) {
                 float innerDiameter = 10f * _selectionProgress;
                 var inner = new RectangleF(cx - innerDiameter / 2f, cy - innerDiameter / 2f, innerDiameter, innerDiameter);
-                using (var brush = new SolidBrush(MaterialPalette.Primary)) {
+                using (var brush = new SolidBrush(MaterialColors.Primary)) {
                     g.FillEllipse(brush, inner);
                 }
             }

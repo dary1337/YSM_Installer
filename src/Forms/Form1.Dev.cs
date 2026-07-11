@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -8,53 +14,53 @@ using System.Windows.Forms;
 namespace YSMInstaller {
     public partial class Form1 {
 #if DEBUG
-        // Debug-only surface (compiled out of Release) to inspect every modal and every screen state —
-        // including a simulated failed install — without a real game/network.
         private void OpenDevTestMenu() {
-            using (var form = new Form {
+            using (var form = new BorderlessForm {
                 Text = "Dev test menu",
-                FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
                 ShowInTaskbar = false,
                 StartPosition = FormStartPosition.CenterParent,
-                BackColor = MaterialPalette.Surface,
-                ForeColor = MaterialPalette.OnSurface,
+                BackColor = MaterialColors.Surface,
+                ForeColor = MaterialColors.OnSurface,
                 Font = MaterialType.BodyMedium,
                 Icon = Properties.Resources.logo,
-                ClientSize = new Size(380, 620),
+                ClientSize = new Size(380, 640),
             }) {
-            WindowChrome.ApplyDark(form);
+            var scroll = new MaterialScrollPanel { Dock = DockStyle.Fill };
+            Panel content = scroll.ContentPanel;
 
-            var flow = new FlowLayoutPanel {
-                AutoScroll = true,
-                BackColor = Color.Transparent,
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.TopDown,
-                Padding = new Padding(16),
-                WrapContents = false,
-            };
-            form.Controls.Add(flow);
+            const int leftPad = 16;
+            const int itemWidth = 330;
+            int y = 12;
 
             void Section(string title) {
-                flow.Controls.Add(new SoftLabel {
+                y += 8;
+                content.Controls.Add(new SoftLabel {
                     AutoSize = false,
                     Font = MaterialType.Overline,
-                    ForeColor = MaterialPalette.OnSurfaceVariant,
+                    ForeColor = MaterialColors.OnSurfaceVariant,
+                    Width = itemWidth,
                     Height = 22,
-                    Margin = new Padding(0, 8, 0, 4),
+                    Location = new Point(leftPad, y),
                     Text = title.ToUpperInvariant(),
-                    Width = 330,
                 });
+                y += 22 + 4;
+            }
+            // Absolute layout: MaterialScrollPanel derives its scroll extent from the bottom-most
+            // child, so each item is placed at a running offset rather than flowed.
+            void Place(Control c, int height) {
+                c.Location = new Point(leftPad, y);
+                c.Width = itemWidth;
+                c.Height = height;
+                content.Controls.Add(c);
+                y += height + 6;
             }
             void Add(string text, Action action) {
                 var button = new MaterialButton {
                     Variant = MaterialButtonVariant.Tonal,
                     Text = text,
                     AutoSize = false,
-                    Width = 330,
-                    Height = 32,
-                    Margin = new Padding(0, 0, 0, 6),
                 };
                 button.Click += (s, e) => {
                     form.Close();
@@ -62,7 +68,7 @@ namespace YSMInstaller {
                         BeginInvoke(new Action(action));
                     }
                 };
-                flow.Controls.Add(button);
+                Place(button, 32);
             }
 
             Section("Switches");
@@ -88,19 +94,19 @@ namespace YSMInstaller {
                     _ = SafeFireDev(ScanAsync, "Rescan after MockWarnoPaths toggle failed.");
                 }));
             };
-            flow.Controls.Add(mockButton);
+            Place(mockButton, 32);
 
             Section("Catalog override (raw mods-list URL)");
             var urlBox = new TextBox {
                 Width = 330,
                 Margin = new Padding(0, 0, 0, 6),
                 Font = MaterialType.BodyMedium,
-                BackColor = MaterialPalette.SurfaceContainerHigh,
-                ForeColor = MaterialPalette.OnSurface,
+                BackColor = MaterialColors.SurfaceContainerHigh,
+                ForeColor = MaterialColors.OnSurface,
                 BorderStyle = BorderStyle.FixedSingle,
                 Text = DevService.ModListUrlOverride ?? string.Empty,
             };
-            flow.Controls.Add(urlBox);
+            Place(urlBox, urlBox.PreferredHeight);
 
             // Apply / Clear use a custom Click handler instead of Add() because we need to
             // capture TextBox state before form.Close() disposes it.
@@ -125,7 +131,7 @@ namespace YSMInstaller {
                     _ = SafeFireDev(ScanAsync, "Rescan after catalog override failed.");
                 }));
             };
-            flow.Controls.Add(applyButton);
+            Place(applyButton, 32);
 
             var clearButton = new MaterialButton {
                 Variant = MaterialButtonVariant.Tonal,
@@ -146,7 +152,7 @@ namespace YSMInstaller {
                     _ = SafeFireDev(ScanAsync, "Rescan after catalog override clear failed.");
                 }));
             };
-            flow.Controls.Add(clearButton);
+            Place(clearButton, 32);
 
             Section("Inject chunk failures (next multi-part download)");
             Add("Inject 1 chunk failure (retries, succeeds)",
@@ -163,6 +169,14 @@ namespace YSMInstaller {
             Add("Generic error", () => UserMessages.ShowError(this, "Something went wrong",
                 $"A sample error message with details written to:\n{AppLogger.LogPath}"));
             Add("Selected Warno invalid", () => UserMessages.ShowSelectedWarnoInvalid(this));
+            Add("Notice message", () => UserMessages.ShowNotice(this, "Heads up",
+                "A sample informational notice (single OK action) — e.g. \"Switch canceled\"."));
+            Add("Confirm: cancel installation", () => ConfirmCancelInstall());
+            Add("Confirm: low disk space", () => ConfirmLowDiskSpaceAsync(
+                new DiskSpaceWarning("C:", "install YSM x WiF", 800L * 1024 * 1024, 3L * 1024 * 1024 * 1024)));
+            Add("Confirm: quit during install", () => ConfirmCloseDuringInstall());
+            Add("Confirm: quit during auto-update", () => ConfirmCloseDuringAutoUpdate());
+            Add("Confirm: quit during version switch", () => ConfirmCloseDuringSwitch());
             Add("Settings", () => { using (var f = new SettingsForm()) { f.ShowDialog(this); } });
 
             Section("States");
@@ -190,6 +204,22 @@ namespace YSMInstaller {
             Add("Run install → success", () => DevRunInstall(fail: false));
             Add("Run install → failure", () => DevRunInstall(fail: true));
 
+            Section("Version switch");
+            Add("Version switch plan", DevShowVersionSwitchPlan);
+
+            Section("Manual install");
+            Add("Pick mod folder", () => _ = SafeFireDev(BrowseForManualFolderAsync, "Dev manual-folder browse failed."));
+            Add("Pick mod archive", () => _ = SafeFireDev(BrowseForManualArchiveAsync, "Dev manual-archive browse failed."));
+
+            var titleBar = new MaterialTitleBar {
+                TitleText = "Dev test menu",
+                AppIcon = Properties.Resources.logo.ToBitmap(),
+                ShowMinimize = false,
+                ShowMaximize = false,
+            };
+
+            form.Controls.Add(scroll);
+            form.Controls.Add(titleBar);
             form.ShowDialog(this);
             }
         }
@@ -197,7 +227,7 @@ namespace YSMInstaller {
         private void DevShowUpdateDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Info;
-                dialog.IconColor = MaterialPalette.Primary;
+                dialog.IconColor = MaterialColors.Primary;
                 dialog.TitleText = "Update available";
                 dialog.BodyText =
                     "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
@@ -211,7 +241,7 @@ namespace YSMInstaller {
         private void DevShowLongUpdateDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Info;
-                dialog.IconColor = MaterialPalette.Primary;
+                dialog.IconColor = MaterialColors.Primary;
                 dialog.TitleText = "Update available";
                 dialog.BodyText =
                     "YSM Installer 1.2.0 is available.\n\nWhat's new:\n"
@@ -233,7 +263,7 @@ namespace YSMInstaller {
         private void DevShowWarnoRunningDialog() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "WARNO is running";
                 dialog.BodyText = "WARNO will be closed to install the mod. All other mods are disabled for compatibility.";
                 dialog.AddAction("Cancel", DialogResult.Cancel, MaterialButtonVariant.Text);
@@ -254,11 +284,9 @@ namespace YSMInstaller {
             if (_entries == null || _entries.Count == 0) {
                 return;
             }
-            _selectedEntry = _entries.FirstOrDefault(e => GetVariantsForVersion(e.Version).Count > 1) ?? _entries[0];
-            var variants = GetVariantsForVersion(_selectedEntry.Version);
-            if (variants.Count > 0) {
-                await RenderChooseBuild(variants);
-            }
+            _selectedEntry = _entries.FirstOrDefault(e => BuildOptionsModel(e.Version).Any(o => o.Kind != BuildSwitchKind.Ready))
+                ?? _entries[0];
+            await RenderChooseBuild();
         }
 
         private static async Task SafeFireDev(Func<Task> work, string failureLog) {
@@ -313,6 +341,26 @@ namespace YSMInstaller {
             RenderVersionMismatch(sample, sample.GameVersion + 760);
         }
 
+        private void DevShowVersionSwitchPlan() {
+            // Seed a scenario with a non-Ready (up/downgrade) build option, then render its plan.
+            // Clicking Start on a mock entry hits "Can't switch automatically" (no real Steam touch).
+            if (_entries == null || _entries.Count == 0) {
+                DevLoadScenario(DevWarnoMocks.MixedInstalls());
+            }
+            if (_entries == null || _entries.Count == 0) {
+                return;
+            }
+            foreach (WarnoEntry entry in _entries) {
+                BuildOption? option = BuildOptionsModel(entry.Version).FirstOrDefault(o => o.Kind != BuildSwitchKind.Ready);
+                if (option != null) {
+                    _selectedEntry = entry;
+                    RenderVersionSwitchPlan(option);
+                    return;
+                }
+            }
+            AppLogger.Info("Dev: current scenario has no version-switch (up/downgrade) build option.");
+        }
+
         private void DevRunInstall(bool fail) {
             // Self-bootstrap so the button works cold from app startup. Real-install path
             // doesn't honor SimulateInstallFailure (checked only in SimulateInstallAsync),
@@ -332,13 +380,15 @@ namespace YSMInstaller {
                 return;
             }
             _selectedEntry = _entries[0];
-            var variants = GetVariantsForVersion(_selectedEntry.Version);
-            if (variants.Count == 0) {
-                AppLogger.Info("Dev: Run install aborted — variants empty after seed.");
+            List<BuildOption> options = BuildOptionsModel(_selectedEntry.Version);
+            BuildOption? target = options.FirstOrDefault(o => o.Kind == BuildSwitchKind.Ready) ?? options.FirstOrDefault();
+            if (target == null) {
+                AppLogger.Info("Dev: Run install aborted — no build options after seed.");
                 return;
             }
             DevWarnoMocks.SimulateInstallFailure = fail;
-            _ = StartInstallAsync(variants[0], _selectedEntry.Version);
+            int version = _selectedEntry.Version;
+            _ = SafeFireDev(() => StartInstallAsync(target.Metadata, version), "Dev: Run install failed.");
         }
 #endif
     }

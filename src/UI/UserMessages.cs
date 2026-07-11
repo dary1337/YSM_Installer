@@ -1,18 +1,19 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace YSMInstaller {
-    /// <summary>
-    /// Modal dialogs that survive the Material You redesign. Large flows — not-found, offline/catalog,
-    /// install progress, completion, failure — are inline states owned by Form1.
-    /// </summary>
     public static class UserMessages {
-        /// <summary>Unexpected error: surfaces the log plus help links (issue tracker, Discord).</summary>
         public static void ShowError(IWin32Window owner, string title, string body) {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.ErrorBadge;
-                dialog.IconColor = MaterialPalette.Error;
+                dialog.IconColor = MaterialColors.Error;
                 dialog.TitleText = title;
                 dialog.BodyText = body;
                 dialog.AddLink("Open log", MaterialIcons.OpenInNew, OpenLog);
@@ -23,25 +24,14 @@ namespace YSMInstaller {
             }
         }
 
-        /// <summary>Plain informational notice (no log / no help links).</summary>
-        public static void ShowNotice(IWin32Window owner, string title, string body) {
-            using (var dialog = new MaterialDialog()) {
-                dialog.IconGlyph = MaterialIcons.Info;
-                dialog.IconColor = MaterialPalette.Primary;
-                dialog.TitleText = title;
-                dialog.BodyText = body;
-                dialog.AddAction("OK", DialogResult.OK, MaterialButtonVariant.Filled);
-                dialog.ShowDialog(owner);
-            }
-        }
+        public static void ShowNotice(IWin32Window owner, string title, string body) =>
+            MaterialMessageBox.Info(owner, title, body);
 
         public static void ShowSelectedWarnoInvalid(IWin32Window owner) {
             ShowNotice(owner, "Not a WARNO installation",
                 "The selected file does not look like a valid WARNO installation. Pick Warno.exe inside your WARNO game folder.");
         }
 
-        // Opens the log file itself (default text handler), not its folder — shared so every
-        // "Open log" affordance behaves identically.
         public static void OpenLog() {
             try {
                 Process.Start(new ProcessStartInfo(AppLogger.LogPath) { UseShellExecute = true });

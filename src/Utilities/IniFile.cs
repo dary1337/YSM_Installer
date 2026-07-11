@@ -78,11 +78,10 @@ namespace YSMInstaller {
                 }
             }
 
-            // Atomic write via tmp + File.Replace. A direct WriteAllLines truncates the target
-            // before writing — a crash, BSOD, or kill mid-flush would leave WARNO's Config.ini
-            // empty or partial, wiping ActivatedMods and the rest of the per-user game settings.
-            // The replace happens inside the install's "no-cancel" finalize block, so we can't
-            // rely on rollback to recover. File.Replace is NTFS-journal-atomic on the same volume.
+            // Write to path + ".tmp" first, then swap it in: writing Config.ini directly would truncate
+            // before flushing, so a crash mid-write inside the install's no-cancel finalize block could
+            // leave it empty. With the temp-then-replace flow the original survives until the new file
+            // is fully on disk.
             string tempPath = path + ".tmp";
             try {
                 File.WriteAllLines(tempPath, output);
@@ -100,9 +99,6 @@ namespace YSMInstaller {
                     }
                 }
                 catch (Exception cleanupException) {
-                    // Cleanup of the partial tmp is best-effort — the outer exception is the one we
-                    // care about and will rethrow. Log this so an antivirus / file-lock blocking the
-                    // delete is at least visible in the log rather than silently swallowed.
                     AppLogger.Error($"Failed to delete partial Config.ini tmp '{tempPath}'.", cleanupException);
                 }
                 throw;

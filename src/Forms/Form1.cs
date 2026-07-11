@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -14,6 +20,8 @@ namespace YSMInstaller {
             InstallsFound,
             ChooseBuild,
             VersionMismatch,
+            VersionSwitchPlan,
+            SwitchingGameVersion,
             Installing,
             Complete,
             Failed,
@@ -49,8 +57,8 @@ namespace YSMInstaller {
 
             Text = "YSM Installer";
             Icon = Properties.Resources.logo;
-            BackColor = MaterialPalette.Surface;
-            ForeColor = MaterialPalette.OnSurface;
+            BackColor = MaterialColors.Surface;
+            ForeColor = MaterialColors.OnSurface;
             Font = MaterialType.BodyMedium;
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(Tokens.WindowMinWidth, Tokens.WindowMinHeight);
@@ -119,6 +127,64 @@ namespace YSMInstaller {
                 catch (Exception exception) {
                     AppLogger.Critical("Initial scan failed.", exception);
                 }
+                MaybeShowToolkitPrompt();
+            }
+        }
+
+        // Final-release nudge toward the successor (Yuri's WARNO Toolkit). Shown once the initial scan
+        // has settled — never mid auto-update (that path restarts the app).
+        private void MaybeShowToolkitPrompt() {
+            if (IsDisposed || Disposing || _isInstalling || _isScanning) {
+                return;
+            }
+
+            DialogResult result;
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.ArrowForward;
+                dialog.IconColor = MaterialColors.Primary;
+                dialog.TitleText = "Meet Yuri's WARNO Toolkit";
+                dialog.BodyText =
+                    "This is the final YSM Installer — it won't be updated anymore.\n\n"
+                    + "Its successor, Yuri's WARNO Toolkit, keeps the one-click YSM install and adds a full "
+                    + "battlegroup editor: build and edit decks straight on your profile — even the ones WARNO "
+                    + "hides or won't let you import — switch game builds, and back up your whole profile.";
+                dialog.AddAction("Not now", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Get the Toolkit", DialogResult.Yes, MaterialButtonVariant.Filled);
+                dialog.Load += (sender, args) => SetActionIcon(dialog, "Get the Toolkit", MaterialIcons.OpenInNew);
+                result = dialog.ShowDialog(this);
+            }
+
+            if (result == DialogResult.Yes) {
+                AppLinks.Open(AppLinks.Toolkit);
+            }
+        }
+
+        // MaterialDialog has no icon-bearing AddAction and only builds its action buttons in OnLoad,
+        // so the glyph is grafted on afterwards — widening the pill and re-packing the right-aligned row.
+        private static void SetActionIcon(Form dialog, string actionText, string glyph) {
+            MaterialButton? target = null;
+            foreach (Control control in dialog.Controls) {
+                if (control is MaterialButton button && string.Equals(button.Text, actionText, StringComparison.Ordinal)) {
+                    target = button;
+                    break;
+                }
+            }
+            if (target == null) {
+                return;
+            }
+
+            const int IconWidth = 18;
+            const int IconGap = 8;
+            int extra = (int)Math.Round((IconWidth + IconGap) * dialog.DeviceDpi / 96.0);
+            int rowTop = target.Top;
+            int anchorLeft = target.Left;
+
+            target.IconGlyph = glyph;
+            target.Width += extra;
+            foreach (Control control in dialog.Controls) {
+                if (control is MaterialButton button && button.Top == rowTop && button.Left <= anchorLeft) {
+                    button.Left -= extra;
+                }
             }
         }
 
@@ -144,6 +210,15 @@ namespace YSMInstaller {
                         _autoUpdateCts?.Cancel();
                     }
                 }
+                else if (_isSwitchingVersion) {
+                    if (!ConfirmCloseDuringSwitch()) {
+                        e.Cancel = true;
+                    }
+                    else {
+                        // Best-effort rollback before the app dies; nothing we can await here.
+                        _switchCts?.Cancel();
+                    }
+                }
             }
 
             // Always abort ChooseBuild size probes on close — they're best-effort UI decoration,
@@ -152,6 +227,9 @@ namespace YSMInstaller {
                 _chooseBuildCts?.Cancel();
                 _chooseBuildCts?.Dispose();
                 _chooseBuildCts = null;
+                _switchCts?.Cancel();
+                _switchCts?.Dispose();
+                _switchCts = null;
             }
 
             base.OnFormClosing(e);
@@ -160,7 +238,7 @@ namespace YSMInstaller {
         private bool ConfirmCloseDuringInstall() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "Installation in progress";
                 dialog.BodyText =
                     "Quitting now will cancel the install and roll back any partial changes. Continue?";
@@ -173,11 +251,24 @@ namespace YSMInstaller {
         private bool ConfirmCloseDuringAutoUpdate() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "Update in progress";
                 dialog.BodyText =
                     "The auto-update is still running. Quitting now will abort it. Continue?";
                 dialog.AddAction("Keep updating", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Quit anyway", DialogResult.OK, MaterialButtonVariant.Filled);
+                return dialog.ShowDialog(this) == DialogResult.OK;
+            }
+        }
+
+        private bool ConfirmCloseDuringSwitch() {
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.Warning;
+                dialog.IconColor = MaterialColors.Warning;
+                dialog.TitleText = "Version switch in progress";
+                dialog.BodyText =
+                    "WARNO's version is still being switched through Steam. Quitting now stops it and tries to restore your previous version. Continue?";
+                dialog.AddAction("Keep switching", DialogResult.Cancel, MaterialButtonVariant.Text);
                 dialog.AddAction("Quit anyway", DialogResult.OK, MaterialButtonVariant.Filled);
                 return dialog.ShowDialog(this) == DialogResult.OK;
             }
@@ -194,27 +285,6 @@ namespace YSMInstaller {
             }
 
             await ScanAsync();
-        }
-
-        private void OpenStepsForm() {
-            using (var form = new StepsForm()) {
-                form.ShowDialog(this);
-            }
-        }
-
-        private async Task OpenSettingsAsync() {
-            try {
-                using (var form = new SettingsForm()) {
-                    // Rescan during install would replace the live progress UI with disposed controls.
-                    if (form.ShowDialog(this) == DialogResult.OK && form.SourceChanged && !_isInstalling) {
-                        await ScanAsync();
-                    }
-                }
-            }
-            catch (Exception ex) {
-                AppLogger.Critical("Settings dialog failed.", ex);
-                UserMessages.ShowError(this, "Settings error", $"{ex.GetType().Name}: {ex.Message}");
-            }
         }
     }
 }

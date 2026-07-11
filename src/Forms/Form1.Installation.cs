@@ -1,3 +1,9 @@
+using Material3.WinForms;
+using Material3.WinForms.Controls;
+using Material3.WinForms.Theming;
+using Material3.WinForms.Typography;
+using Material3.WinForms.Forms;
+using MaterialIconRenderer = Material3.WinForms.Drawing.MaterialIconRenderer;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -55,7 +61,6 @@ namespace YSMInstaller {
         private ModMetadata? _lastInstallMetadata;
         private int _lastInstallVersion;
 
-        // ---- Install flow ----
         private async Task StartInstallAsync(ModMetadata metadata, int version) {
             if (_isInstalling) {
                 return;
@@ -140,7 +145,7 @@ namespace YSMInstaller {
         private bool ConfirmCancelInstall() {
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "Cancel installation?";
                 dialog.BodyText = "Changes already made will be rolled back. Your previous mods and game config will be restored.";
                 dialog.AddAction("Keep installing", DialogResult.Cancel, MaterialButtonVariant.Text);
@@ -149,8 +154,6 @@ namespace YSMInstaller {
             }
         }
 
-        // Task-returning so WarnoInstaller can await us from its background extraction thread,
-        // even though the dialog itself is synchronous.
         private Task<bool> ConfirmLowDiskSpaceAsync(DiskSpaceWarning warning) {
             // Form may have started disposing while extraction was mid-flight (e.g. user closed
             // the window). Invoke against a dead handle would throw — default to "don't proceed"
@@ -159,11 +162,8 @@ namespace YSMInstaller {
                 return Task.FromResult(false);
             }
             if (InvokeRequired) {
-                // Race: form disposed between the IsDisposed/IsHandleCreated check above and
-                // Invoke firing. Treat as "declined" so InstallDeclinedByUserException routes
-                // through Cancelled instead of bubbling up as a Failed install.
-                // InvalidOperationException covers ObjectDisposedException (its subclass) too —
-                // both fire when Invoke targets a handle that's gone away mid-flight.
+                // InvalidOperationException (covers ObjectDisposedException) fires if the form
+                // disposed between the check above and Invoke — treat as "declined".
                 try {
                     return (Task<bool>)Invoke(new Func<Task<bool>>(() => ConfirmLowDiskSpaceAsync(warning)));
                 }
@@ -173,7 +173,7 @@ namespace YSMInstaller {
             }
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "Low disk space";
                 dialog.BodyText =
                     $"{warning.Message}\n\nContinue anyway?";
@@ -191,7 +191,7 @@ namespace YSMInstaller {
 
             using (var dialog = new MaterialDialog()) {
                 dialog.IconGlyph = MaterialIcons.Warning;
-                dialog.IconColor = MaterialPalette.Warning;
+                dialog.IconColor = MaterialColors.Warning;
                 dialog.TitleText = "WARNO is running";
                 dialog.BodyText = "WARNO will be closed and all other mods will be disabled for compatibility.";
                 dialog.AddAction("Cancel", DialogResult.Cancel, MaterialButtonVariant.Text);
@@ -294,7 +294,6 @@ namespace YSMInstaller {
                 : $"~{remaining} s left";
         }
 
-        // ---- Version mismatch state ----
         private void RenderVersionMismatch(ModMetadata metadata, int selectedGameVersion) {
             _state = AppState.VersionMismatch;
             _lastInstallMetadata = metadata;
@@ -312,20 +311,31 @@ namespace YSMInstaller {
 
             MaterialCard warn = BuildMessageCard(
                 MaterialIcons.Warning,
-                MaterialPalette.OnWarningContainer,
-                MaterialPalette.WarningContainer,
+                MaterialColors.OnWarningContainer,
+                MaterialColors.WarningContainer,
                 $"{name} targets WARNO v{metadata.GameVersion}",
                 $"You have v{selectedGameVersion}. The mod may load but is not guaranteed to work."
             );
             AddToStack(stack, warn, isSteamEntry ? Sizes.ContentGap : 0);
 
+            // Steam installs switch for the user: the card jumps into the automatic version switch,
+            // which pins the Steam beta to the target build and then installs the mod.
             if (isSteamEntry) {
-                MaterialCard guide = BuildGuideCard(
-                    "How to switch WARNO versions",
-                    "Steam → right-click WARNO → Betas",
-                    OpenStepsForm
+                var switchOption = new BuildOption {
+                    Metadata = metadata,
+                    TargetVersion = metadata.GameVersion,
+                    Kind = metadata.GameVersion < selectedGameVersion
+                        ? BuildSwitchKind.Downgrade
+                        : BuildSwitchKind.Upgrade,
+                };
+                MaterialCard switchCard = BuildActionCard(
+                    "Switch automatically",
+                    $"Let YSM set WARNO to v{metadata.GameVersion} via Steam, then install.",
+                    "Switch",
+                    MaterialIcons.Download,
+                    () => RenderVersionSwitchPlan(switchOption)
                 );
-                AddToStack(stack, guide, 0);
+                AddToStack(stack, switchCard, 0);
             }
 
             SetContent(stack, fill: false);
@@ -333,8 +343,7 @@ namespace YSMInstaller {
             MaterialButton back = TonalButton("Back");
             back.Click += async (s, e) => {
                 try {
-                    List<ModMetadata> variants = GetVariantsForVersion(selectedGameVersion);
-                    await RenderChooseBuild(variants);
+                    await RenderChooseBuild();
                 }
                 catch (Exception ex) {
                     AppLogger.Critical("Back from version mismatch failed.", ex);
@@ -352,11 +361,11 @@ namespace YSMInstaller {
             SetIslandActions(back, install);
         }
 
-        private MaterialCard BuildGuideCard(string title, string subtitle, Action onGuide) {
+        private MaterialCard BuildActionCard(string title, string subtitle, string buttonText, string buttonIcon, Action onClick) {
             var card = new MaterialCard(Sizes.RadiusMedium) {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor = MaterialPalette.SurfaceContainer,
+                BackColor = MaterialColors.SurfaceContainer,
                 Padding = new Padding(16),
             };
 
@@ -383,32 +392,32 @@ namespace YSMInstaller {
             textStack.Controls.Add(new Label {
                 AutoSize = true,
                 Font = MaterialType.TitleMedium,
-                ForeColor = MaterialPalette.OnSurface,
+                ForeColor = MaterialColors.OnSurface,
                 Margin = new Padding(0, 0, 0, 2),
                 Text = title,
             });
             textStack.Controls.Add(new Label {
                 AutoSize = true,
                 Font = MaterialType.BodyMedium,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Margin = Padding.Empty,
+                MaximumSize = new Size(440, 0),
                 Text = subtitle,
             });
 
-            MaterialButton guideBtn = OutlinedButton("Guide", MaterialIcons.OpenInNew);
-            guideBtn.AutoSize = true;
-            guideBtn.Anchor = AnchorStyles.None;
-            guideBtn.Margin = new Padding(Tokens.Space3, 0, 0, 0);
-            Action capturedAction = onGuide;
-            guideBtn.Click += (s, e) => capturedAction();
+            MaterialButton actionBtn = OutlinedButton(buttonText, buttonIcon);
+            actionBtn.AutoSize = true;
+            actionBtn.Anchor = AnchorStyles.None;
+            actionBtn.Margin = new Padding(Tokens.Space3, 0, 0, 0);
+            Action captured = onClick;
+            actionBtn.Click += (s, e) => captured();
 
             grid.Controls.Add(textStack, 0, 0);
-            grid.Controls.Add(guideBtn, 1, 0);
+            grid.Controls.Add(actionBtn, 1, 0);
             card.Controls.Add(grid);
             return card;
         }
 
-        // ---- Installing state ----
         private void RenderInstalling(string modName, string gamePath) {
             _state = AppState.Installing;
             // A prior backgrounded-complete may have armed the clear-on-activate beacon; a new
@@ -422,45 +431,13 @@ namespace YSMInstaller {
             var card = new MaterialCard(Sizes.RadiusMedium) {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor = MaterialPalette.SurfaceContainer,
+                BackColor = MaterialColors.SurfaceContainer,
                 Padding = new Padding(20),
             };
 
-            // Fixed-height, fully docked grid — AutoSize TableLayoutPanel with a Percent column degenerates
-            // under Dock=Top and pushes the labels to the wrong edges relative to the progress bar.
-            var grid = new TableLayoutPanel {
-                AutoSize = false,
-                BackColor = Color.Transparent,
-                ColumnCount = 2,
-                Dock = DockStyle.Top,
-                Height = 24,
-                Margin = Padding.Empty,
-            };
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
-
-            _detailLabel = new SoftLabel {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Font = MaterialType.BodyMedium,
-                ForeColor = MaterialPalette.OnSurface,
-                Height = 22,
-                Text = "Preparing…",
-                TextAlign = ContentAlignment.MiddleLeft,
-            };
-            _percentLabel = new SoftLabel {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Font = MaterialType.TitleMedium,
-                ForeColor = MaterialPalette.Primary,
-                Height = 22,
-                Text = "0%",
-                TextAlign = ContentAlignment.MiddleRight,
-                Width = 60,
-            };
-            grid.Controls.Add(_detailLabel, 0, 0);
-            grid.Controls.Add(_percentLabel, 1, 0);
+            (TableLayoutPanel grid, SoftLabel detailLabel, SoftLabel percentLabel) = BuildProgressHeaderRow();
+            _detailLabel = detailLabel;
+            _percentLabel = percentLabel;
 
             _progressBar = new MaterialProgressBar {
                 Dock = DockStyle.Top,
@@ -472,7 +449,7 @@ namespace YSMInstaller {
                 AutoSize = false,
                 Dock = DockStyle.Top,
                 Font = MaterialType.BodySmall,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Height = 18,
                 Text = string.Empty,
                 TextAlign = ContentAlignment.MiddleRight,
@@ -487,16 +464,7 @@ namespace YSMInstaller {
             _stepChecklist.ActiveIndex = 0;
             _currentStepIndex = 0;
 
-            var cancel = new MaterialButton {
-                Variant = MaterialButtonVariant.Text,
-                Text = "Cancel",
-                IconGlyph = MaterialIcons.Cancel,
-                Anchor = AnchorStyles.Right,
-                Dock = DockStyle.Top,
-                Height = Sizes.ButtonHeight,
-                Margin = new Padding(0, Tokens.Space8, 0, 0),
-            };
-            cancel.SetAccent(MaterialPalette.Error, MaterialPalette.OnError);
+            MaterialButton cancel = BuildProgressCancelButton();
             cancel.Click += (s, e) => {
                 if (!ConfirmCancelInstall()) {
                     return;
@@ -518,7 +486,6 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
         }
 
-        // ---- Complete state ----
         private void RenderComplete(string modName, WarnoEntry? entry) {
             // If the user is looking at us, drop the taskbar progress right away. If we're in
             // the background (they tabbed out — likely playing a game), freeze it green at 100%
@@ -545,8 +512,6 @@ namespace YSMInstaller {
             center.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             center.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            // Inner column auto-sizes to its widest child (the 440px folder card); every row is
-            // Anchor=None so it centers horizontally within that column, and the column centers in the cell.
             var stack = new TableLayoutPanel {
                 Anchor = AnchorStyles.None,
                 AutoSize = true,
@@ -576,7 +541,7 @@ namespace YSMInstaller {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = MaterialType.HeadlineSmall,
-                ForeColor = MaterialPalette.OnSurface,
+                ForeColor = MaterialColors.OnSurface,
                 Margin = new Padding(0, 0, 0, 8),
                 Text = "Installation complete",
             };
@@ -587,7 +552,7 @@ namespace YSMInstaller {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = MaterialType.BodyMedium,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 MaximumSize = new Size(440, 0),
                 Text = $"{modName} is installed and activated. Launch WARNO or install another mod.",
                 TextAlign = ContentAlignment.TopCenter,
@@ -601,7 +566,7 @@ namespace YSMInstaller {
             const int folderCardWidth = 500;
             var folderCard = new MaterialCard(Sizes.RadiusSmall) {
                 Anchor = AnchorStyles.None,
-                BackColor = MaterialPalette.SurfaceContainerHigh,
+                BackColor = MaterialColors.SurfaceContainerHigh,
                 Margin = Padding.Empty,
                 Size = new Size(folderCardWidth, 48),
             };
@@ -609,7 +574,7 @@ namespace YSMInstaller {
                 AutoEllipsis = true,
                 AutoSize = false,
                 Font = MaterialType.BodyMedium,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 Location = new Point(14, 14),
                 Size = new Size(390, 20),
                 Text = PathFormatting.Shorten(modsPath, 60),
@@ -622,7 +587,7 @@ namespace YSMInstaller {
                 Location = new Point(folderCardWidth - 92, 4),
                 Size = new Size(84, 40),
             };
-            openButton.SetAccent(MaterialPalette.Primary, MaterialPalette.OnPrimary);
+            openButton.SetAccent(MaterialColors.Primary, MaterialColors.OnPrimary);
             openButton.Click += (s, e) => ShellOpen.RevealInExplorer(modsPath);
             folderCard.Controls.Add(openButton);
             folderCard.Controls.Add(folderLabel);
@@ -638,7 +603,6 @@ namespace YSMInstaller {
             SetIslandActions(again, launch);
         }
 
-        // ---- Failed state ----
         private void RenderFailed() {
             // Briefly flash the taskbar red so the user notices on a backgrounded window.
             // Cleared next time the user enters any other state.
@@ -651,18 +615,17 @@ namespace YSMInstaller {
             TableLayoutPanel stack = NewStack();
             MaterialCard card = BuildMessageCard(
                 MaterialIcons.ErrorBadge,
-                MaterialPalette.OnErrorContainer,
-                MaterialPalette.ErrorContainer,
+                MaterialColors.OnErrorContainer,
+                MaterialColors.ErrorContainer,
                 "Installation failed",
                 $"Changes have been rolled back. Details written to:\n{AppLogger.LogPath}"
             );
             AddToStack(stack, card, Sizes.ContentGap);
 
-            // Show the full step list with the failed step marked, so it's clear where it broke.
             var stepsCard = new MaterialCard(Sizes.RadiusMedium) {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor = MaterialPalette.SurfaceContainer,
+                BackColor = MaterialColors.SurfaceContainer,
                 Padding = new Padding(16),
             };
             var failChecklist = new StepChecklist { Dock = DockStyle.Top, Width = 320 };
@@ -695,12 +658,11 @@ namespace YSMInstaller {
             SetContent(stack, fill: false);
         }
 
-        // ---- Shared building blocks ----
         private MaterialCard BuildMessageCard(string glyph, Color glyphColor, Color glyphBg, string title, string body) {
             var card = new MaterialCard(Sizes.RadiusMedium) {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor = MaterialPalette.SurfaceContainer,
+                BackColor = MaterialColors.SurfaceContainer,
                 Padding = new Padding(16),
             };
 
@@ -742,7 +704,7 @@ namespace YSMInstaller {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = MaterialType.TitleMedium,
-                ForeColor = MaterialPalette.OnSurface,
+                ForeColor = MaterialColors.OnSurface,
                 Margin = new Padding(0, 0, 0, 4),
                 Text = title,
             });
@@ -750,7 +712,7 @@ namespace YSMInstaller {
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = MaterialType.BodyMedium,
-                ForeColor = MaterialPalette.OnSurfaceVariant,
+                ForeColor = MaterialColors.OnSurfaceVariant,
                 MaximumSize = new Size(440, 0),
                 Margin = Padding.Empty,
                 Text = body,
@@ -766,11 +728,11 @@ namespace YSMInstaller {
             var bmp = new Bitmap(size, size);
             using (Graphics g = Graphics.FromImage(bmp)) {
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                using (var brush = new SolidBrush(MaterialPalette.Success)) {
+                using (var brush = new SolidBrush(MaterialColors.Success)) {
                     g.FillEllipse(brush, 0, 0, size - 1, size - 1);
                 }
                 int cs = (int)(size * 0.5);
-                Bitmap check = MaterialIconRenderer.Get(MaterialIcons.Check, cs, MaterialPalette.OnSuccess);
+                Bitmap check = MaterialIconRenderer.Get(MaterialIcons.Check, cs, MaterialColors.OnSuccess);
                 g.DrawImage(check, (size - cs) / 2, (size - cs) / 2, cs, cs);
             }
             return bmp;

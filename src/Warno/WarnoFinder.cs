@@ -26,46 +26,36 @@ namespace YSMInstaller {
                 StringComparer.OrdinalIgnoreCase
             );
 
-            AddExecutableCandidates(GetCachedExecutableCandidates(), foundExecutables);
-
             bool foundSteamCandidates = AddExecutableCandidates(
                 GetSteamExecutableCandidates(),
                 foundExecutables
             );
-            List<WarnoExecutable> steamResults = ToSortedResults(foundExecutables);
             if (foundSteamCandidates) {
-                SaveLastWarnoExecutablePath(steamResults);
-                return steamResults;
+                return ToSortedResults(foundExecutables);
             }
 
             bool foundCommonFolderCandidates = AddExecutableCandidates(
                 GetCommonFolderCandidates(),
                 foundExecutables
             );
-            List<WarnoExecutable> commonFolderResults = ToSortedResults(foundExecutables);
             if (foundCommonFolderCandidates) {
-                SaveLastWarnoExecutablePath(commonFolderResults);
-                return commonFolderResults;
+                return ToSortedResults(foundExecutables);
             }
 
             bool foundRegistryCandidates = AddExecutableCandidates(
                 GetUninstallRegistryCandidates(),
                 foundExecutables
             );
-            List<WarnoExecutable> registryResults = ToSortedResults(foundExecutables);
             if (foundRegistryCandidates) {
-                SaveLastWarnoExecutablePath(registryResults);
-                return registryResults;
+                return ToSortedResults(foundExecutables);
             }
 
             bool foundShortcutCandidates = AddExecutableCandidates(
                 GetShortcutCandidates(),
                 foundExecutables
             );
-            List<WarnoExecutable> shortcutResults = ToSortedResults(foundExecutables);
             if (foundShortcutCandidates || !includeSystemFolders) {
-                SaveLastWarnoExecutablePath(shortcutResults);
-                return shortcutResults;
+                return ToSortedResults(foundExecutables);
             }
 
             foreach (DriveInfo drive in GetSearchableDrives()) {
@@ -74,9 +64,7 @@ namespace YSMInstaller {
                 }
             }
 
-            var deepScanResults = ToSortedResults(foundExecutables);
-            SaveLastWarnoExecutablePath(deepScanResults);
-            return deepScanResults;
+            return ToSortedResults(foundExecutables);
         }
 
         private static bool AddExecutableCandidates(
@@ -97,15 +85,6 @@ namespace YSMInstaller {
             return foundExecutables
                 .Values.OrderBy(executable => executable.Path, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-        }
-
-        private static IEnumerable<WarnoExecutable> GetCachedExecutableCandidates() {
-            string cachedPath = Properties.Settings.Default.LastWarnoExecutablePath;
-            if (string.IsNullOrWhiteSpace(cachedPath)) {
-                yield break;
-            }
-
-            yield return new WarnoExecutable(cachedPath, GetSourceLabel(cachedPath));
         }
 
         private static IEnumerable<WarnoExecutable> GetSteamExecutableCandidates() {
@@ -697,31 +676,6 @@ namespace YSMInstaller {
             catch { }
 
             return false;
-        }
-
-        private static void SaveLastWarnoExecutablePath(List<WarnoExecutable> executables) {
-            string path = executables.FirstOrDefault()?.Path ?? string.Empty;
-            SaveLastWarnoExecutablePath(path);
-        }
-
-        public static void SaveLastWarnoExecutablePath(string path) {
-            if (
-                string.Equals(
-                    Properties.Settings.Default.LastWarnoExecutablePath,
-                    path,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            ) {
-                return;
-            }
-
-            try {
-                Properties.Settings.Default.LastWarnoExecutablePath = path;
-                Properties.Settings.Default.Save();
-            }
-            catch (Exception exception) {
-                AppLogger.Error("Failed to save last WARNO executable path.", exception);
-            }
         }
 
         private static string? ResolveShortcutTarget(string shortcutPath) {
