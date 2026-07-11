@@ -60,15 +60,16 @@ namespace YSMInstaller {
             }
         }
 
-        // "" == public.
-        public static string ReadCurrentBranch(string manifestPath) {
+        // "" == public; null == the manifest couldn't be read, so the caller must abort rather than
+        // treat the unknown branch as public and later "restore" the user to a build they never ran.
+        public static string? ReadCurrentBranch(string manifestPath) {
             try {
                 AcfKeyValues manifest = AcfKeyValues.Parse(File.ReadAllText(manifestPath));
                 return manifest.GetValue("UserConfig", "betakey") ?? string.Empty;
             }
             catch (Exception exception) {
                 AppLogger.Error("Failed to read current Steam branch.", exception);
-                return string.Empty;
+                return null;
             }
         }
 
@@ -94,9 +95,10 @@ namespace YSMInstaller {
                 await CloseSteamAsync(CancellationToken.None);
                 // If the original build is still mounted (we cancelled before anything downloaded),
                 // restoring the betakey needs no update — keep StateFlags=installed so Steam doesn't
-                // re-validate a build the user never actually left.
-                string mounted = ReadMountedBranch(manifestPath);
-                string stateFlags = string.Equals(mounted, originalBranch, StringComparison.Ordinal)
+                // re-validate a build the user never actually left. An unreadable mounted branch
+                // (null) forces the update path: never claim "installed" for an unconfirmed build.
+                string? mounted = ReadMountedBranch(manifestPath);
+                string stateFlags = mounted != null && string.Equals(mounted, originalBranch, StringComparison.Ordinal)
                     ? StateFlagsFullyInstalled
                     : StateFlagsNeedsUpdate;
                 WriteBranch(manifestPath, originalBranch, stateFlags);
@@ -109,15 +111,13 @@ namespace YSMInstaller {
             }
         }
 
-        private static string ReadMountedBranch(string manifestPath) {
+        private static string? ReadMountedBranch(string manifestPath) {
             try {
                 return AcfKeyValues.Parse(File.ReadAllText(manifestPath)).GetValue("MountedConfig", "betakey") ?? string.Empty;
             }
             catch (Exception exception) {
-                // Conservative fallback: an empty branch won't match originalBranch, so the caller
-                // forces a re-validate rather than trusting a build we couldn't confirm is mounted.
                 AppLogger.Error("Failed to read the mounted Steam branch.", exception);
-                return string.Empty;
+                return null;
             }
         }
 
@@ -190,7 +190,10 @@ namespace YSMInstaller {
                 using (Process.Start(info)) { }
             }
             catch (Exception exception) {
+                // Rethrow: without Steam the switch wait would just spin into the stall timeout, and
+                // a rollback that couldn't relaunch Steam must report failure, not success.
                 AppLogger.Error("Failed to launch Steam.", exception);
+                throw;
             }
         }
 
@@ -206,13 +209,14 @@ namespace YSMInstaller {
                 try {
                     manifest = AcfKeyValues.Parse(File.ReadAllText(manifestPath));
                 }
-                catch (Exception exception) when (exception is IOException || exception is FormatException) {
+                catch (Exception exception) when (
+                    (exception is IOException && !(exception is FileNotFoundException)) || exception is FormatException) {
                     // Steam is mid-write (file locked) or the manifest is half-flushed — retry next
-                    // tick. Non-transient faults (ACL, missing path) propagate to the caller, which
-                    // logs and rolls back instead of spinning until the stall timeout.
+                    // tick, keeping the last good snapshot so a flaky read can't reset the stall
+                    // timer. A vanished manifest or non-transient fault (ACL) propagates to the
+                    // caller, which logs and rolls back instead of spinning until the stall timeout.
                 }
 
-                string snapshot = string.Empty;
                 if (manifest != null) {
                     string stateFlags = manifest.GetValue("StateFlags") ?? string.Empty;
                     string mounted = manifest.GetValue("MountedConfig", "betakey") ?? string.Empty;
@@ -235,17 +239,18 @@ namespace YSMInstaller {
                         BytesToDownload = total,
                         Indeterminate = total < MinRealDownloadBytes,
                     });
-                    snapshot = stateFlags + "|" + mounted + "|" + downloaded + "|" + total;
+
+                    // Stall guard: a successfully-progressing download changes BytesDownloaded every
+                    // tick, so lastChange keeps resetting; only a genuine stall (Steam never started,
+                    // or stuck) — including one where every read fails — trips the timeout.
+                    string snapshot = stateFlags + "|" + mounted + "|" + downloaded + "|" + total;
+                    if (snapshot != lastSnapshot) {
+                        lastSnapshot = snapshot;
+                        lastChange = DateTime.UtcNow;
+                    }
                 }
 
-                // Stall guard: a successfully-progressing download changes BytesDownloaded every tick,
-                // so lastChange keeps resetting; only a genuine stall (Steam never started, or stuck)
-                // trips the timeout. An unreadable manifest counts as no-progress too (empty snapshot).
-                if (snapshot != lastSnapshot) {
-                    lastSnapshot = snapshot;
-                    lastChange = DateTime.UtcNow;
-                }
-                else if (DateTime.UtcNow - lastChange > TimeSpan.FromSeconds(StallTimeoutSeconds)) {
+                if (DateTime.UtcNow - lastChange > TimeSpan.FromSeconds(StallTimeoutSeconds)) {
                     throw new TimeoutException(
                         "Steam isn't downloading the new WARNO version (no progress for " + StallTimeoutSeconds + " s).");
                 }

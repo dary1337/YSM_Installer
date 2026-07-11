@@ -370,7 +370,12 @@ namespace YSMInstaller {
                     "Automatic version switching needs a Steam-managed WARNO install. Switch the build manually in Steam → WARNO → Properties → Betas.");
                 return;
             }
-            string originalBranch = SteamVersionSwitcher.ReadCurrentBranch(manifestPath);
+            string? originalBranch = SteamVersionSwitcher.ReadCurrentBranch(manifestPath);
+            if (originalBranch == null) {
+                UserMessages.ShowNotice(this, "Can't switch automatically",
+                    "Couldn't read your current WARNO build from Steam's manifest, so it can't be restored after the switch. Switch the build manually in Steam → WARNO → Properties → Betas.");
+                return;
+            }
             RenderSwitchingGameVersion(option, manifestPath, originalBranch);
         }
 
