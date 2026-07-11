@@ -387,7 +387,8 @@ namespace YSMInstaller {
                 return;
             }
             DevWarnoMocks.SimulateInstallFailure = fail;
-            _ = StartInstallAsync(target.Metadata, _selectedEntry.Version);
+            int version = _selectedEntry.Version;
+            _ = SafeFireDev(() => StartInstallAsync(target.Metadata, version), "Dev: Run install failed.");
         }
 #endif
     }
