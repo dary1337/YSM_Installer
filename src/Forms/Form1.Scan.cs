@@ -219,7 +219,6 @@ namespace YSMInstaller {
                     return Task.CompletedTask;
                 }
 
-                WarnoFinder.SaveLastWarnoExecutablePath(dialog.FileName);
                 _entries = entries;
                 _hasFoundWarnoExe = true;
                 RenderInstallsFound();

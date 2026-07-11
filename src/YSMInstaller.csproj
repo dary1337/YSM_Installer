@@ -166,6 +166,7 @@
     <Compile Include="Utilities\MemoryCache.cs" />
     <Compile Include="Utilities\RemoteHtmlResponseException.cs" />
     <Compile Include="Utilities\IniFile.cs" />
+    <Compile Include="Utilities\LegacySettingsCleanup.cs" />
     <Compile Include="Utilities\AcfKeyValues.cs" />
     <Compile Include="Utilities\PathFormatting.cs" />
     <Compile Include="Utilities\SafeArchiveExtractor.cs" />
@@ -220,15 +221,6 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="Properties\app.manifest" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Properties\App.config" />

@@ -44,6 +44,7 @@ namespace YSMInstaller {
 
             AppLogger.Initialize();
             RegisterCriticalErrorHandlers();
+            LegacySettingsCleanup.Run();
 
             try {
                 Application.EnableVisualStyles();
