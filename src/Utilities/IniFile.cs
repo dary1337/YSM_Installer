@@ -78,8 +78,10 @@ namespace YSMInstaller {
                 }
             }
 
-            // Atomic write: WriteAllLines truncates before writing, so a crash mid-flush would leave WARNO's
-            // Config.ini empty inside the install's no-cancel finalize block. File.Replace is NTFS-journal-atomic.
+            // Write to path + ".tmp" first, then swap it in: writing Config.ini directly would truncate
+            // before flushing, so a crash mid-write inside the install's no-cancel finalize block could
+            // leave it empty. With the temp-then-replace flow the original survives until the new file
+            // is fully on disk.
             string tempPath = path + ".tmp";
             try {
                 File.WriteAllLines(tempPath, output);
