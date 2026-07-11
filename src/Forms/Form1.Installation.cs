@@ -401,6 +401,7 @@ namespace YSMInstaller {
                 Font = MaterialType.BodyMedium,
                 ForeColor = MaterialColors.OnSurfaceVariant,
                 Margin = Padding.Empty,
+                MaximumSize = new Size(440, 0),
                 Text = subtitle,
             });
 
