@@ -127,6 +127,64 @@ namespace YSMInstaller {
                 catch (Exception exception) {
                     AppLogger.Critical("Initial scan failed.", exception);
                 }
+                MaybeShowToolkitPrompt();
+            }
+        }
+
+        // Final-release nudge toward the successor (Yuri's WARNO Toolkit). Shown once the initial scan
+        // has settled — never mid auto-update (that path restarts the app).
+        private void MaybeShowToolkitPrompt() {
+            if (IsDisposed || Disposing || _isInstalling || _isScanning) {
+                return;
+            }
+
+            DialogResult result;
+            using (var dialog = new MaterialDialog()) {
+                dialog.IconGlyph = MaterialIcons.ArrowForward;
+                dialog.IconColor = MaterialColors.Primary;
+                dialog.TitleText = "Meet Yuri's WARNO Toolkit";
+                dialog.BodyText =
+                    "This is the final YSM Installer — it won't be updated anymore.\n\n"
+                    + "Its successor, Yuri's WARNO Toolkit, keeps the one-click YSM install and adds a full "
+                    + "battlegroup editor: build and edit decks straight on your profile — even the ones WARNO "
+                    + "hides or won't let you import — switch game builds, and back up your whole profile.";
+                dialog.AddAction("Not now", DialogResult.Cancel, MaterialButtonVariant.Text);
+                dialog.AddAction("Get the Toolkit", DialogResult.Yes, MaterialButtonVariant.Filled);
+                dialog.Load += (sender, args) => SetActionIcon(dialog, "Get the Toolkit", MaterialIcons.OpenInNew);
+                result = dialog.ShowDialog(this);
+            }
+
+            if (result == DialogResult.Yes) {
+                AppLinks.Open(AppLinks.Toolkit);
+            }
+        }
+
+        // MaterialDialog has no icon-bearing AddAction and only builds its action buttons in OnLoad,
+        // so the glyph is grafted on afterwards — widening the pill and re-packing the right-aligned row.
+        private static void SetActionIcon(Form dialog, string actionText, string glyph) {
+            MaterialButton? target = null;
+            foreach (Control control in dialog.Controls) {
+                if (control is MaterialButton button && string.Equals(button.Text, actionText, StringComparison.Ordinal)) {
+                    target = button;
+                    break;
+                }
+            }
+            if (target == null) {
+                return;
+            }
+
+            const int IconWidth = 18;
+            const int IconGap = 8;
+            int extra = (int)Math.Round((IconWidth + IconGap) * dialog.DeviceDpi / 96.0);
+            int rowTop = target.Top;
+            int anchorLeft = target.Left;
+
+            target.IconGlyph = glyph;
+            target.Width += extra;
+            foreach (Control control in dialog.Controls) {
+                if (control is MaterialButton button && button.Top == rowTop && button.Left <= anchorLeft) {
+                    button.Left -= extra;
+                }
             }
         }
 

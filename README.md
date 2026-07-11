@@ -1,6 +1,15 @@
+# YSM Installer
+
 ![YSM Installer](docs/cover.png)
 
-# YSM Installer
+> [!IMPORTANT]
+> **This is the final release — YSM Installer won't be updated anymore.**
+>
+> Its successor is [**Yuri's WARNO Toolkit**](https://github.com/dary1337/yuri-warno-toolkit). It keeps the
+> one-click YSM install and adds a full battlegroup editor: build and edit decks straight on your profile —
+> even the ones WARNO hides or won't let you import — switch game builds, and back up your whole profile.
+>
+> [**Get the Toolkit →**](https://github.com/dary1337/yuri-warno-toolkit)
 
 ### <img src="https://cdn.simpleicons.org/discord/5865F2" height="18" alt="" /> [YSM Community](https://discord.gg/XmbhaSRqfZ)
 
@@ -22,7 +31,6 @@ One-click installer for [**YSM**](https://steamcommunity.com/sharedfiles/filedet
 - **Safe install** — closes WARNO first, backs up your current mod config, and rolls everything back if anything fails.
 - **Cancel anytime** — the progress bar has a Cancel button. Canceling restores the previous state.
 - **Clear errors** — if the installer can't reach the internet, it tells you whether you're offline, the mod host (GitHub or Google Drive) is down, or just the mod list is broken, instead of a cryptic error.
-- **Auto-updates** — checks for new installer versions on startup and shows the release notes before updating.
 - **Settings** — switch between the official mod list and Yokaiste's GitHub releases as the source.
 
 ## Requirements

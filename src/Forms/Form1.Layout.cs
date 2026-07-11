@@ -37,13 +37,14 @@ namespace YSMInstaller {
                     ShowMaximize = false,
                 };
 
+                // Docked controls ignore Margin, so the gap under the sunset banner is padding here.
                 _root = new TableLayoutPanel {
                     Dock = DockStyle.Fill,
                     ColumnCount = 1,
                     RowCount = 3,
                     BackColor = Color.Transparent,
                     Margin = Padding.Empty,
-                    Padding = Padding.Empty,
+                    Padding = new Padding(0, Sizes.ContentGap, 0, 0),
                 };
                 _root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
                 _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -63,7 +64,10 @@ namespace YSMInstaller {
                     Margin = Padding.Empty,
                     Padding = new Padding(Sizes.WindowPadding),
                 };
+                // Dock ordering inside the wrap: last-added docks first, so add the fill body first
+                // and the sunset banner second → the banner pins to the top above every state.
                 contentWrap.Controls.Add(_root);
+                contentWrap.Controls.Add(BuildSunsetBanner());
 
                 // Dock ordering: controls dock in reverse Z-order (last-added docks first).
                 Controls.Add(contentWrap);
@@ -154,6 +158,103 @@ namespace YSMInstaller {
             header.Controls.Add(_titleStack, 0, 0);
             header.Controls.Add(rightActions, 1, 0);
             return header;
+        }
+
+        // Persistent, state-independent strip pinned under the titlebar: tells the user this is the
+        // final YSM Installer and hands them the successor (Yuri's WARNO Toolkit) in one click.
+        private Control BuildSunsetBanner() {
+            // The card owner-draws its surface, so a Color.Transparent child paints the form's
+            // background instead of the card's — every child carries the container color explicitly.
+            Color surface = MaterialColors.SecondaryContainer;
+
+            // Height is measured against the real width (see FitSunsetBanner) rather than left to
+            // AutoSize, which measures unconstrained — the wrapped supporting line would then fall
+            // outside the card and take its bottom padding with it.
+            var card = new MaterialCard(Sizes.RadiusMedium) {
+                AutoSize = false,
+                BackColor = surface,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+                Padding = new Padding(Tokens.Space3_5, Sizes.ContentGap, Sizes.ContentGap, Sizes.ContentGap),
+            };
+
+            var grid = new TableLayoutPanel {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = surface,
+                ColumnCount = 3,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var icon = new PictureBox {
+                Anchor = AnchorStyles.None,
+                BackColor = surface,
+                Image = MaterialIconRenderer.Get(MaterialIcons.ArrowForward, 22, MaterialColors.OnSecondaryContainer),
+                Margin = new Padding(0, 0, 12, 0),
+                Size = new Size(24, 24),
+                SizeMode = PictureBoxSizeMode.CenterImage,
+            };
+            icon.Disposed += (s, e) => icon.Image?.Dispose();
+
+            var textStack = new FlowLayoutPanel {
+                Anchor = AnchorStyles.Left,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = surface,
+                FlowDirection = FlowDirection.TopDown,
+                Margin = Padding.Empty,
+                WrapContents = false,
+            };
+            textStack.Controls.Add(new Label {
+                AutoSize = true,
+                Font = MaterialType.TitleSmall,
+                ForeColor = MaterialColors.OnSecondaryContainer,
+                Margin = new Padding(0, 0, 0, 1),
+                // '&' in the copy is a literal, not a WinForms mnemonic accelerator.
+                UseMnemonic = false,
+                Text = "Final release — YSM Installer won't be updated anymore",
+            });
+            textStack.Controls.Add(new Label {
+                AutoSize = true,
+                Font = MaterialType.BodySmall,
+                ForeColor = MaterialColors.OnSecondaryContainer,
+                Margin = Padding.Empty,
+                UseMnemonic = false,
+                Text = "Yuri's WARNO Toolkit takes over: one-click YSM install plus a full deck & profile editor.",
+            });
+
+            var getIt = new MaterialButton {
+                Anchor = AnchorStyles.None,
+                AutoSize = true,
+                Variant = MaterialButtonVariant.Filled,
+                Text = "Get the Toolkit",
+                IconGlyph = MaterialIcons.OpenInNew,
+                Height = Sizes.ButtonHeight,
+                Margin = new Padding(12, 0, 0, 0),
+            };
+            getIt.Click += (s, e) => AppLinks.Open(AppLinks.Toolkit);
+
+            grid.Controls.Add(icon, 0, 0);
+            grid.Controls.Add(textStack, 1, 0);
+            grid.Controls.Add(getIt, 2, 0);
+            card.Controls.Add(grid);
+            card.SizeChanged += (s, e) => FitSunsetBanner(card, grid);
+            return card;
+        }
+
+        private static void FitSunsetBanner(Control card, Control content) {
+            int innerWidth = card.ClientSize.Width - card.Padding.Horizontal;
+            if (innerWidth <= 0) {
+                return;
+            }
+            int height = content.GetPreferredSize(new Size(innerWidth, 0)).Height + card.Padding.Vertical;
+            if (card.Height != height) {
+                card.Height = height;
+            }
         }
 
         private Control BuildContentHost() {
