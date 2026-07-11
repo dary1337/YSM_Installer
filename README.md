@@ -51,8 +51,15 @@ The installer goes online only to:
 - download the mod archive you chose (from GitHub or Google Drive, depending on the build)
 - check for installer updates
 
+## Like the look?
+
+The entire interface is [**material3-dotnet**](https://github.com/dary1337/material3-dotnet) — Material 3
+(Material You) for .NET desktop: themed WinForms & WPF controls with dynamic color (HCT) from one seed,
+live light/dark theming, type scale, elevation, and motion. Dependency-free, MIT. Everything you see in
+this installer — buttons, cards, dialogs, scrollbars, the titlebar — comes straight from the library.
+
 ## Third-party
 
 Mod archives are extracted with [7-Zip](https://www.7-zip.org/)'s `7z.dll` (bundled, LGPL). Licenses and details: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and [licenses/](licenses/).
 
-The interface is built on [Material3.WinForms](https://github.com/dary1337/material3-winforms) (MIT) — Material 3 controls for Windows Forms.
+The interface is built on [Material3.WinForms](https://github.com/dary1337/material3-dotnet) (MIT), part of material3-dotnet.
