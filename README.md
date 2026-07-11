@@ -14,7 +14,8 @@ One-click installer for [**YSM**](https://steamcommunity.com/sharedfiles/filedet
 
 - **Finds WARNO automatically** — works with Steam, non-Steam, and portable installs. If it misses, point it to `Warno.exe` manually or run a full-drive scan.
 - **Handles multiple WARNO copies** — picks them all up and lets you choose which one to mod.
-- **Knows the right mod for your version** — if WARNO is newer than the catalog, the installer falls back to the latest compatible mod and warns you. A built-in guide shows how to switch WARNO versions via Steam betas.
+- **Knows the right mod for your version** — if WARNO is newer than the catalog, the installer falls back to the latest compatible mod and warns you.
+- **One-tap version switch** — when a mod needs an older WARNO, the installer switches the game to the matching Steam beta branch for you, waits for the download, and installs. No manual beta-code juggling.
 - **"Choose a build" screen** when several mods fit your WARNO version — with download sizes shown up front.
 - **Bring your own** — install from a local folder or archive (`.zip`, `.7z`, `.rar`) if you already have one.
 - **Known-issues link** — if your version has known issues, you get a one-click link to the workshop discussion before installing.
