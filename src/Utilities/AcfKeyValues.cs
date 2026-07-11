@@ -96,7 +96,10 @@ namespace YSMInstaller {
                     char next = text[pos++];
                     if (next == 'n') sb.Append('\n');
                     else if (next == 't') sb.Append('\t');
-                    else sb.Append(next); // \\ and \" and anything else → the literal char
+                    else if (next == '\\' || next == '"') sb.Append(next);
+                    // Unknown escape (e.g. a raw Windows path like C:\Data): keep the backslash so
+                    // the value round-trips through Serialize() instead of silently losing it.
+                    else sb.Append('\\').Append(next);
                     continue;
                 }
                 if (c == '"') {
