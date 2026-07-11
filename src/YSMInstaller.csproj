@@ -96,8 +96,12 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(NuGetPackageRoot)newtonsoft.json\13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="Material3.Core">
+      <HintPath>$(NuGetPackageRoot)material3.core\0.7.0\lib\netstandard2.0\Material3.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Material3.WinForms">
-      <HintPath>$(NuGetPackageRoot)material3.winforms\0.6.0\lib\net472\Material3.WinForms.dll</HintPath>
+      <HintPath>$(NuGetPackageRoot)material3.winforms\0.7.0\lib\net472\Material3.WinForms.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Svg">
@@ -259,7 +263,7 @@
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Resources.Extensions" Version="10.0.7" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
-    <PackageReference Include="Material3.WinForms" Version="0.6.0" />
+    <PackageReference Include="Material3.WinForms" Version="0.7.0" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
